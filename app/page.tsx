@@ -1,11 +1,15 @@
 import BookProgressTable from "./components/BookProgressTable";
-import NavBar from "./components/NavBar";
+import NavBar from "./components/NavBar/NavBar";
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
 
 export default async function Home() {
   const session = await auth();
-  if (!session) return redirect('/profile');
+  if (!session)
+    return (
+      <div>
+        <NavBar />
+      </div>
+    );
 
   return (
     <div>

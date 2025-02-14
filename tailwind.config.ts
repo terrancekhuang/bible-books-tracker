@@ -14,5 +14,10 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    require('daisyui')
+  ],
+  daisyui: {
+    themes: ['dracula']
+  }
 } satisfies Config;

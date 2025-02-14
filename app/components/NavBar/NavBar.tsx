@@ -22,7 +22,7 @@ export default async function NavBar() {
               hrefLink={session ? "/" : "#"}
             />
             <NavBarButton
-              buttonLabel="Profile"
+              buttonLabel="Stats"
               hrefLink={session ? "/stats" : "#"}
             />
           </ul>

@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { useState } from "react";
 
 interface Book {
   book_id: number;

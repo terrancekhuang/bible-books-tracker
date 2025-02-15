@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import Link from "next/link";
 
 interface NavBarButtonProps {
   className?: string;
@@ -7,8 +8,18 @@ interface NavBarButtonProps {
   hrefLink?: string;
 }
 
-const NavBarButton = ({className, buttonLabel, hrefLink}: NavBarButtonProps) => {
-  return <li><a className={className} href={hrefLink}>{buttonLabel}</a></li>;
+const NavBarButton = ({
+  className,
+  buttonLabel,
+  hrefLink,
+}: NavBarButtonProps) => {
+  return (
+    <li>
+      <Link className={className} href={hrefLink!}>
+        {buttonLabel}
+      </Link>
+    </li>
+  );
 };
 
 export default NavBarButton;

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 
 interface Book {
   book_id: number;
@@ -11,9 +11,11 @@ interface Book {
 }
 
 const DataTable = ({ books }: { books: Book[] }) => {
+  const [selectedBookRow, setSelectedBookRow] = useState(0);
+
   return (
-    <div className="overflow-x-auto">
-      <table className="table">
+    <div className="h-screen overflow-y-scroll">
+      <table className="table table-pin-rows">
         <thead>
           <tr>
             <th>Book name</th>
@@ -24,7 +26,11 @@ const DataTable = ({ books }: { books: Book[] }) => {
         </thead>
         <tbody>
           {books.map((book) => (
-            <tr className="hover" key={book.book_id}>
+            <tr
+              className={`${selectedBookRow === book.book_id && "bg-base-200"}`}
+              key={book.book_id}
+              onClick={() => setSelectedBookRow(book.book_id)}
+            >
               <td>{book.book_name}</td>
               <td>{book.testament}</td>
               <td>{book.category}</td>

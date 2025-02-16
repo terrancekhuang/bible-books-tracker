@@ -6,6 +6,7 @@ import ProfileDropDown from "./ProfileDropDown";
 
 export default async function NavBar() {
   const session = await auth();
+  const user = session?.user;
   return (
     <>
       <div className="navbar bg-base-300">
@@ -29,7 +30,13 @@ export default async function NavBar() {
           </ul>
         </div>
         <div className="navbar-end">
-          {session ? <ProfileDropDown /> : <AuthenticationButton />}
+          {user ? (
+            <ProfileDropDown
+              image={user?.image || ""}
+            />
+          ) : (
+            <AuthenticationButton />
+          )}
         </div>
       </div>
     </>

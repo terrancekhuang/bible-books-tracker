@@ -1,17 +1,17 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { createUser } from "@/app/lib/queries";
-import { auth, signOut } from "@/auth";
+import { signOut } from "@/auth";
 
-const ProfileDropDown = async () => {
-  const session = await auth();
-  const user = session?.user;
+type userProp = {
+  image: string;
+}
+
+const ProfileDropDown = async ({image}: userProp) => {
   const userImageDimension = 52;
 
   return (
     <>
-      {await createUser(user!.name!, user!.email!)}
       <div className="dropdown dropdown-end">
         <div
           tabIndex={0}
@@ -19,7 +19,7 @@ const ProfileDropDown = async () => {
           className="btn btn-ghost btn-circle avatar"
         >
           <div className="w-10 rounded-full">
-            <Image alt="user image" src={user!.image!} width={userImageDimension} height={userImageDimension}/>
+            <Image alt="user image" src={image} width={userImageDimension} height={userImageDimension}/>
           </div>
         </div>
         <ul

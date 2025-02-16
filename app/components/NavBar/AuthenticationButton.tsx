@@ -1,11 +1,7 @@
 import React from "react";
-import { auth, signIn } from "@/auth";
-import ProfileDropDown from "./ProfileDropDown";
+import { signIn } from "@/auth";
 
 const AuthenticationButton = async () => {
-  const session = await auth();
-  const user = session?.user;
-
   return (
     <>
       <form

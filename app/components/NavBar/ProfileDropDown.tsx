@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { createUser } from "@/app/lib/queries";
 import { auth, signOut } from "@/auth";
 
@@ -17,7 +18,7 @@ const ProfileDropDown = async () => {
           className="btn btn-ghost btn-circle avatar"
         >
           <div className="w-10 rounded-full">
-            <img alt="user image" src={user!.image!} />
+            <Image alt="user image" src={user!.image!} />
           </div>
         </div>
         <ul

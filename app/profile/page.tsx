@@ -1,4 +1,4 @@
-import { auth, signIn, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { createUser } from "@/app/lib/queries";
 
 export default async function SignIn() {

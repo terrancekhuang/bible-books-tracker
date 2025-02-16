@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import React from "react";
 import NavBarButton from "./NavBarButton";
 import AuthenticationButton from "./AuthenticationButton";
+import ProfileDropDown from "./ProfileDropDown";
 
 export default async function NavBar() {
   const session = await auth();
@@ -28,7 +29,7 @@ export default async function NavBar() {
           </ul>
         </div>
         <div className="navbar-end">
-          <AuthenticationButton />
+          {session ? <ProfileDropDown /> : <AuthenticationButton />}
         </div>
       </div>
     </>

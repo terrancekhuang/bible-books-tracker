@@ -1,24 +1,12 @@
 import React from "react";
-import { auth, signIn, signOut } from "@/auth";
-import { createUser } from "@/app/lib/queries";
+import { auth, signIn } from "@/auth";
+import ProfileDropDown from "./ProfileDropDown";
 
 const AuthenticationButton = async () => {
   const session = await auth();
   const user = session?.user;
 
-  return user ? (
-    <>
-      {user && (await createUser(user.name!, user.email!))}
-      <form
-        action={async () => {
-          "use server";
-          await signOut();
-        }}
-      >
-        <button className="btn">Sign out</button>
-      </form>
-    </>
-  ) : (
+  return (
     <>
       <form
         action={async () => {

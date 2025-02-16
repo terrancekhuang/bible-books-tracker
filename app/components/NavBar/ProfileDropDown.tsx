@@ -7,6 +7,7 @@ import { auth, signOut } from "@/auth";
 const ProfileDropDown = async () => {
   const session = await auth();
   const user = session?.user;
+  const userImageDimension = 52;
 
   return (
     <>
@@ -18,12 +19,12 @@ const ProfileDropDown = async () => {
           className="btn btn-ghost btn-circle avatar"
         >
           <div className="w-10 rounded-full">
-            <Image alt="user image" src={user!.image!} />
+            <Image alt="user image" src={user!.image!} width={userImageDimension} height={userImageDimension}/>
           </div>
         </div>
         <ul
           tabIndex={0}
-          className="menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-52 p-2 shadow"
+          className={`menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-${userImageDimension} p-2 shadow`}
         >
           <li>
             <Link href="/profile" className="justify-between">

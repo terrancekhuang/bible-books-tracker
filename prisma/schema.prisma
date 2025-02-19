@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model bible_books {
+  book_id          Int                @id @default(autoincrement())
+  book_name        String
+  testament        testaments
+  chapters         Int
+  category         categories
+}
+
+model reading_cycles {
+  cycle_id         Int                @id @default(autoincrement())
+  user_id          Int
+  reading_cycle    Int
+  start_date       DateTime           @default(dbgenerated("CURRENT_DATE")) @db.Date
+  goal_date        DateTime           @db.Date
+}
+
+model reading_progress {
+  cycle_id       Int
+  book_id        Int
+  chapters_read  Int
+
+  @@id([cycle_id, book_id])
+}
+
+model users {
+  id             Int              @unique @default(autoincrement())
+  full_name      String
+  email          String
+
+  @@id([full_name, email], map: "users_prim_key")
+}
+
+enum categories {
+  Law
+  History
+  Poetry
+  Major_Prophets   @map("Major Prophets")
+  Minor_Prophets   @map("Minor Prophets")
+  Gospels
+  Church_History   @map("Church History")
+  Paul_s_Epistles  @map("Paul's Epistles")
+  General_Epistles @map("General Epistles")
+}
+
+enum testaments {
+  Old_Testament @map("Old Testament")
+  New_Testament @map("New Testament")
+}

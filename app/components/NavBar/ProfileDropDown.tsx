@@ -24,7 +24,7 @@ const ProfileDropDown = async ({image}: userProp) => {
         </div>
         <ul
           tabIndex={0}
-          className={`menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-${userImageDimension} p-2 shadow`}
+          className={`menu menu-sm dropdown-content bg-base-100 rounded-box z-[1] mt-3 w-${userImageDimension} p-2 shadow w-max`}
         >
           <li>
             <Link href="/profile" className="justify-between">

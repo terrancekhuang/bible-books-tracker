@@ -1,6 +1,6 @@
 import React from "react";
 import { auth, signIn } from "@/auth";
-import { createUser } from "@/app/lib/queries";
+import { createUser } from "@/lib/queries";
 
 const AuthenticationButton = async () => {
   return (
@@ -10,7 +10,11 @@ const AuthenticationButton = async () => {
           "use server";
           await signIn("google", { redirectTo: "/" });
           const session = await auth();
-          if (session) await createUser(session.user?.name || "", session.user?.email || "")
+          if (session)
+            await createUser(
+              session.user?.name || "",
+              session.user?.email || ""
+            );
         }}
       >
         <button className="btn">Sign in</button>

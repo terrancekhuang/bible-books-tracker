@@ -6,12 +6,13 @@ import {
   getLatestCycle,
 } from "@/lib/queries";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 
 export async function formUpdateReadingCycle(formData: FormData) {
   const session = await auth();
   if (!session) {
-    redirect("api/auth/signin")
+    redirect("api/auth/signin");
   }
   const user = session.user;
   const userId = await getUserId(user?.name || "", user?.email || "");
@@ -50,5 +51,5 @@ export async function formUpdateReadingCycle(formData: FormData) {
     goalDate
   );
 
-  redirect("/profile");
+  revalidatePath("/profile");
 }

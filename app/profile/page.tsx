@@ -10,7 +10,7 @@ export default async function Profile() {
   const latestCycle = await getLatestCycle(user?.email || "");
 
   if (!session) {
-    redirect("api/auth/signin")
+    redirect("api/auth/signin");
   }
   return (
     <>

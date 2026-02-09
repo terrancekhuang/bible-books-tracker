@@ -1,8 +1,11 @@
-from flask import Flask, jsonify
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 import psycopg2
+from psycopg2.extras import RealDictCursor
 from config import Config
 
 app = Flask(__name__)
+CORS(app)
 
 
 def get_db_connection():
@@ -55,6 +58,59 @@ def get_books():
     } for item in raw_data]
 
     return jsonify(books)
+
+
+@app.route('/api/progress', methods=['POST'])
+def update_progress():
+    data = request.json
+    book_name = data.get('book_name')
+    chapters_to_add = data.get('chapters_today')
+
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+
+    try:
+        cur.execute(
+            "SELECT cycle_id FROM reading_cycles WHERE user_id = 1 ORDER BY cycle_number DESC")
+        cycle = cur.fetchone()
+        if not cycle:
+            return jsonify({'success': False, 'error': 'No active reading cycle found'}), 404
+        cycle_id = cycle['cycle_id']
+
+        cur.execute(
+            "SELECT book_id FROM bible_books WHERE name = %s", (book_name,))
+        book = cur.fetchone()
+        if not book:
+            return jsonify({'success': False, 'error': f'Book "{book_name}" not found'}), 404
+        book_id = book['book_id']
+
+        cur.execute("""
+        INSERT INTO progress (user_id, cycle_id, book_id, chapters_read)
+        VALUES (1, %s, %s, %s)
+        ON CONFLICT (user_id, cycle_id, book_id)
+        DO UPDATE SET chapters_read = progress.chapters_read + %s
+        RETURNING chapters_read
+        """, (cycle_id, book_id, chapters_to_add, chapters_to_add))
+
+        result = cur.fetchone()
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        if not result:
+            raise Exception("Failed to update progress.")
+
+        return jsonify({
+            'success': True,
+            'chapters_read': result['chapters_read']
+        })
+    except Exception as e:
+        conn.rollback()
+        cur.close()
+        conn.close()
+        return jsonify({
+            'success': False, 'error': str(e)
+        }), 500
 
 
 if __name__ == '__main__':

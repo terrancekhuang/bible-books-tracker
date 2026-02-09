@@ -28,16 +28,30 @@ def initialize_database():
 def get_books():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute(
-        'SELECT name, testament, category, num_chapters FROM bible_books')
+    user_id = 1
+    query = """
+    SELECT
+        b.book_id,
+        b.name,
+        b.testament,
+        b.category,
+        b.num_chapters,
+        COALESCE(p.chapters_read, 0) AS chapters_read
+    FROM bible_books b
+    LEFT JOIN progress p ON b.book_id = p.book_id AND p.user_id = %s
+    ORDER BY b.book_id ASC
+    """
+    cur.execute(query, (user_id,))
     raw_data = cur.fetchall()
     conn.close()
 
     books = [{
-        "name": item[0],
-        "testament": item[1],
-        "category": item[2],
-        "num_chapters": item[3],
+        "book_id": item[0],
+        "name": item[1],
+        "testament": item[2],
+        "category": item[3],
+        "num_chapters": item[4],
+        "chapters_read": item[5]
     } for item in raw_data]
 
     return jsonify(books)

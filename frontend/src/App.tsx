@@ -35,23 +35,47 @@ function App() {
     return Math.round((book.chapters_read / book.num_chapters) * 100);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedBook) return;
-    setBooks(
-      books.map((book) =>
-        book.name === selectedBook.name
-          ? {
-              ...book,
-              chapters_read: (book.chapters_read || 0) + chaptersToday,
-            }
-          : book,
-      ),
-    );
 
-    setSelectedBook({
-      ...selectedBook,
-      chapters_read: (selectedBook.chapters_read || 0) + chaptersToday,
-    });
+    try {
+      const response = await fetch("/api/progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          book_name: selectedBook.name,
+          chapters_today: chaptersToday,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to update progress");
+      }
+
+      setBooks(
+        books.map((book) =>
+          book.name === selectedBook.name
+            ? {
+                ...book,
+                chapters_read: data.chapters_read,
+              }
+            : book,
+        ),
+      );
+
+      setSelectedBook({
+        ...selectedBook,
+        chapters_read: data.chapters_read,
+      });
+
+      setChaptersToday(1);
+    } catch (e) {
+      console.error("Error updating progress:", e);
+    }
   };
 
   return (

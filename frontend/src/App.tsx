@@ -118,11 +118,11 @@ function App() {
   };
 
   return (
-    <>
-      <h1 className="text-3xl font-bold text-center">Bible Books Tracker</h1>
+    <div className="flex flex-col h-screen">
+      <h1 className="text-3xl font-bold text-center py-4">Bible Books Tracker</h1>
 
-      <div className="app flex gap-5 min-h-screen">
-        <div className="table-container flex-1 border-2 table table-md table-pin-rows overflow-auto">
+      <div className="app flex gap-5 flex-1 overflow-hidden px-5 pb-5">
+        <div className="table-container flex-1 border-2 overflow-y-auto">
           {sortKey !== null && (
             <div className="p-2">
               <button className="btn btn-xs btn-ghost" onClick={resetSort}>
@@ -174,7 +174,7 @@ function App() {
           </table>
         </div>
 
-        <div className="detail-card flex flex-col w-96">
+        <div className="detail-card flex flex-col w-96 overflow-y-auto">
           {selectedBook ? (
             <>
               <h1 className="text-3xl font-bold text-center">
@@ -219,7 +219,7 @@ function App() {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

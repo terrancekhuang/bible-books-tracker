@@ -181,8 +181,13 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                     key={book.name}
                     onClick={() => setSelectedBook(book)}
                     className={[
-                      selectedBook?.name === book.name ? "selected" : "",
-                      isComplete ? "opacity-40" : "",
+                      "cursor-pointer",
+                      selectedBook?.name === book.name
+                        ? "ring-2 ring-inset ring-primary"
+                        : "",
+                      isComplete && selectedBook?.name !== book.name
+                        ? "opacity-40"
+                        : "",
                     ].join(" ")}
                   >
                     <td>{book.name}</td>

@@ -140,6 +140,19 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
         return;
       }
 
+      if ((e.key === '+' || e.key === '=') && !isInput && selectedBook) {
+        e.preventDefault();
+        const max = selectedBook.num_chapters - selectedBook.chapters_read;
+        setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max)));
+        return;
+      }
+
+      if (e.key === '-' && !isInput && selectedBook) {
+        e.preventDefault();
+        setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0)));
+        return;
+      }
+
       if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isInput) {
         e.preventDefault();
         const currentIndex = selectedBook
@@ -316,7 +329,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                       onKeyDown={(e) => {
                         const max = selectedBook.num_chapters - selectedBook.chapters_read;
                         if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
-                        if (e.key === '+') { e.preventDefault(); setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max))); }
+                        if (e.key === '+' || e.key === '=') { e.preventDefault(); setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max))); }
                         if (e.key === '-') { e.preventDefault(); setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0))); }
                       }}
                       className="input"

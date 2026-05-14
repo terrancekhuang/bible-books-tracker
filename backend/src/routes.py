@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
+import os
 from psycopg2.extras import RealDictCursor
 from config import Config
 
@@ -21,7 +22,8 @@ def get_db_connection():
 def initialize_database():
     conn = get_db_connection()
     cur = conn.cursor()
-    with open('backend/src/schema.sql', 'r') as f:
+    schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
+    with open(schema_path, 'r') as f:
         schema_sql = f.read()
     cur.execute(schema_sql)
     conn.commit()
@@ -115,4 +117,4 @@ def update_progress():
 
 if __name__ == '__main__':
     initialize_database()
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)

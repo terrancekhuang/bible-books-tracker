@@ -15,7 +15,7 @@ function App() {
   const [chaptersToday, setChaptersToday] = useState(0);
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/books")
+    fetch("/api/books")
       .then((res) => res.json())
       .then((rawData) => {
         const transformedBooks = rawData.map((item: Book) => ({
@@ -90,6 +90,7 @@ function App() {
                 <th>Book Name</th>
                 <th>Chapters Read</th>
                 <th>Percent Read</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
@@ -104,6 +105,11 @@ function App() {
                     {book.chapters_read || 0} / {book.num_chapters}
                   </td>
                   <td>{calculateProgress(book)}%</td>
+                  <td>
+                    {book.chapters_read >= book.num_chapters && (
+                      <span className="badge badge-success">Complete</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -119,28 +125,36 @@ function App() {
               <p className="testament">{selectedBook.testament}</p>
               <p>Category: {selectedBook.category}</p>
               <p>Chapters Read: {selectedBook.chapters_read || 0}</p>
-
-              <div className="chapters-today">
-                <label>Chapters Read Today: </label>
-                <input
-                  type="number"
-                  min="1"
-                  max={selectedBook.num_chapters - selectedBook.chapters_read}
-                  value={chaptersToday}
-                  onChange={(e) =>
-                    setChaptersToday(parseInt(e.target.value) || 1)
-                  }
-                  className="input"
-                />
-              </div>
               <p>Total Number Chapters: {selectedBook.num_chapters || 0}</p>
 
-              <button
-                className="submit-btn btn btn-success"
-                onClick={handleSubmit}
-              >
-                Submit
-              </button>
+              {selectedBook.chapters_read >= selectedBook.num_chapters ? (
+                <div className="alert alert-success mt-4">
+                  All chapters read!
+                </div>
+              ) : (
+                <>
+                  <div className="chapters-today">
+                    <label>Chapters Read Today: </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={selectedBook.num_chapters - selectedBook.chapters_read}
+                      value={chaptersToday}
+                      onChange={(e) =>
+                        setChaptersToday(parseInt(e.target.value) || 1)
+                      }
+                      className="input"
+                    />
+                  </div>
+
+                  <button
+                    className="submit-btn btn btn-success"
+                    onClick={handleSubmit}
+                  >
+                    Submit
+                  </button>
+                </>
+              )}
             </>
           ) : (
             <p className="placeholder">Select a book to view details.</p>

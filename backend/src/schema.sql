@@ -98,3 +98,6 @@ VALUES
     ('Jude', 'New Testament', 'General Epistles', 1),
     ('Revelation', 'New Testament', 'General Epistles', 22)
 ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO users (username) VALUES ('default') ON CONFLICT (username) DO NOTHING;
+INSERT INTO reading_cycles (user_id, cycle_number) VALUES (1, 1) ON CONFLICT (user_id, cycle_number) DO NOTHING;

@@ -8,8 +8,12 @@ CREATE TABLE IF NOT EXISTS bible_books (
 
 CREATE TABLE IF NOT EXISTS users (
     user_id SERIAL PRIMARY KEY,
-    username VARCHAR(100) UNIQUE NOT NULL
+    google_id VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_url TEXT;
 
 CREATE TABLE IF NOT EXISTS reading_cycles ( 
     cycle_id SERIAL PRIMARY KEY, 
@@ -99,5 +103,3 @@ VALUES
     ('Revelation', 'New Testament', 'General Epistles', 22)
 ON CONFLICT (name) DO NOTHING;
 
-INSERT INTO users (username) VALUES ('default') ON CONFLICT (username) DO NOTHING;
-INSERT INTO reading_cycles (user_id, cycle_number) VALUES (1, 1) ON CONFLICT (user_id, cycle_number) DO NOTHING;

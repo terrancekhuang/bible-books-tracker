@@ -1,4 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react'
+import { Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom'
+import Login from './Login'
+import Profile from './Profile'
 
 interface Book {
   id: number;
@@ -12,14 +15,26 @@ interface Book {
 type SortKey = "name" | "chapters_read" | "percent" | "status";
 type SortDir = "asc" | "desc";
 
-
 const statusRank = (book: Book) => {
   if (book.chapters_read >= book.num_chapters) return 2;
   if (book.chapters_read > 0) return 1;
   return 0;
 };
 
-function App() {
+const TOKEN_KEY = 'app_jwt'
+
+function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+function authHeaders(): HeadersInit {
+  const token = getToken()
+  return token
+    ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+    : { 'Content-Type': 'application/json' }
+}
+
+function Tracker({ onLogout }: { onLogout: () => void }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chaptersToday, setChaptersToday] = useState(0);
@@ -27,9 +42,13 @@ function App() {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   useEffect(() => {
-    fetch("/api/books")
-      .then((res) => res.json())
+    fetch("/api/books", { headers: authHeaders() })
+      .then((res) => {
+        if (res.status === 401) { onLogout(); return null }
+        return res.json()
+      })
       .then((rawData) => {
+        if (!rawData) return
         const transformedBooks = rawData.map((item: Book) => ({
           book_id: item.id,
           name: item.name,
@@ -83,9 +102,7 @@ function App() {
     try {
       const response = await fetch("/api/progress", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: authHeaders(),
         body: JSON.stringify({
           book_name: selectedBook.name,
           chapters_today: chaptersToday,
@@ -93,6 +110,8 @@ function App() {
       });
 
       const data = await response.json();
+
+      if (response.status === 401) { onLogout(); return; }
 
       if (!response.ok || !data.success) {
         throw new Error(data.error || "Failed to update progress");
@@ -119,7 +138,13 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen">
-      <h1 className="text-3xl font-bold text-center py-4">Bible Books Tracker</h1>
+      <div className="flex items-center justify-between px-4 py-4">
+        <h1 className="text-3xl font-bold text-center flex-1">Bible Books Tracker</h1>
+        <div className="flex items-center gap-2">
+          <Link to="/profile" className="btn btn-ghost btn-sm">Profile</Link>
+          <button className="btn btn-ghost btn-sm" onClick={onLogout}>Sign out</button>
+        </div>
+      </div>
 
       <div className="app flex gap-5 flex-1 overflow-hidden px-5 pb-5">
         <div className="table-container flex-1 border-2 overflow-y-auto">
@@ -223,4 +248,36 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  const [jwt, setJwt] = useState<string | null>(getToken)
+  const navigate = useNavigate()
+
+  const handleLoginSuccess = (token: string) => {
+    localStorage.setItem(TOKEN_KEY, token)
+    setJwt(token)
+    navigate('/')
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem(TOKEN_KEY)
+    setJwt(null)
+    navigate('/login')
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={jwt ? <Navigate to="/" replace /> : <Login onLoginSuccess={handleLoginSuccess} />}
+      />
+      <Route
+        path="/"
+        element={jwt ? <Tracker onLogout={handleLogout} /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/profile"
+        element={jwt ? <Profile onLogout={handleLogout} /> : <Navigate to="/login" replace />}
+      />
+    </Routes>
+  )
+}

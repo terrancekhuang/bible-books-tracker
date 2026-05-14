@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom'
 import Login from './Login'
 import Profile from './Profile'
@@ -37,9 +37,14 @@ function authHeaders(): HeadersInit {
 function Tracker({ onLogout }: { onLogout: () => void }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [chaptersToday, setChaptersToday] = useState(0);
+  const [chaptersInput, setChaptersInput] = useState('');
+  const chaptersToday = parseInt(chaptersInput) || 0;
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [search, setSearch] = useState('');
+
+  const chaptersInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/books", { headers: authHeaders() })
@@ -96,8 +101,74 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
     return sortDir === "asc" ? " ↑" : " ↓";
   };
 
-  const handleSubmit = async () => {
+  const filteredBooks = search
+    ? sortedBooks.filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
+    : sortedBooks;
+
+  useEffect(() => {
     if (!selectedBook) return;
+    document
+      .querySelector(`[data-book="${selectedBook.name}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [selectedBook]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      if (e.key === 'Escape') {
+        if (target === searchInputRef.current) {
+          setSearch('');
+          searchInputRef.current?.blur();
+        } else {
+          setSelectedBook(null);
+          setChaptersInput('');
+        }
+        return;
+      }
+
+      if (e.key === '/' && !isInput) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === 'Tab' && !isInput && selectedBook) {
+        e.preventDefault();
+        chaptersInputRef.current?.focus();
+        return;
+      }
+
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isInput) {
+        e.preventDefault();
+        const currentIndex = selectedBook
+          ? filteredBooks.findIndex(b => b.name === selectedBook.name)
+          : -1;
+
+        if (e.key === 'ArrowDown') {
+          if (currentIndex === -1 && filteredBooks.length > 0) {
+            setSelectedBook(filteredBooks[0]);
+            setChaptersInput('');
+          } else if (currentIndex < filteredBooks.length - 1) {
+            setSelectedBook(filteredBooks[currentIndex + 1]);
+            setChaptersInput('');
+          }
+        } else {
+          if (currentIndex > 0) {
+            setSelectedBook(filteredBooks[currentIndex - 1]);
+            setChaptersInput('');
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedBook, filteredBooks]);
+
+  const handleSubmit = async () => {
+    if (!selectedBook || chaptersToday === 0) return;
 
     try {
       const response = await fetch("/api/progress", {
@@ -130,7 +201,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
         chapters_read: data.chapters_read,
       });
 
-      setChaptersToday(1);
+      setChaptersInput('1');
     } catch (e) {
       console.error("Error updating progress:", e);
     }
@@ -148,13 +219,21 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
 
       <div className="app flex gap-5 flex-1 overflow-hidden px-5 pb-5">
         <div className="table-container flex-1 border-2 overflow-y-auto">
-          {sortKey !== null && (
-            <div className="p-2">
+          <div className="flex items-center gap-2 p-2">
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search books… (press /)"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input input-sm flex-1"
+            />
+            {sortKey !== null && (
               <button className="btn btn-xs btn-ghost" onClick={resetSort}>
                 Reset order
               </button>
-            </div>
-          )}
+            )}
+          </div>
           <table className="books-table w-full table-zebra">
             <thead className="font-bold">
               <tr>
@@ -173,13 +252,17 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
               </tr>
             </thead>
             <tbody>
-              {sortedBooks.map((book) => {
+              {filteredBooks.map((book) => {
                 const isComplete = book.chapters_read >= book.num_chapters;
                 const inProgress = book.chapters_read > 0 && !isComplete;
                 return (
                   <tr
                     key={book.name}
-                    onClick={() => setSelectedBook(book)}
+                    data-book={book.name}
+                    onClick={() => {
+                      if (selectedBook?.name !== book.name) setChaptersInput('');
+                      setSelectedBook(book);
+                    }}
                     className={[
                       "cursor-pointer",
                       selectedBook?.name === book.name
@@ -224,13 +307,18 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                   <div className="chapters-today">
                     <label>Chapters Read Today: </label>
                     <input
+                      ref={chaptersInputRef}
                       type="number"
-                      min="1"
+                      min="0"
                       max={selectedBook.num_chapters - selectedBook.chapters_read}
-                      value={chaptersToday}
-                      onChange={(e) =>
-                        setChaptersToday(parseInt(e.target.value) || 1)
-                      }
+                      value={chaptersInput}
+                      onChange={(e) => setChaptersInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        const max = selectedBook.num_chapters - selectedBook.chapters_read;
+                        if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
+                        if (e.key === '+') { e.preventDefault(); setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max))); }
+                        if (e.key === '-') { e.preventDefault(); setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0))); }
+                      }}
                       className="input"
                     />
                   </div>
@@ -238,6 +326,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                   <button
                     className="submit-btn btn btn-success"
                     onClick={handleSubmit}
+                    disabled={chaptersToday === 0}
                   >
                     Submit
                   </button>

@@ -140,6 +140,12 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
         return;
       }
 
+      if (e.key === 'Enter' && !isInput && selectedBook) {
+        e.preventDefault();
+        handleSubmit();
+        return;
+      }
+
       if ((e.key === '+' || e.key === '=') && !isInput && selectedBook) {
         e.preventDefault();
         const max = selectedBook.num_chapters - selectedBook.chapters_read;
@@ -178,7 +184,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBook, filteredBooks]);
+  }, [selectedBook, filteredBooks, chaptersInput]);
 
   const handleSubmit = async () => {
     if (!selectedBook || chaptersToday === 0) return;

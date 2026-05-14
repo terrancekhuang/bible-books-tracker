@@ -9,10 +9,22 @@ interface Book {
   chapters_read: number;
 }
 
+type SortKey = "name" | "chapters_read" | "percent" | "status";
+type SortDir = "asc" | "desc";
+
+
+const statusRank = (book: Book) => {
+  if (book.chapters_read >= book.num_chapters) return 2;
+  if (book.chapters_read > 0) return 1;
+  return 0;
+};
+
 function App() {
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chaptersToday, setChaptersToday] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   useEffect(() => {
     fetch("/api/books")
@@ -33,6 +45,36 @@ function App() {
   const calculateProgress = (book: Book) => {
     if (!book.chapters_read) return 0;
     return Math.round((book.chapters_read / book.num_chapters) * 100);
+  };
+
+  const handleSort = (key: SortKey) => {
+    if (key === sortKey) {
+      setSortDir(sortDir === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
+
+  const resetSort = () => {
+    setSortKey(null);
+    setSortDir("asc");
+  };
+
+  const sortedBooks = sortKey === null
+    ? books
+    : [...books].sort((a, b) => {
+        let cmp = 0;
+        if (sortKey === "name") cmp = a.name.localeCompare(b.name);
+        else if (sortKey === "chapters_read") cmp = a.chapters_read - b.chapters_read;
+        else if (sortKey === "percent") cmp = calculateProgress(a) - calculateProgress(b);
+        else if (sortKey === "status") cmp = statusRank(a) - statusRank(b);
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+
+  const sortIndicator = (key: SortKey) => {
+    if (sortKey !== key) return " ↕";
+    return sortDir === "asc" ? " ↑" : " ↓";
   };
 
   const handleSubmit = async () => {
@@ -59,10 +101,7 @@ function App() {
       setBooks(
         books.map((book) =>
           book.name === selectedBook.name
-            ? {
-                ...book,
-                chapters_read: data.chapters_read,
-              }
+            ? { ...book, chapters_read: data.chapters_read }
             : book,
         ),
       );
@@ -84,34 +123,53 @@ function App() {
 
       <div className="app flex gap-5 min-h-screen">
         <div className="table-container flex-1 border-2 table table-md table-pin-rows overflow-auto">
+          {sortKey !== null && (
+            <div className="p-2">
+              <button className="btn btn-xs btn-ghost" onClick={resetSort}>
+                Reset order
+              </button>
+            </div>
+          )}
           <table className="books-table w-full table-zebra">
             <thead className="font-bold">
               <tr>
-                <th>Book Name</th>
-                <th>Chapters Read</th>
-                <th>Percent Read</th>
-                <th>Status</th>
+                <th className="cursor-pointer select-none" onClick={() => handleSort("name")}>
+                  Book Name{sortIndicator("name")}
+                </th>
+                <th className="cursor-pointer select-none" onClick={() => handleSort("chapters_read")}>
+                  Chapters Read{sortIndicator("chapters_read")}
+                </th>
+                <th className="cursor-pointer select-none" onClick={() => handleSort("percent")}>
+                  Percent Read{sortIndicator("percent")}
+                </th>
+                <th className="cursor-pointer select-none" onClick={() => handleSort("status")}>
+                  Status{sortIndicator("status")}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {books.map((book) => (
-                <tr
-                  key={book.name}
-                  onClick={() => setSelectedBook(book)}
-                  className={selectedBook?.name === book.name ? "selected" : ""}
-                >
-                  <td>{book.name}</td>
-                  <td>
-                    {book.chapters_read || 0} / {book.num_chapters}
-                  </td>
-                  <td>{calculateProgress(book)}%</td>
-                  <td>
-                    {book.chapters_read >= book.num_chapters && (
-                      <span className="badge badge-success">Complete</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
+              {sortedBooks.map((book) => {
+                const isComplete = book.chapters_read >= book.num_chapters;
+                const inProgress = book.chapters_read > 0 && !isComplete;
+                return (
+                  <tr
+                    key={book.name}
+                    onClick={() => setSelectedBook(book)}
+                    className={[
+                      selectedBook?.name === book.name ? "selected" : "",
+                      isComplete ? "opacity-40" : "",
+                    ].join(" ")}
+                  >
+                    <td>{book.name}</td>
+                    <td>{book.chapters_read || 0} / {book.num_chapters}</td>
+                    <td>{calculateProgress(book)}%</td>
+                    <td>
+                      {isComplete && <span className="badge badge-success">Complete</span>}
+                      {inProgress && <span className="badge badge-warning">In Progress</span>}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -80,19 +80,20 @@ def update_progress():
         cycle_id = cycle['cycle_id']
 
         cur.execute(
-            "SELECT book_id FROM bible_books WHERE name = %s", (book_name,))
+            "SELECT book_id, num_chapters FROM bible_books WHERE name = %s", (book_name,))
         book = cur.fetchone()
         if not book:
             return jsonify({'success': False, 'error': f'Book "{book_name}" not found'}), 404
         book_id = book['book_id']
+        num_chapters = book['num_chapters']
 
         cur.execute("""
         INSERT INTO progress (user_id, cycle_id, book_id, chapters_read)
-        VALUES (1, %s, %s, %s)
+        VALUES (1, %s, %s, LEAST(%s, %s))
         ON CONFLICT (user_id, cycle_id, book_id)
-        DO UPDATE SET chapters_read = progress.chapters_read + %s
+        DO UPDATE SET chapters_read = LEAST(progress.chapters_read + %s, %s)
         RETURNING chapters_read
-        """, (cycle_id, book_id, chapters_to_add, chapters_to_add))
+        """, (cycle_id, book_id, chapters_to_add, num_chapters, chapters_to_add, num_chapters))
 
         result = cur.fetchone()
         conn.commit()

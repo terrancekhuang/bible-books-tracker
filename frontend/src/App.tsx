@@ -14,6 +14,7 @@ interface Book {
 
 type SortKey = "name" | "chapters_read" | "percent" | "status";
 type SortDir = "asc" | "desc";
+type TabFilter = "all" | "old" | "new";
 
 const statusRank = (book: Book) => {
   if (book.chapters_read >= book.num_chapters) return 2;
@@ -42,6 +43,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<TabFilter>("all");
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
@@ -113,6 +115,12 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
     ? sortedBooks.filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
     : sortedBooks;
 
+  const tabFilteredBooks = filteredBooks.filter(b => {
+    if (activeTab === "all") return true;
+    if (activeTab === "old") return b.testament === "Old Testament";
+    return b.testament === "New Testament";
+  });
+
   useEffect(() => {
     if (!selectedBook || isMobile) return;
     document
@@ -167,32 +175,50 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
         return;
       }
 
-      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isInput) {
+      if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !isInput) {
         e.preventDefault();
         const currentIndex = selectedBook
-          ? filteredBooks.findIndex(b => b.name === selectedBook.name)
+          ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name)
           : -1;
-
-        if (e.key === 'ArrowDown') {
-          if (currentIndex === -1 && filteredBooks.length > 0) {
-            setSelectedBook(filteredBooks[0]);
-            setChaptersInput('');
-          } else if (currentIndex < filteredBooks.length - 1) {
-            setSelectedBook(filteredBooks[currentIndex + 1]);
-            setChaptersInput('');
+        if (e.key === 'ArrowRight') {
+          if (currentIndex === -1 && tabFilteredBooks.length > 0) {
+            setSelectedBook(tabFilteredBooks[0]);
+          } else if (currentIndex < tabFilteredBooks.length - 1) {
+            setSelectedBook(tabFilteredBooks[currentIndex + 1]);
           }
         } else {
           if (currentIndex > 0) {
-            setSelectedBook(filteredBooks[currentIndex - 1]);
-            setChaptersInput('');
+            setSelectedBook(tabFilteredBooks[currentIndex - 1]);
           }
         }
+        setChaptersInput('');
+        return;
+      }
+
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isInput) {
+        e.preventDefault();
+        const numCols = window.innerWidth < 640 ? 2 : 3;
+        const currentIndex = selectedBook
+          ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name)
+          : -1;
+        if (e.key === 'ArrowDown') {
+          if (currentIndex === -1 && tabFilteredBooks.length > 0) {
+            setSelectedBook(tabFilteredBooks[0]);
+          } else {
+            const next = currentIndex + numCols;
+            if (next < tabFilteredBooks.length) setSelectedBook(tabFilteredBooks[next]);
+          }
+        } else {
+          const prev = currentIndex - numCols;
+          if (prev >= 0) setSelectedBook(tabFilteredBooks[prev]);
+        }
+        setChaptersInput('');
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBook, filteredBooks, chaptersInput]);
+  }, [selectedBook, tabFilteredBooks, chaptersInput]);
 
   const handleSubmit = async () => {
     if (!selectedBook || chaptersToday === 0) return;
@@ -234,149 +260,248 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
     }
   };
 
-  const showTable = !isMobile || !selectedBook;
+  const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;
 
-  return (
-    <div className="flex flex-col md:h-screen">
-      <div className="flex items-center justify-between px-4 py-3 md:py-4">
-        <h1 className="text-2xl md:text-3xl font-bold text-center flex-1">Bible Books Tracker</h1>
-        <div className="flex items-center gap-2">
-          <Link to="/profile" className="btn btn-ghost btn-sm">Profile</Link>
-          <button className="btn btn-ghost btn-sm" onClick={onLogout}>Sign out</button>
-        </div>
-      </div>
+  const tabs: { key: TabFilter; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "old", label: "Old Testament" },
+    { key: "new", label: "New Testament" },
+  ];
 
-      <div className="flex flex-col md:flex-row gap-5 flex-1 md:overflow-hidden px-4 pb-5">
-        {showTable && (
-          <div className="table-container flex-1 border-2 md:overflow-y-auto">
-            <div className="flex items-center gap-2 p-2">
+  return (
+    <div className="flex flex-col min-h-screen md:h-screen bg-slate-50">
+      {/* Header */}
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between px-5 py-3">
+          <h1 className="text-xl md:text-2xl font-bold text-indigo-700 tracking-tight">
+            Bible Books Tracker
+          </h1>
+          <div className="flex items-center gap-3">
+            <Link to="/profile" className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors">
+              Profile
+            </Link>
+            <button
+              className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors"
+              onClick={onLogout}
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex flex-col md:flex-row gap-4 flex-1 md:overflow-hidden px-4 md:px-5 py-4">
+        {/* Book Grid Panel */}
+        {showGrid && (
+          <div className="flex flex-col flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden md:overflow-y-auto">
+            {/* Search + Sort controls */}
+            <div className="flex items-center gap-2 p-3 border-b border-slate-100">
               <input
                 ref={searchInputRef}
                 type="text"
                 placeholder={isMobile ? "Search books…" : "Search books… (press /)"}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="input input-sm flex-1"
+                className="flex-1 text-sm px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition"
               />
               {sortKey !== null && (
-                <button className="btn btn-xs btn-ghost" onClick={resetSort}>
+                <button
+                  className="text-xs text-slate-500 hover:text-indigo-600 px-2 py-1 rounded hover:bg-indigo-50 transition-colors whitespace-nowrap"
+                  onClick={resetSort}
+                >
                   Reset order
                 </button>
               )}
             </div>
-            <table className="books-table w-full table-zebra">
-              <thead className="font-bold">
-                <tr>
-                  <th className="cursor-pointer select-none" onClick={() => handleSort("name")}>
-                    Book Name{sortIndicator("name")}
-                  </th>
-                  <th className="cursor-pointer select-none" onClick={() => handleSort("chapters_read")}>
-                    Chapters Read{sortIndicator("chapters_read")}
-                  </th>
-                  <th className="hidden md:table-cell cursor-pointer select-none" onClick={() => handleSort("percent")}>
-                    Percent Read{sortIndicator("percent")}
-                  </th>
-                  <th className="cursor-pointer select-none" onClick={() => handleSort("status")}>
-                    Status{sortIndicator("status")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBooks.map((book) => {
-                  const isComplete = book.chapters_read >= book.num_chapters;
-                  const inProgress = book.chapters_read > 0 && !isComplete;
+
+            {/* Testament tabs */}
+            <div className="flex items-center gap-1 px-3 pt-2 pb-1">
+              {tabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={[
+                    "text-xs font-medium px-3 py-1.5 rounded-full transition-all",
+                    activeTab === tab.key
+                      ? "bg-indigo-600 text-white shadow-sm"
+                      : "text-slate-500 hover:bg-slate-100",
+                  ].join(" ")}
+                >
+                  {tab.label}
+                </button>
+              ))}
+              {/* Sort controls */}
+              <div className="ml-auto flex gap-1">
+                {(["name", "chapters_read", "percent", "status"] as SortKey[]).map(key => {
+                  const labels: Record<SortKey, string> = {
+                    name: "Name",
+                    chapters_read: "Chapters",
+                    percent: "%",
+                    status: "Status",
+                  };
                   return (
-                    <tr
-                      key={book.name}
-                      data-book={book.name}
-                      onClick={() => {
-                        if (selectedBook?.name !== book.name) setChaptersInput('');
-                        setSelectedBook(book);
-                      }}
+                    <button
+                      key={key}
+                      onClick={() => handleSort(key)}
                       className={[
-                        "cursor-pointer",
-                        selectedBook?.name === book.name
-                          ? "ring-2 ring-inset ring-primary"
-                          : "",
-                        isComplete && selectedBook?.name !== book.name
-                          ? "opacity-40"
-                          : "",
+                        "text-xs px-2 py-1 rounded transition-colors",
+                        sortKey === key
+                          ? "text-indigo-600 bg-indigo-50 font-medium"
+                          : "text-slate-400 hover:text-slate-600 hover:bg-slate-50",
                       ].join(" ")}
                     >
-                      <td>{book.name}</td>
-                      <td>{book.chapters_read || 0} / {book.num_chapters}</td>
-                      <td className="hidden md:table-cell">{calculateProgress(book)}%</td>
-                      <td className="whitespace-nowrap">
-                        {isComplete && <span className="badge badge-success">Complete</span>}
-                        {inProgress && <span className="badge badge-warning">In Progress</span>}
-                      </td>
-                    </tr>
+                      {labels[key]}{sortIndicator(key)}
+                    </button>
                   );
                 })}
-              </tbody>
-            </table>
+              </div>
+            </div>
+
+            {/* Card grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3">
+              {tabFilteredBooks.map((book) => {
+                const isComplete = book.chapters_read >= book.num_chapters;
+                const inProgress = book.chapters_read > 0 && !isComplete;
+                const progress = calculateProgress(book);
+                const isSelected = selectedBook?.name === book.name;
+
+                return (
+                  <div
+                    key={book.name}
+                    data-book={book.name}
+                    onClick={() => {
+                      if (selectedBook?.name !== book.name) setChaptersInput('');
+                      setSelectedBook(book);
+                    }}
+                    className={[
+                      "rounded-xl border p-3 cursor-pointer transition-all duration-150",
+                      isSelected
+                        ? "border-indigo-500 ring-2 ring-indigo-100 bg-indigo-50 shadow-md"
+                        : "border-slate-200 bg-white hover:shadow-md hover:-translate-y-0.5",
+                      isComplete && !isSelected ? "opacity-50" : "",
+                    ].join(" ")}
+                  >
+                    <p className="text-sm font-semibold text-slate-900 leading-tight">{book.name}</p>
+                    <p className="text-xs text-indigo-500 mt-0.5">{book.category}</p>
+
+                    {isComplete ? (
+                      <div className="mt-2.5 flex items-center gap-1">
+                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                          ✓ Complete
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="mt-2.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                          <div
+                            className={[
+                              "h-full rounded-full transition-all",
+                              inProgress ? "bg-indigo-500" : "bg-slate-200",
+                            ].join(" ")}
+                            style={{ width: `${progress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {book.chapters_read || 0} / {book.num_chapters}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
+        {/* Detail Panel */}
         {showDetail && (
-          <div className="detail-card flex flex-col w-full md:w-96 md:overflow-y-auto">
-            {selectedBook ? (
-              <>
-                {isMobile && (
-                  <button
-                    className="btn btn-ghost btn-sm self-start mb-2"
-                    onClick={() => { setSelectedBook(null); setChaptersInput(''); }}
-                  >
-                    ← Back
-                  </button>
-                )}
-                <h1 className="text-3xl font-bold text-center">
-                  {selectedBook.name}
-                </h1>
-                <p className="testament">{selectedBook.testament}</p>
-                <p>Category: {selectedBook.category}</p>
-                <p>Chapters Read: {selectedBook.chapters_read || 0}</p>
-                <p>Total Number Chapters: {selectedBook.num_chapters || 0}</p>
+          <div className="flex flex-col w-full md:w-96 md:overflow-y-auto shrink-0">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4 flex-1">
+              {selectedBook ? (
+                <>
+                  {isMobile && (
+                    <button
+                      className="self-start text-sm font-medium text-indigo-600 hover:text-indigo-800 mb-1 transition-colors"
+                      onClick={() => { setSelectedBook(null); setChaptersInput(''); }}
+                    >
+                      ← Back
+                    </button>
+                  )}
 
-                {selectedBook.chapters_read >= selectedBook.num_chapters ? (
-                  <div className="alert alert-success mt-4">
-                    All chapters read!
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900">{selectedBook.name}</h2>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <span className="text-xs font-medium bg-indigo-100 text-indigo-700 px-2.5 py-1 rounded-full">
+                        {selectedBook.testament}
+                      </span>
+                      <span className="text-xs font-medium bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full">
+                        {selectedBook.category}
+                      </span>
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <div className="chapters-today">
-                      <label>Chapters Read Today: </label>
-                      <input
-                        ref={chaptersInputRef}
-                        type="number"
-                        min="0"
-                        max={selectedBook.num_chapters - selectedBook.chapters_read}
-                        value={chaptersInput}
-                        onChange={(e) => setChaptersInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          const max = selectedBook.num_chapters - selectedBook.chapters_read;
-                          if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
-                          if (e.key === '+' || e.key === '=') { e.preventDefault(); setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max))); }
-                          if (e.key === '-') { e.preventDefault(); setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0))); }
-                        }}
-                        className="input"
+
+                  <div>
+                    <div className="flex justify-between text-sm text-slate-500 mb-1.5">
+                      <span>Progress</span>
+                      <span className="font-medium text-slate-700">
+                        {selectedBook.chapters_read || 0} / {selectedBook.num_chapters} chapters
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-indigo-500 transition-all"
+                        style={{ width: `${calculateProgress(selectedBook)}%` }}
                       />
                     </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {calculateProgress(selectedBook)}% complete
+                    </p>
+                  </div>
 
-                    <button
-                      className="submit-btn btn btn-success"
-                      onClick={handleSubmit}
-                      disabled={chaptersToday === 0}
-                    >
-                      Submit
-                    </button>
-                  </>
-                )}
-              </>
-            ) : (
-              <p className="placeholder">Select a book to view details.</p>
-            )}
+                  {selectedBook.chapters_read >= selectedBook.num_chapters ? (
+                    <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-center">
+                      <p className="text-emerald-700 font-semibold">All chapters read! ✓</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="text-sm font-medium text-slate-600 block mb-1.5">
+                          Chapters read today
+                        </label>
+                        <input
+                          ref={chaptersInputRef}
+                          type="number"
+                          min="0"
+                          max={selectedBook.num_chapters - selectedBook.chapters_read}
+                          value={chaptersInput}
+                          onChange={(e) => setChaptersInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            const max = selectedBook.num_chapters - selectedBook.chapters_read;
+                            if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
+                            if (e.key === '+' || e.key === '=') { e.preventDefault(); setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max))); }
+                            if (e.key === '-') { e.preventDefault(); setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0))); }
+                          }}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 transition"
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleSubmit}
+                        disabled={chaptersToday === 0}
+                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+                      >
+                        Submit
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center flex-1 text-slate-400 py-12">
+                  <p className="text-sm">Select a book to view details</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

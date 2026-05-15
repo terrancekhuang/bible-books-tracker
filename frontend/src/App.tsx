@@ -307,7 +307,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                       <td>{book.name}</td>
                       <td>{book.chapters_read || 0} / {book.num_chapters}</td>
                       <td className="hidden md:table-cell">{calculateProgress(book)}%</td>
-                      <td>
+                      <td className="whitespace-nowrap">
                         {isComplete && <span className="badge badge-success">Complete</span>}
                         {inProgress && <span className="badge badge-warning">In Progress</span>}
                       </td>

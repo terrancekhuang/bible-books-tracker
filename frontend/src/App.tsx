@@ -44,6 +44,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<TabFilter>("all");
+  const [showHelp, setShowHelp] = useState(false);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
@@ -133,7 +134,14 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
+      if (e.key === '?' && !isInput) {
+        e.preventDefault();
+        setShowHelp(v => !v);
+        return;
+      }
+
       if (e.key === 'Escape') {
+        if (showHelp) { setShowHelp(false); return; }
         if (target === searchInputRef.current) {
           setSearch('');
           searchInputRef.current?.blur();
@@ -218,7 +226,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBook, tabFilteredBooks, chaptersInput]);
+  }, [selectedBook, tabFilteredBooks, chaptersInput, showHelp]);
 
   const handleSubmit = async () => {
     if (!selectedBook || chaptersToday === 0) return;
@@ -505,6 +513,67 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
       </div>
+
+      {/* Help FAB — desktop only */}
+      {!isMobile && (
+        <button
+          onClick={() => setShowHelp(v => !v)}
+          title="Keyboard shortcuts (?)"
+          className="fixed bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-white border border-slate-200 shadow-md text-slate-500 hover:text-indigo-600 hover:border-indigo-300 transition-colors text-sm font-bold select-none"
+        >
+          ?
+        </button>
+      )}
+
+      {/* Help modal — desktop only */}
+      {showHelp && !isMobile && (
+        <div
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-slate-900">Keyboard Shortcuts</h2>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              {([
+                { keys: ['/'], description: 'Focus search' },
+                { keys: ['Esc'], description: 'Deselect book / clear search' },
+                { keys: ['←', '→'], description: 'Navigate books left / right' },
+                { keys: ['↑', '↓'], description: 'Navigate books up / down' },
+                { keys: ['Tab'], description: 'Focus chapters input' },
+                { keys: ['Enter'], description: 'Submit chapter progress' },
+                { keys: ['+', '='], description: 'Increment chapter count' },
+                { keys: ['-'], description: 'Decrement chapter count' },
+                { keys: ['?'], description: 'Show / hide this help' },
+              ] as { keys: string[]; description: string }[]).map(({ keys, description }) => (
+                <div key={description} className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    {keys.map(k => (
+                      <kbd
+                        key={k}
+                        className="inline-flex items-center justify-center rounded border border-slate-300 bg-slate-50 px-1.5 py-0.5 text-xs font-mono shadow-[0_1px_0_#cbd5e1] text-slate-700 min-w-[1.5rem]"
+                      >
+                        {k}
+                      </kbd>
+                    ))}
+                  </div>
+                  <span className="text-sm text-slate-600">{description}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

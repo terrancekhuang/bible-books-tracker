@@ -45,6 +45,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
 
   const chaptersInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const detailCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/books", { headers: authHeaders() })
@@ -110,6 +111,9 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
     document
       .querySelector(`[data-book="${selectedBook.name}"]`)
       ?.scrollIntoView({ block: 'nearest' });
+    if (window.innerWidth < 768) {
+      detailCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }, [selectedBook]);
 
   useEffect(() => {
@@ -227,17 +231,17 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      <div className="flex items-center justify-between px-4 py-4">
-        <h1 className="text-3xl font-bold text-center flex-1">Bible Books Tracker</h1>
+    <div className="flex flex-col md:h-screen">
+      <div className="flex items-center justify-between px-4 py-3 md:py-4">
+        <h1 className="text-2xl md:text-3xl font-bold text-center flex-1">Bible Books Tracker</h1>
         <div className="flex items-center gap-2">
           <Link to="/profile" className="btn btn-ghost btn-sm">Profile</Link>
           <button className="btn btn-ghost btn-sm" onClick={onLogout}>Sign out</button>
         </div>
       </div>
 
-      <div className="app flex gap-5 flex-1 overflow-hidden px-5 pb-5">
-        <div className="table-container flex-1 border-2 overflow-y-auto">
+      <div className="flex flex-col md:flex-row gap-5 flex-1 md:overflow-hidden px-4 pb-5">
+        <div className="table-container flex-1 border-2 md:overflow-y-auto">
           <div className="flex items-center gap-2 p-2">
             <input
               ref={searchInputRef}
@@ -306,7 +310,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
           </table>
         </div>
 
-        <div className="detail-card flex flex-col w-96 overflow-y-auto">
+        <div ref={detailCardRef} className="detail-card flex flex-col w-full md:w-96 md:overflow-y-auto">
           {selectedBook ? (
             <>
               <h1 className="text-3xl font-bold text-center">

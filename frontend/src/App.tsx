@@ -43,9 +43,16 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
   const chaptersInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const detailCardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   useEffect(() => {
     fetch("/api/books", { headers: authHeaders() })
@@ -107,14 +114,11 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
     : sortedBooks;
 
   useEffect(() => {
-    if (!selectedBook) return;
+    if (!selectedBook || isMobile) return;
     document
       .querySelector(`[data-book="${selectedBook.name}"]`)
       ?.scrollIntoView({ block: 'nearest' });
-    if (window.innerWidth < 768) {
-      detailCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  }, [selectedBook]);
+  }, [selectedBook, isMobile]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -230,6 +234,9 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
     }
   };
 
+  const showTable = !isMobile || !selectedBook;
+  const showDetail = !isMobile || !!selectedBook;
+
   return (
     <div className="flex flex-col md:h-screen">
       <div className="flex items-center justify-between px-4 py-3 md:py-4">
@@ -241,125 +248,137 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
       </div>
 
       <div className="flex flex-col md:flex-row gap-5 flex-1 md:overflow-hidden px-4 pb-5">
-        <div className="table-container flex-1 border-2 md:overflow-y-auto">
-          <div className="flex items-center gap-2 p-2">
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search books… (press /)"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input input-sm flex-1"
-            />
-            {sortKey !== null && (
-              <button className="btn btn-xs btn-ghost" onClick={resetSort}>
-                Reset order
-              </button>
+        {showTable && (
+          <div className="table-container flex-1 border-2 md:overflow-y-auto">
+            <div className="flex items-center gap-2 p-2">
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder={isMobile ? "Search books…" : "Search books… (press /)"}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input input-sm flex-1"
+              />
+              {sortKey !== null && (
+                <button className="btn btn-xs btn-ghost" onClick={resetSort}>
+                  Reset order
+                </button>
+              )}
+            </div>
+            <table className="books-table w-full table-zebra">
+              <thead className="font-bold">
+                <tr>
+                  <th className="cursor-pointer select-none" onClick={() => handleSort("name")}>
+                    Book Name{sortIndicator("name")}
+                  </th>
+                  <th className="cursor-pointer select-none" onClick={() => handleSort("chapters_read")}>
+                    Chapters Read{sortIndicator("chapters_read")}
+                  </th>
+                  <th className="hidden md:table-cell cursor-pointer select-none" onClick={() => handleSort("percent")}>
+                    Percent Read{sortIndicator("percent")}
+                  </th>
+                  <th className="cursor-pointer select-none" onClick={() => handleSort("status")}>
+                    Status{sortIndicator("status")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredBooks.map((book) => {
+                  const isComplete = book.chapters_read >= book.num_chapters;
+                  const inProgress = book.chapters_read > 0 && !isComplete;
+                  return (
+                    <tr
+                      key={book.name}
+                      data-book={book.name}
+                      onClick={() => {
+                        if (selectedBook?.name !== book.name) setChaptersInput('');
+                        setSelectedBook(book);
+                      }}
+                      className={[
+                        "cursor-pointer",
+                        selectedBook?.name === book.name
+                          ? "ring-2 ring-inset ring-primary"
+                          : "",
+                        isComplete && selectedBook?.name !== book.name
+                          ? "opacity-40"
+                          : "",
+                      ].join(" ")}
+                    >
+                      <td>{book.name}</td>
+                      <td>{book.chapters_read || 0} / {book.num_chapters}</td>
+                      <td className="hidden md:table-cell">{calculateProgress(book)}%</td>
+                      <td>
+                        {isComplete && <span className="badge badge-success">Complete</span>}
+                        {inProgress && <span className="badge badge-warning">In Progress</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {showDetail && (
+          <div className="detail-card flex flex-col w-full md:w-96 md:overflow-y-auto">
+            {selectedBook ? (
+              <>
+                {isMobile && (
+                  <button
+                    className="btn btn-ghost btn-sm self-start mb-2"
+                    onClick={() => { setSelectedBook(null); setChaptersInput(''); }}
+                  >
+                    ← Back
+                  </button>
+                )}
+                <h1 className="text-3xl font-bold text-center">
+                  {selectedBook.name}
+                </h1>
+                <p className="testament">{selectedBook.testament}</p>
+                <p>Category: {selectedBook.category}</p>
+                <p>Chapters Read: {selectedBook.chapters_read || 0}</p>
+                <p>Total Number Chapters: {selectedBook.num_chapters || 0}</p>
+
+                {selectedBook.chapters_read >= selectedBook.num_chapters ? (
+                  <div className="alert alert-success mt-4">
+                    All chapters read!
+                  </div>
+                ) : (
+                  <>
+                    <div className="chapters-today">
+                      <label>Chapters Read Today: </label>
+                      <input
+                        ref={chaptersInputRef}
+                        type="number"
+                        min="0"
+                        max={selectedBook.num_chapters - selectedBook.chapters_read}
+                        value={chaptersInput}
+                        onChange={(e) => setChaptersInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          const max = selectedBook.num_chapters - selectedBook.chapters_read;
+                          if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
+                          if (e.key === '+' || e.key === '=') { e.preventDefault(); setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max))); }
+                          if (e.key === '-') { e.preventDefault(); setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0))); }
+                        }}
+                        className="input"
+                      />
+                    </div>
+
+                    <button
+                      className="submit-btn btn btn-success"
+                      onClick={handleSubmit}
+                      disabled={chaptersToday === 0}
+                    >
+                      Submit
+                    </button>
+                  </>
+                )}
+              </>
+            ) : (
+              <p className="placeholder">Select a book to view details.</p>
             )}
           </div>
-          <table className="books-table w-full table-zebra">
-            <thead className="font-bold">
-              <tr>
-                <th className="cursor-pointer select-none" onClick={() => handleSort("name")}>
-                  Book Name{sortIndicator("name")}
-                </th>
-                <th className="cursor-pointer select-none" onClick={() => handleSort("chapters_read")}>
-                  Chapters Read{sortIndicator("chapters_read")}
-                </th>
-                <th className="cursor-pointer select-none" onClick={() => handleSort("percent")}>
-                  Percent Read{sortIndicator("percent")}
-                </th>
-                <th className="cursor-pointer select-none" onClick={() => handleSort("status")}>
-                  Status{sortIndicator("status")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBooks.map((book) => {
-                const isComplete = book.chapters_read >= book.num_chapters;
-                const inProgress = book.chapters_read > 0 && !isComplete;
-                return (
-                  <tr
-                    key={book.name}
-                    data-book={book.name}
-                    onClick={() => {
-                      if (selectedBook?.name !== book.name) setChaptersInput('');
-                      setSelectedBook(book);
-                    }}
-                    className={[
-                      "cursor-pointer",
-                      selectedBook?.name === book.name
-                        ? "ring-2 ring-inset ring-primary"
-                        : "",
-                      isComplete && selectedBook?.name !== book.name
-                        ? "opacity-40"
-                        : "",
-                    ].join(" ")}
-                  >
-                    <td>{book.name}</td>
-                    <td>{book.chapters_read || 0} / {book.num_chapters}</td>
-                    <td>{calculateProgress(book)}%</td>
-                    <td>
-                      {isComplete && <span className="badge badge-success">Complete</span>}
-                      {inProgress && <span className="badge badge-warning">In Progress</span>}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        <div ref={detailCardRef} className="detail-card flex flex-col w-full md:w-96 md:overflow-y-auto">
-          {selectedBook ? (
-            <>
-              <h1 className="text-3xl font-bold text-center">
-                {selectedBook.name}
-              </h1>
-              <p className="testament">{selectedBook.testament}</p>
-              <p>Category: {selectedBook.category}</p>
-              <p>Chapters Read: {selectedBook.chapters_read || 0}</p>
-              <p>Total Number Chapters: {selectedBook.num_chapters || 0}</p>
-
-              {selectedBook.chapters_read >= selectedBook.num_chapters ? (
-                <div className="alert alert-success mt-4">
-                  All chapters read!
-                </div>
-              ) : (
-                <>
-                  <div className="chapters-today">
-                    <label>Chapters Read Today: </label>
-                    <input
-                      ref={chaptersInputRef}
-                      type="number"
-                      min="0"
-                      max={selectedBook.num_chapters - selectedBook.chapters_read}
-                      value={chaptersInput}
-                      onChange={(e) => setChaptersInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        const max = selectedBook.num_chapters - selectedBook.chapters_read;
-                        if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
-                        if (e.key === '+' || e.key === '=') { e.preventDefault(); setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max))); }
-                        if (e.key === '-') { e.preventDefault(); setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0))); }
-                      }}
-                      className="input"
-                    />
-                  </div>
-
-                  <button
-                    className="submit-btn btn btn-success"
-                    onClick={handleSubmit}
-                    disabled={chaptersToday === 0}
-                  >
-                    Submit
-                  </button>
-                </>
-              )}
-            </>
-          ) : (
-            <p className="placeholder">Select a book to view details.</p>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

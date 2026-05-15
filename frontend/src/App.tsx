@@ -14,7 +14,6 @@ interface Book {
 
 type SortKey = "name" | "chapters_read" | "percent" | "status";
 type SortDir = "asc" | "desc";
-type TabFilter = "all" | "old" | "new";
 
 const statusRank = (book: Book) => {
   if (book.chapters_read >= book.num_chapters) return 2;
@@ -35,6 +34,36 @@ function authHeaders(): HeadersInit {
     : { 'Content-Type': 'application/json' }
 }
 
+function FilterSelect({
+  value, onChange, placeholder, options,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  options: string[] | { value: string; label: string }[];
+}) {
+  const active = value !== '';
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className={[
+        "text-xs px-2 py-1.5 rounded-lg border cursor-pointer outline-none transition-colors",
+        active
+          ? "bg-indigo-600 text-white border-indigo-600"
+          : "bg-white text-slate-600 border-slate-200 hover:border-slate-300",
+      ].join(" ")}
+    >
+      <option value="">{placeholder}</option>
+      {options.map(o =>
+        typeof o === 'string'
+          ? <option key={o} value={o}>{o}</option>
+          : <option key={o.value} value={o.value}>{o.label}</option>
+      )}
+    </select>
+  );
+}
+
 function Tracker({ onLogout }: { onLogout: () => void }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
@@ -43,7 +72,9 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<TabFilter>("all");
+  const [filterTestament, setFilterTestament] = useState('');
+  const [filterCategory,  setFilterCategory]  = useState('');
+  const [filterStatus,    setFilterStatus]     = useState('');
   const [showHelp, setShowHelp] = useState(false);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -116,10 +147,26 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
     ? sortedBooks.filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
     : sortedBooks;
 
+  const availableCategoryOptions = [...new Set(
+    books.filter(b => !filterTestament || b.testament === filterTestament).map(b => b.category)
+  )];
+  const availableTestamentOptions = [...new Set(
+    books.filter(b => !filterCategory || b.category === filterCategory).map(b => b.testament)
+  )];
+  const anyFilterActive = filterTestament !== '' || filterCategory !== '' || filterStatus !== '';
+  const clearFilters = () => { setFilterTestament(''); setFilterCategory(''); setFilterStatus(''); };
+
   const tabFilteredBooks = filteredBooks.filter(b => {
-    if (activeTab === "all") return true;
-    if (activeTab === "old") return b.testament === "Old Testament";
-    return b.testament === "New Testament";
+    if (filterTestament && b.testament !== filterTestament) return false;
+    if (filterCategory  && b.category  !== filterCategory)  return false;
+    if (filterStatus) {
+      const isComplete = b.chapters_read >= b.num_chapters;
+      const inProgress = b.chapters_read > 0 && !isComplete;
+      if (filterStatus === 'complete'    && !isComplete)         return false;
+      if (filterStatus === 'in_progress' && !inProgress)         return false;
+      if (filterStatus === 'not_started' && b.chapters_read > 0) return false;
+    }
+    return true;
   });
 
   useEffect(() => {
@@ -271,12 +318,6 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
   const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;
 
-  const tabs: { key: TabFilter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "old", label: "Old Testament" },
-    { key: "new", label: "New Testament" },
-  ];
-
   return (
     <div className="flex flex-col min-h-screen md:h-screen bg-slate-50">
       {/* Header */}
@@ -323,22 +364,50 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
               )}
             </div>
 
-            {/* Testament tabs */}
-            <div className="flex items-center gap-1 px-3 pt-2 pb-1">
-              {tabs.map(tab => (
+            {/* Filter bar */}
+            <div className="flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap">
+              <FilterSelect
+                value={filterTestament}
+                onChange={v => {
+                  setFilterTestament(v);
+                  if (v && filterCategory) {
+                    const valid = new Set(books.filter(b => b.testament === v).map(b => b.category));
+                    if (!valid.has(filterCategory)) setFilterCategory('');
+                  }
+                }}
+                placeholder="Testament"
+                options={availableTestamentOptions}
+              />
+              <FilterSelect
+                value={filterCategory}
+                onChange={v => {
+                  setFilterCategory(v);
+                  if (v && filterTestament) {
+                    const valid = new Set(books.filter(b => b.category === v).map(b => b.testament));
+                    if (!valid.has(filterTestament)) setFilterTestament('');
+                  }
+                }}
+                placeholder="Category"
+                options={availableCategoryOptions}
+              />
+              <FilterSelect
+                value={filterStatus}
+                onChange={setFilterStatus}
+                placeholder="Status"
+                options={[
+                  { value: 'not_started', label: 'Not Started' },
+                  { value: 'in_progress', label: 'In Progress' },
+                  { value: 'complete',    label: 'Complete' },
+                ]}
+              />
+              {anyFilterActive && (
                 <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={[
-                    "text-xs font-medium px-3 py-1.5 rounded-full transition-all",
-                    activeTab === tab.key
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-slate-500 hover:bg-slate-100",
-                  ].join(" ")}
+                  onClick={clearFilters}
+                  className="text-xs text-slate-400 hover:text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap"
                 >
-                  {tab.label}
+                  Clear filters
                 </button>
-              ))}
+              )}
               {/* Sort controls */}
               <div className="ml-auto flex gap-1">
                 {(["name", "chapters_read", "percent", "status"] as SortKey[]).map(key => {

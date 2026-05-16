@@ -71,6 +71,16 @@ function SegmentedProgressBar({ total, readChapters }: { total: number; readChap
   const barRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ chapter: number; x: number; y: number } | null>(null);
 
+  const runs: { start: number; end: number; read: boolean }[] = [];
+  for (let i = 1; i <= total; i++) {
+    const read = readSet.has(i);
+    if (runs.length === 0 || runs[runs.length - 1].read !== read) {
+      runs.push({ start: i, end: i, read });
+    } else {
+      runs[runs.length - 1].end = i;
+    }
+  }
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!barRef.current) return;
     const rect = barRef.current.getBoundingClientRect();
@@ -82,12 +92,16 @@ function SegmentedProgressBar({ total, readChapters }: { total: number; readChap
     <div className="mt-2.5">
       <div
         ref={barRef}
-        className="flex h-1.5 rounded-full overflow-hidden gap-px cursor-default"
+        className="flex h-2 gap-0.5 cursor-default"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setTooltip(null)}
       >
-        {Array.from({ length: total }, (_, i) => (
-          <div key={i} className={`flex-1 ${readSet.has(i + 1) ? 'bg-indigo-500' : 'bg-slate-100'}`} />
+        {runs.map((run, i) => (
+          <div
+            key={i}
+            className={`rounded-sm ${run.read ? 'bg-indigo-500' : 'bg-slate-200'}`}
+            style={{ flex: run.end - run.start + 1 }}
+          />
         ))}
       </div>
       {tooltip && createPortal(

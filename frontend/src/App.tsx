@@ -492,8 +492,6 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3">
               {tabFilteredBooks.map((book) => {
                 const isComplete = book.chapters_read >= book.num_chapters;
-                const inProgress = book.chapters_read > 0 && !isComplete;
-                const progress = calculateProgress(book);
                 const isSelected = selectedBook?.name === book.name;
 
                 return (

@@ -25,9 +25,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen gap-6">
-      <h1 className="text-3xl font-bold">Bible Books Tracker</h1>
-      <p className="text-lg text-base-content/70">Sign in to track your reading progress</p>
+    <div className="flex flex-col items-center justify-center h-screen gap-6 bg-white dark:bg-slate-900">
+      <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Bible Books Tracker</h1>
+      <p className="text-lg text-slate-500 dark:text-slate-400">Sign in to track your reading progress</p>
       <GoogleLogin
         onSuccess={handleSuccess}
         onError={() => console.error('Google login failed')}

@@ -8,7 +8,7 @@ from google.auth.transport import requests as google_requests
 import psycopg2
 import os
 from psycopg2.extras import RealDictCursor, execute_values
-from datetime import date
+from datetime import date, datetime, timezone, timedelta
 from config import Config
 
 app = Flask(__name__)
@@ -205,10 +205,8 @@ def update_progress():
 
         if newly_inserted > 0:
             cur.execute("""
-                INSERT INTO reading_log (user_id, read_date, chapters_count)
-                VALUES (%s, CURRENT_DATE, %s)
-                ON CONFLICT (user_id, read_date)
-                DO UPDATE SET chapters_count = reading_log.chapters_count + EXCLUDED.chapters_count
+                INSERT INTO reading_log (user_id, chapters_count)
+                VALUES (%s, %s)
             """, (user_id, newly_inserted))
 
         cur.execute("""
@@ -289,12 +287,12 @@ def undo_progress():
         result = cur.fetchone()
         chapters_read = result['chapters_read'] if result else 0
 
-        if deleted_count > 0 and latest.date() == date.today():
+        if deleted_count > 0:
             cur.execute("""
                 UPDATE reading_log
                 SET chapters_count = GREATEST(chapters_count - %s, 0)
-                WHERE user_id = %s AND read_date = CURRENT_DATE
-            """, (deleted_count, user_id))
+                WHERE user_id = %s AND logged_at = %s::timestamptz
+            """, (deleted_count, user_id, latest))
 
         cur.execute("""
             SELECT COALESCE(
@@ -373,14 +371,14 @@ def get_activity():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT read_date::text AS date, chapters_count AS chapters
+            SELECT logged_at, chapters_count AS chapters
             FROM reading_log
             WHERE user_id = %s
-              AND read_date >= CURRENT_DATE - INTERVAL '364 days'
-            ORDER BY read_date
+              AND logged_at >= NOW() - INTERVAL '365 days'
+            ORDER BY logged_at
         """, (user_id,))
         rows = cur.fetchall()
-        return jsonify([dict(r) for r in rows])
+        return jsonify([{'logged_at': r['logged_at'].isoformat(), 'chapters': r['chapters']} for r in rows])
     finally:
         cur.close()
         conn.close()
@@ -390,21 +388,37 @@ def get_activity():
 @jwt_required()
 def get_stats():
     user_id = int(get_jwt_identity())
+    tz_offset = int(request.args.get('tz_offset', 0))  # minutes: -getTimezoneOffset()
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
+        # Compute UTC boundaries for the client's local day and week
+        local_now = datetime.now(timezone.utc) + timedelta(minutes=tz_offset)
+        local_today = local_now.date()
+        today_start_utc = datetime(local_today.year, local_today.month, local_today.day,
+                                   tzinfo=timezone.utc) - timedelta(minutes=tz_offset)
+        today_end_utc   = today_start_utc + timedelta(days=1)
+        # ISO week: Monday start
+        week_start_date = local_today - timedelta(days=local_today.weekday())
+        week_start_utc  = datetime(week_start_date.year, week_start_date.month, week_start_date.day,
+                                   tzinfo=timezone.utc) - timedelta(minutes=tz_offset)
+
         cur.execute("""
             SELECT COALESCE(SUM(chapters_count), 0) AS total_chapters,
-                   COUNT(*) AS total_days
+                   COUNT(DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date) AS total_days
             FROM reading_log WHERE user_id = %s
-        """, (user_id,))
+        """, (tz_offset, user_id))
         totals = cur.fetchone()
 
         cur.execute("""
-            WITH dates AS (
+            WITH local_dates AS (
+                SELECT DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date AS read_date
+                FROM reading_log WHERE user_id = %s
+            ),
+            dates AS (
                 SELECT read_date,
                        (read_date - (ROW_NUMBER() OVER (ORDER BY read_date) || ' days')::interval)::date AS grp
-                FROM reading_log WHERE user_id = %s
+                FROM local_dates
             ),
             streaks AS (
                 SELECT COUNT(*) AS length, MAX(read_date) AS last_day
@@ -413,18 +427,18 @@ def get_stats():
             SELECT
                 MAX(length) AS best_streak,
                 (SELECT length FROM streaks
-                 WHERE last_day >= CURRENT_DATE - 1
+                 WHERE last_day >= %s - INTERVAL '1 day'
                  ORDER BY last_day DESC LIMIT 1) AS current_streak
             FROM streaks
-        """, (user_id,))
+        """, (tz_offset, user_id, local_today))
         streak_row = cur.fetchone()
 
         cur.execute("""
             SELECT
-                COALESCE(SUM(CASE WHEN read_date = CURRENT_DATE THEN chapters_count END), 0) AS chapters_today,
-                COALESCE(SUM(CASE WHEN read_date >= date_trunc('week', CURRENT_DATE) THEN chapters_count END), 0) AS chapters_this_week
+                COALESCE(SUM(CASE WHEN logged_at >= %s AND logged_at < %s THEN chapters_count END), 0) AS chapters_today,
+                COALESCE(SUM(CASE WHEN logged_at >= %s THEN chapters_count END), 0) AS chapters_this_week
             FROM reading_log WHERE user_id = %s
-        """, (user_id,))
+        """, (today_start_utc, today_end_utc, week_start_utc, user_id))
         period_row = cur.fetchone()
 
         return jsonify({

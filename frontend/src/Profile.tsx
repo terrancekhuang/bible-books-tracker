@@ -17,7 +17,7 @@ interface Cycle {
 }
 
 interface ActivityDay {
-  date: string
+  logged_at: string
   chapters: number
 }
 
@@ -73,7 +73,13 @@ function SunIcon() {
 }
 
 function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
-  const chaptersByDate = new Map(activity.map(d => [d.date, d.chapters]))
+  const chaptersByDate = new Map<string, number>()
+  for (const d of activity) {
+    const dt = new Date(d.logged_at)
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const key = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
+    chaptersByDate.set(key, (chaptersByDate.get(key) ?? 0) + d.chapters)
+  }
 
   // Build 52 full weeks ending today, starting from the most recent Sunday >= 364 days ago
   const today = new Date()
@@ -88,7 +94,7 @@ function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
     if (weeks.length >= 53) break
     const week = []
     for (let d = 0; d < 7; d++) {
-      const dateStr = cursor.toISOString().split('T')[0]
+      const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
       week.push({
         dateStr,
         label: cursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -186,7 +192,7 @@ export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: 
       fetch('/auth/me',       { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.json() }),
       fetch('/api/cycles',    { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.json() }),
       fetch('/api/activity',  { headers }).then(r => r.ok ? r.json() : []),
-      fetch('/api/stats',     { headers }).then(r => r.ok ? r.json() : null),
+      fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => r.ok ? r.json() : null),
     ]).then(([userData, cyclesData, activityData, statsData]) => {
       if (userData)   setUser(userData)
       if (cyclesData) setCycles(cyclesData)

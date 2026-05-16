@@ -126,7 +126,8 @@ def get_books():
             ARRAY_AGG(cp.chapter_number ORDER BY cp.chapter_number)
             FILTER (WHERE cp.chapter_number IS NOT NULL),
             ARRAY[]::INTEGER[]
-        ) AS chapters_read_list
+        ) AS chapters_read_list,
+        MAX(cp.logged_at) AS last_read_at
     FROM bible_books b
     LEFT JOIN progress p ON b.book_id = p.book_id
         AND p.user_id = %s
@@ -149,6 +150,7 @@ def get_books():
         "num_chapters": item[4],
         "chapters_read": item[5],
         "chapters_read_list": list(item[6]) if item[6] else [],
+        "last_read_at": item[7].isoformat() if item[7] else None,
     } for item in raw_data]
 
     return jsonify(books)

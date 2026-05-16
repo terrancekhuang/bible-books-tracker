@@ -103,3 +103,13 @@ VALUES
     ('Revelation', 'New Testament', 'General Epistles', 22)
 ON CONFLICT (name) DO NOTHING;
 
+CREATE TABLE IF NOT EXISTS reading_log (
+  id             SERIAL PRIMARY KEY,
+  user_id        INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+  read_date      DATE NOT NULL DEFAULT CURRENT_DATE,
+  chapters_count INTEGER NOT NULL,
+  UNIQUE(user_id, read_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reading_log_user_date ON reading_log(user_id, read_date);
+

@@ -179,6 +179,15 @@ def update_progress():
         """, (user_id, cycle_id, book_id, chapters_to_add, num_chapters, chapters_to_add, num_chapters))
 
         result = cur.fetchone()
+
+        if chapters_to_add and chapters_to_add > 0:
+            cur.execute("""
+                INSERT INTO reading_log (user_id, read_date, chapters_count)
+                VALUES (%s, CURRENT_DATE, %s)
+                ON CONFLICT (user_id, read_date)
+                DO UPDATE SET chapters_count = reading_log.chapters_count + EXCLUDED.chapters_count
+            """, (user_id, chapters_to_add))
+
         conn.commit()
         cur.close()
         conn.close()
@@ -246,6 +255,81 @@ def create_cycle():
         cur.close()
         conn.close()
     return jsonify({'cycle_id': cycle['cycle_id'], 'cycle_number': cycle['cycle_number']})
+
+
+@app.route('/api/activity', methods=['GET'])
+@jwt_required()
+def get_activity():
+    user_id = int(get_jwt_identity())
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT read_date::text AS date, chapters_count AS chapters
+            FROM reading_log
+            WHERE user_id = %s
+              AND read_date >= CURRENT_DATE - INTERVAL '364 days'
+            ORDER BY read_date
+        """, (user_id,))
+        rows = cur.fetchall()
+        return jsonify([dict(r) for r in rows])
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route('/api/stats', methods=['GET'])
+@jwt_required()
+def get_stats():
+    user_id = int(get_jwt_identity())
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT COALESCE(SUM(chapters_count), 0) AS total_chapters,
+                   COUNT(*) AS total_days
+            FROM reading_log WHERE user_id = %s
+        """, (user_id,))
+        totals = cur.fetchone()
+
+        cur.execute("""
+            WITH dates AS (
+                SELECT read_date,
+                       (read_date - (ROW_NUMBER() OVER (ORDER BY read_date) || ' days')::interval)::date AS grp
+                FROM reading_log WHERE user_id = %s
+            ),
+            streaks AS (
+                SELECT COUNT(*) AS length, MAX(read_date) AS last_day
+                FROM dates GROUP BY grp
+            )
+            SELECT
+                MAX(length) AS best_streak,
+                (SELECT length FROM streaks
+                 WHERE last_day >= CURRENT_DATE - 1
+                 ORDER BY last_day DESC LIMIT 1) AS current_streak
+            FROM streaks
+        """, (user_id,))
+        streak_row = cur.fetchone()
+
+        cur.execute("""
+            SELECT
+                COALESCE(SUM(CASE WHEN read_date = CURRENT_DATE THEN chapters_count END), 0) AS chapters_today,
+                COALESCE(SUM(CASE WHEN read_date >= date_trunc('week', CURRENT_DATE) THEN chapters_count END), 0) AS chapters_this_week
+            FROM reading_log WHERE user_id = %s
+        """, (user_id,))
+        period_row = cur.fetchone()
+
+        return jsonify({
+            'total_chapters': int(totals['total_chapters']),
+            'total_days': int(totals['total_days']),
+            'best_streak': int(streak_row['best_streak'] or 0),
+            'current_streak': int(streak_row['current_streak'] or 0),
+            'chapters_today': int(period_row['chapters_today']),
+            'chapters_this_week': int(period_row['chapters_this_week']),
+        })
+    finally:
+        cur.close()
+        conn.close()
 
 
 if __name__ == '__main__':

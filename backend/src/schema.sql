@@ -15,22 +15,13 @@ CREATE TABLE IF NOT EXISTS users (
 ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_url TEXT;
 
-CREATE TABLE IF NOT EXISTS reading_cycles ( 
-    cycle_id SERIAL PRIMARY KEY, 
+CREATE TABLE IF NOT EXISTS reading_cycles (
+    cycle_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
     cycle_number INTEGER,
     UNIQUE(user_id, cycle_number)
 );
 
-CREATE TABLE IF NOT EXISTS progress (
-    user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
-    cycle_id INTEGER REFERENCES reading_cycles(cycle_id) ON DELETE CASCADE,
-    book_id INTEGER REFERENCES bible_books(book_id) ON DELETE CASCADE,
-    chapters_read INTEGER,
-    UNIQUE(user_id, cycle_id, book_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_progress_user_cycle ON progress(user_id, cycle_id);
 CREATE INDEX IF NOT EXISTS idx_reading_cycles_user ON reading_cycles(user_id);
 
 INSERT INTO bible_books (name, testament, category, num_chapters)
@@ -103,48 +94,31 @@ VALUES
     ('Revelation', 'New Testament', 'General Epistles', 22)
 ON CONFLICT (name) DO NOTHING;
 
-CREATE TABLE IF NOT EXISTS reading_log (
-  id             SERIAL PRIMARY KEY,
-  user_id        INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
-  logged_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  chapters_count INTEGER NOT NULL
-);
-
--- Migrate existing DBs that still have the old read_date DATE column
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'reading_log' AND column_name = 'read_date'
-  ) THEN
-    ALTER TABLE reading_log RENAME COLUMN read_date TO logged_at;
-    ALTER TABLE reading_log
-      ALTER COLUMN logged_at TYPE TIMESTAMPTZ
-      USING logged_at::TIMESTAMPTZ;
-    ALTER TABLE reading_log
-      ALTER COLUMN logged_at SET DEFAULT NOW();
-    ALTER TABLE reading_log
-      DROP CONSTRAINT IF EXISTS reading_log_user_id_read_date_key;
-  END IF;
-END $$;
-
-CREATE INDEX IF NOT EXISTS idx_reading_log_user_logged_at ON reading_log(user_id, logged_at);
-
 CREATE TABLE IF NOT EXISTS chapter_progress (
   user_id        INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
   cycle_id       INTEGER REFERENCES reading_cycles(cycle_id) ON DELETE CASCADE,
   book_id        INTEGER REFERENCES bible_books(book_id) ON DELETE CASCADE,
   chapter_number INTEGER NOT NULL,
-  logged_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+  logged_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, cycle_id, book_id, chapter_number)
 );
+
+-- Migrate existing chapter_progress.logged_at from TIMESTAMP to TIMESTAMPTZ
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'chapter_progress' AND column_name = 'logged_at'
+      AND data_type = 'timestamp without time zone'
+  ) THEN
+    ALTER TABLE chapter_progress
+      ALTER COLUMN logged_at TYPE TIMESTAMPTZ USING logged_at::TIMESTAMPTZ;
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_chapter_progress_user_cycle_book
   ON chapter_progress(user_id, cycle_id, book_id);
 
-INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number, logged_at)
-SELECT p.user_id, p.cycle_id, p.book_id, gs.n, NOW()
-FROM progress p
-CROSS JOIN LATERAL generate_series(1, GREATEST(p.chapters_read, 0)) AS gs(n)
-WHERE p.chapters_read > 0
-ON CONFLICT DO NOTHING;
+-- Drop tables superseded by chapter_progress
+DROP TABLE IF EXISTS reading_log;
+DROP TABLE IF EXISTS progress;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom'
 import Login from './Login'
 import Profile from './Profile'
@@ -89,13 +90,14 @@ function SegmentedProgressBar({ total, readChapters }: { total: number; readChap
           <div key={i} className={`flex-1 ${readSet.has(i + 1) ? 'bg-indigo-500' : 'bg-slate-100'}`} />
         ))}
       </div>
-      {tooltip && (
+      {tooltip && createPortal(
         <div
           className="fixed bg-slate-800 text-white text-xs px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap z-50"
           style={{ left: tooltip.x, top: tooltip.y - 28, transform: 'translateX(-50%)' }}
         >
           Ch. {tooltip.chapter} {readSet.has(tooltip.chapter) ? '· ✓' : ''}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

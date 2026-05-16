@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
 import { MoonIcon, SunIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
+import UserMenu from './UserMenu'
 
 interface Book {
   book_id: number;
@@ -42,8 +43,14 @@ function parseChapters(input: string, max: number): number[] {
   return [...result].sort((a, b) => a - b);
 }
 
+interface UserInfo {
+  name: string | null
+  picture_url: string | null
+}
+
 export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: () => void; theme: 'light' | 'dark'; onToggleTheme: () => void }) {
   const [books, setBooks] = useState<Book[]>([]);
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chaptersInput, setChaptersInput] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -126,6 +133,12 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         }));
         setBooks(transformedBooks);
       });
+  }, []);
+
+  useEffect(() => {
+    fetch("/auth/me", { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setUser(data) });
   }, []);
 
   const calculateProgress = (book: Book) => {
@@ -408,15 +421,11 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
             >
               {theme === 'light' ? <MoonIcon /> : <SunIcon />}
             </button>
-            <Link to="/profile" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
-              Profile
-            </Link>
-            <button
-              className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-              onClick={onLogout}
-            >
-              Sign out
-            </button>
+            <UserMenu
+              pictureUrl={user?.picture_url}
+              userName={user?.name}
+              onLogout={onLogout}
+            />
           </div>
         </div>
       </header>

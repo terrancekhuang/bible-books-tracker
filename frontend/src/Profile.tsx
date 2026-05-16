@@ -4,6 +4,7 @@ import { authHeaders } from "./lib/auth";
 import { MoonIcon, SunIcon } from "./components/Icons";
 import ActivityHeatmap, { type ActivityDay } from "./components/ActivityHeatmap";
 import StatCard from "./components/StatCard";
+import UserMenu from "./components/UserMenu";
 
 interface UserInfo {
   user_id: number;
@@ -128,12 +129,12 @@ export default function Profile({
             >
               {theme === "light" ? <MoonIcon /> : <SunIcon />}
             </button>
-            <button
-              className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-              onClick={onLogout}
-            >
-              Sign out
-            </button>
+            <UserMenu
+              pictureUrl={user?.picture_url}
+              userName={user?.name}
+              onLogout={onLogout}
+              showProfileLink={false}
+            />
           </div>
         </div>
       </header>

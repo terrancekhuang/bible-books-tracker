@@ -8,10 +8,10 @@ import App from './App.tsx'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string
 
-registerSW({
+const updateSW = registerSW({
   onNeedRefresh() {
     if (confirm('A new version is available. Reload to update?')) {
-      window.location.reload()
+      updateSW(true)
     }
   },
   onOfflineReady() {

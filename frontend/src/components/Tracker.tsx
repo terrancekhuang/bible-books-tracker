@@ -633,6 +633,14 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                 placeholder={isMobile ? "Search books…" : "Search books… (press /)"}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && tabFilteredBooks.length > 0) {
+                    e.preventDefault();
+                    setSelectedBook(tabFilteredBooks[0]);
+                    setChaptersInput('');
+                    searchInputRef.current?.blur();
+                  }
+                }}
                 className="flex-1 text-sm px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-700 dark:text-slate-100 border border-slate-200 dark:border-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition placeholder:text-slate-400 dark:placeholder:text-slate-500"
               />
               {sortKey !== null && (

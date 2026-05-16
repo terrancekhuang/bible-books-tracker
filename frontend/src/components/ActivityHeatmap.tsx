@@ -4,11 +4,11 @@ export interface ActivityDay {
 }
 
 function intensityClass(chapters: number): string {
-  if (chapters === 0) return 'bg-slate-100 dark:bg-slate-800'
-  if (chapters <= 2) return 'bg-indigo-200 dark:bg-indigo-900'
-  if (chapters <= 5) return 'bg-indigo-400 dark:bg-indigo-700'
-  if (chapters <= 10) return 'bg-indigo-600 dark:bg-indigo-500'
-  return 'bg-indigo-800 dark:bg-indigo-300'
+  if (chapters === 0) return 'bg-slate-100 dark:bg-slate-700'
+  if (chapters <= 2) return 'bg-indigo-200 dark:bg-indigo-800'
+  if (chapters <= 5) return 'bg-indigo-400 dark:bg-indigo-600'
+  if (chapters <= 10) return 'bg-indigo-600 dark:bg-indigo-400'
+  return 'bg-indigo-800 dark:bg-indigo-200'
 }
 
 export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
@@ -93,7 +93,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
 
       <div className="flex items-center gap-1 mt-1 self-end">
         <span className="text-xs text-slate-400 dark:text-slate-500">Less</span>
-        {['bg-slate-100 dark:bg-slate-800', 'bg-indigo-200 dark:bg-indigo-900', 'bg-indigo-400 dark:bg-indigo-700', 'bg-indigo-600 dark:bg-indigo-500', 'bg-indigo-800 dark:bg-indigo-300'].map((cls, i) => (
+        {['bg-slate-100 dark:bg-slate-700', 'bg-indigo-200 dark:bg-indigo-800', 'bg-indigo-400 dark:bg-indigo-600', 'bg-indigo-600 dark:bg-indigo-400', 'bg-indigo-800 dark:bg-indigo-200'].map((cls, i) => (
           <div key={i} className={`rounded-sm ${cls}`} style={{ width: 12, height: 12 }} />
         ))}
         <span className="text-xs text-slate-400 dark:text-slate-500">More</span>

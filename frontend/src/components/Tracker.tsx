@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
 import { MoonIcon, SunIcon } from './Icons'
 import FilterSelect from './FilterSelect'
@@ -57,6 +57,9 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
   const chaptersInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const lastKeyRef = useRef<string | null>(null);
+  const lastKeyTimeoutRef = useRef<number | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -197,12 +200,52 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         return;
       }
 
-      if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !isInput) {
+      if (e.key === 'u' && !isInput && selectedBook) {
+        e.preventDefault();
+        handleUndo();
+        return;
+      }
+
+      if (e.key === 'i' && !isInput && selectedBook) {
+        e.preventDefault();
+        chaptersInputRef.current?.focus();
+        return;
+      }
+
+      if (e.key === 'p' && !isInput) {
+        e.preventDefault();
+        navigate('/profile');
+        return;
+      }
+
+      if (e.key === 'g' && !isInput) {
+        e.preventDefault();
+        if (lastKeyRef.current === 'g') {
+          if (lastKeyTimeoutRef.current !== null) clearTimeout(lastKeyTimeoutRef.current);
+          lastKeyRef.current = null;
+          if (tabFilteredBooks.length > 0) { setSelectedBook(tabFilteredBooks[0]); setChaptersInput(''); }
+        } else {
+          lastKeyRef.current = 'g';
+          lastKeyTimeoutRef.current = window.setTimeout(() => { lastKeyRef.current = null; }, 500);
+        }
+        return;
+      }
+
+      if (e.key === 'G' && !isInput) {
+        e.preventDefault();
+        if (tabFilteredBooks.length > 0) { setSelectedBook(tabFilteredBooks[tabFilteredBooks.length - 1]); setChaptersInput(''); }
+        return;
+      }
+
+      const VIM_MAP: Record<string, string> = { h: 'ArrowLeft', l: 'ArrowRight', k: 'ArrowUp', j: 'ArrowDown' };
+      const resolvedKey = (!isInput && VIM_MAP[e.key]) ? VIM_MAP[e.key] : e.key;
+
+      if ((resolvedKey === 'ArrowRight' || resolvedKey === 'ArrowLeft') && !isInput) {
         e.preventDefault();
         const currentIndex = selectedBook
           ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name)
           : -1;
-        if (e.key === 'ArrowRight') {
+        if (resolvedKey === 'ArrowRight') {
           if (currentIndex === -1 && tabFilteredBooks.length > 0) {
             setSelectedBook(tabFilteredBooks[0]);
           } else if (currentIndex < tabFilteredBooks.length - 1) {
@@ -217,13 +260,13 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         return;
       }
 
-      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isInput) {
+      if ((resolvedKey === 'ArrowDown' || resolvedKey === 'ArrowUp') && !isInput) {
         e.preventDefault();
         const numCols = window.innerWidth < 640 ? 2 : 3;
         const currentIndex = selectedBook
           ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name)
           : -1;
-        if (e.key === 'ArrowDown') {
+        if (resolvedKey === 'ArrowDown') {
           if (currentIndex === -1 && tabFilteredBooks.length > 0) {
             setSelectedBook(tabFilteredBooks[0]);
           } else {
@@ -601,13 +644,16 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
             <div className="flex flex-col gap-3">
               {([
                 { keys: ['/'], description: 'Focus search' },
-                { keys: ['Esc'], description: 'Deselect book / clear search' },
-                { keys: ['←', '→'], description: 'Navigate books left / right' },
-                { keys: ['↑', '↓'], description: 'Navigate books up / down' },
-                { keys: ['Tab'], description: 'Focus chapter input' },
-                { keys: ['Enter'], description: 'Submit chapter progress' },
+                { keys: ['←', '→', '↑', '↓'], altKeys: ['h', 'l', 'k', 'j'], description: 'Navigate books' },
+                { keys: ['g', 'g'], description: 'Go to first book' },
+                { keys: ['G'], description: 'Go to last book' },
+                { keys: ['Tab'], altKeys: ['i'], description: 'Focus chapter input' },
+                { keys: ['Enter'], description: 'Submit progress' },
+                { keys: ['u'], description: 'Undo last entry' },
+                { keys: ['p'], description: 'Go to Profile' },
+                { keys: ['Esc'], description: 'Deselect / clear search' },
                 { keys: ['?'], description: 'Show / hide this help' },
-              ] as { keys: string[]; description: string }[]).map(({ keys, description }) => (
+              ] as { keys: string[]; altKeys?: string[]; description: string }[]).map(({ keys, altKeys, description }) => (
                 <div key={description} className="flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     {keys.map(k => (
@@ -618,6 +664,19 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                         {k}
                       </kbd>
                     ))}
+                    {altKeys && (
+                      <>
+                        <span className="text-slate-400 dark:text-slate-500 text-xs px-0.5">/</span>
+                        {altKeys.map(k => (
+                          <kbd
+                            key={k}
+                            className="inline-flex items-center justify-center rounded border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-1.5 py-0.5 text-xs font-mono shadow-[0_1px_0_#cbd5e1] dark:shadow-[0_1px_0_#475569] text-slate-700 dark:text-slate-300 min-w-[1.5rem]"
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </>
+                    )}
                   </div>
                   <span className="text-sm text-slate-600 dark:text-slate-400">{description}</span>
                 </div>

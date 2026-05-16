@@ -2,3 +2,8 @@
 @plugin "daisyui";
 
 @variant dark (&:is(.dark *));
+
+@keyframes ring-ripple {
+  0%   { opacity: 0.55; transform: scale(1); }
+  100% { opacity: 0;    transform: scale(1.22); }
+}

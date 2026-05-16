@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
@@ -67,6 +67,9 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chaptersInput, setChaptersInput] = useState('');
+  const [confirmMarkAll, setConfirmMarkAll] = useState(false);
+  const [ringPulseKey, setRingPulseKey] = useState(0);
+  const [displayPct, setDisplayPct] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
@@ -83,6 +86,11 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastKeyRef = useRef<string | null>(null);
   const lastKeyTimeoutRef = useRef<number | null>(null);
+  const bookCardRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
+  const prevTopPositions = useRef<Map<string, number>>(new Map());
+  const animFrameRef = useRef<number | null>(null);
+  const prevPctRef = useRef<number | null>(null);
+  const prevTotalReadRef = useRef<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -157,11 +165,13 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       .then(data => { if (data) setUser(data) });
   }, []);
 
-  useEffect(() => {
+  const fetchStats = () => {
     fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setStats(data) });
-  }, []);
+  };
+
+  useEffect(() => { fetchStats(); }, []);
 
   const totalRead = books.reduce((sum, b) => sum + b.chapters_read, 0)
   const booksComplete = books.filter(b => b.chapters_read >= b.num_chapters).length
@@ -169,6 +179,66 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
     .filter(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters && b.last_read_at !== null)
     .sort((a, b) => (b.last_read_at! > a.last_read_at! ? 1 : -1))
     .slice(0, 3)
+  const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
+
+  // Pulse the ring when chapters increase
+  useEffect(() => {
+    if (prevTotalReadRef.current === null) { prevTotalReadRef.current = totalRead; return; }
+    if (totalRead > prevTotalReadRef.current) setRingPulseKey(k => k + 1);
+    prevTotalReadRef.current = totalRead;
+  }, [totalRead]);
+
+  // Count-up animation for the dashboard percentage
+  useEffect(() => {
+    if (prevPctRef.current === null) {
+      prevPctRef.current = overallPct;
+      setDisplayPct(overallPct);
+      return;
+    }
+    const start = prevPctRef.current;
+    const end = overallPct;
+    prevPctRef.current = end;
+    if (start === end) return;
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const t = Math.min((now - startTime) / 700, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplayPct(Math.round(start + (end - start) * eased));
+      if (t < 1) animFrameRef.current = requestAnimationFrame(animate);
+    };
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    animFrameRef.current = requestAnimationFrame(animate);
+    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
+  }, [overallPct]);
+
+  // FLIP animation for Continue Reading reorder / new entries
+  useLayoutEffect(() => {
+    continueBooks.forEach(book => {
+      const el = bookCardRefs.current.get(book.name);
+      if (!el) return;
+      const currentTop = el.getBoundingClientRect().top;
+      const prevTop = prevTopPositions.current.get(book.name);
+      if (prevTop !== undefined && Math.abs(prevTop - currentTop) > 1) {
+        const delta = prevTop - currentTop;
+        el.style.transition = 'none';
+        el.style.transform = `translateY(${delta}px)`;
+        el.getBoundingClientRect();
+        el.style.transition = 'transform 480ms cubic-bezier(0.22, 1, 0.36, 1)';
+        el.style.transform = '';
+      } else if (prevTop === undefined) {
+        el.style.transition = 'none';
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(12px)';
+        el.getBoundingClientRect();
+        el.style.transition = 'transform 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease-out';
+        el.style.transform = '';
+        el.style.opacity = '';
+      }
+      prevTopPositions.current.set(book.name, currentTop);
+    });
+    const current = new Set(continueBooks.map(b => b.name));
+    [...prevTopPositions.current.keys()].forEach(k => { if (!current.has(k)) prevTopPositions.current.delete(k); });
+  }, [continueBooks]);
 
   const calculateProgress = (book: Book) => {
     if (!book.chapters_read) return 0;
@@ -367,38 +437,50 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedBook, tabFilteredBooks, chaptersInput, showHelp]);
 
-  const handleSubmit = async () => {
-    if (!selectedBook || parsedChapters.length === 0) return;
+  useEffect(() => {
+    setConfirmMarkAll(false);
+  }, [selectedBook]);
 
-    const optimisticList = [...new Set([...selectedBook.chapters_read_list, ...parsedChapters])].sort((a, b) => a - b);
-    const optimisticBook = { ...selectedBook, chapters_read: optimisticList.length, chapters_read_list: optimisticList };
-    setBooks(prev => prev.map(b => b.name === selectedBook.name ? optimisticBook : b));
+  const submitChapters = async (book: Book, chapters: number[]) => {
+    if (chapters.length === 0) return;
+    const now = new Date().toISOString();
+    const optimisticList = [...new Set([...book.chapters_read_list, ...chapters])].sort((a, b) => a - b);
+    const optimisticBook = { ...book, chapters_read: optimisticList.length, chapters_read_list: optimisticList, last_read_at: now };
+    setBooks(prev => prev.map(b => b.name === book.name ? optimisticBook : b));
     setSelectedBook(optimisticBook);
-    setChaptersInput('');
-
-    const body = JSON.stringify({ book_name: selectedBook.name, chapters: parsedChapters });
+    const body = JSON.stringify({ book_name: book.name, chapters });
     const headers = authHeaders() as Record<string, string>;
-
     try {
       const response = await fetch("/api/progress", { method: "POST", headers, body });
-
       if (response.status === 401) { onLogout(); return; }
-
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.error || "Failed");
-
-      setBooks(prev => prev.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
-      setSelectedBook(prev => prev ? { ...prev, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : null);
+      setBooks(prev => prev.map(b => b.name === book.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now } : b));
+      setSelectedBook(prev => prev ? { ...prev, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now } : null);
+      if (data.newly_logged > 0) fetchStats();
     } catch (e) {
       if (!navigator.onLine || e instanceof TypeError) {
         await enqueueWrite("/api/progress", "POST", headers, body);
         setPendingCount(c => c + 1);
       } else {
-        setBooks(prev => prev.map(b => b.name === selectedBook.name ? selectedBook : b));
-        setSelectedBook(selectedBook);
+        setBooks(prev => prev.map(b => b.name === book.name ? book : b));
+        setSelectedBook(book);
         console.error("Error updating progress:", e);
       }
     }
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedBook || parsedChapters.length === 0) return;
+    setChaptersInput('');
+    await submitChapters(selectedBook, parsedChapters);
+  };
+
+  const handleMarkAllRead = async () => {
+    if (!selectedBook) return;
+    const allChapters = Array.from({ length: selectedBook.num_chapters }, (_, i) => i + 1);
+    setConfirmMarkAll(false);
+    await submitChapters(selectedBook, allChapters);
   };
 
   const handleUndo = async () => {
@@ -415,6 +497,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
         setSelectedBook({ ...selectedBook, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list });
         setChaptersInput('');
+        fetchStats();
       }
     } catch (e) {
       console.error("Error undoing progress:", e);
@@ -423,8 +506,6 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
   const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;
-
-  const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
 
   return (
     <div className="flex flex-col min-h-screen md:h-screen bg-slate-50 dark:bg-slate-900">
@@ -746,6 +827,30 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                           </button>
                         )}
                       </div>
+
+                      {confirmMarkAll ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleMarkAllRead}
+                            className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors"
+                          >
+                            Confirm — mark all {selectedBook.num_chapters} chapters
+                          </button>
+                          <button
+                            onClick={() => setConfirmMarkAll(false)}
+                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:border-red-200 dark:hover:bg-slate-700 text-sm transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmMarkAll(true)}
+                          className="w-full py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:bg-slate-700 text-sm transition-colors"
+                        >
+                          Mark all as read
+                        </button>
+                      )}
                     </div>
                   )}
                 </>
@@ -755,13 +860,13 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   {/* Circular progress */}
                   <div className="flex flex-col items-center gap-2 pt-2">
                     <div className="relative">
-                      <CircularProgress value={totalRead} max={TOTAL_CHAPTERS} size={148} />
+                      <CircularProgress value={totalRead} max={TOTAL_CHAPTERS} size={148} pulseKey={ringPulseKey} />
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
                         <span
-                          className="text-3xl font-bold text-slate-900 dark:text-slate-100 leading-none"
+                          className="text-3xl font-bold text-slate-900 dark:text-slate-100 leading-none tabular-nums"
                           style={{ fontFamily: "'Lora', Georgia, serif" }}
                         >
-                          {overallPct}%
+                          {displayPct}%
                         </span>
                         <span className="text-xs text-slate-400 dark:text-slate-500 mt-1">complete</span>
                       </div>
@@ -801,6 +906,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                         {continueBooks.map(book => (
                           <button
                             key={book.name}
+                            ref={el => { bookCardRefs.current.set(book.name, el); }}
                             className="w-full flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-3 text-left hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors group"
                             onClick={() => setSelectedBook(book)}
                           >

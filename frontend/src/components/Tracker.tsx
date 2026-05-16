@@ -68,6 +68,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chaptersInput, setChaptersInput] = useState('');
   const [confirmMarkAll, setConfirmMarkAll] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
   const [ringPulseKey, setRingPulseKey] = useState(0);
   const [displayPct, setDisplayPct] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -324,6 +325,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
       if (e.key === 'Escape') {
         if (showHelp) { setShowHelp(false); return; }
+        if (resetConfirm) { setResetConfirm(false); return; }
+        if (confirmMarkAll) { setConfirmMarkAll(false); return; }
         if (target === searchInputRef.current) {
           setSearch('');
           searchInputRef.current?.blur();
@@ -355,6 +358,22 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       if (e.key === 'u' && !isInput && selectedBook) {
         e.preventDefault();
         handleUndo();
+        return;
+      }
+
+      if (e.key === 'R' && !isInput && selectedBook) {
+        e.preventDefault();
+        handleReset();
+        return;
+      }
+
+      if (e.key === 'A' && !isInput && selectedBook) {
+        e.preventDefault();
+        if (confirmMarkAll) {
+          handleMarkAllRead();
+        } else {
+          setConfirmMarkAll(true);
+        }
         return;
       }
 
@@ -435,10 +454,11 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBook, tabFilteredBooks, chaptersInput, showHelp]);
+  }, [selectedBook, tabFilteredBooks, chaptersInput, showHelp, resetConfirm, confirmMarkAll]);
 
   useEffect(() => {
     setConfirmMarkAll(false);
+    setResetConfirm(false);
   }, [selectedBook]);
 
   const submitChapters = async (book: Book, chapters: number[]) => {
@@ -501,6 +521,29 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       }
     } catch (e) {
       console.error("Error undoing progress:", e);
+    }
+  };
+
+  const handleReset = async () => {
+    if (!selectedBook) return;
+    if (!resetConfirm) { setResetConfirm(true); return; }
+    try {
+      const response = await fetch("/api/progress/reset", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ book_name: selectedBook.name }),
+      });
+      if (response.status === 401) { onLogout(); return; }
+      const data = await response.json();
+      if (data.success) {
+        setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: 0, chapters_read_list: [] } : b));
+        setSelectedBook({ ...selectedBook, chapters_read: 0, chapters_read_list: [] });
+        setChaptersInput('');
+        setResetConfirm(false);
+        fetchStats();
+      }
+    } catch (e) {
+      console.error("Error resetting progress:", e);
     }
   };
 
@@ -777,11 +820,18 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   </div>
 
                   {selectedBook.chapters_read >= selectedBook.num_chapters ? (
-                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4 text-center">
+                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4 text-center flex flex-col gap-2">
                       <p className="text-emerald-700 dark:text-emerald-400 font-semibold">All chapters read! ✓</p>
+                      <button
+                        onClick={handleReset}
+                        className={`w-full py-2 rounded-xl text-sm font-medium transition-colors ${resetConfirm ? 'bg-red-600 hover:bg-red-700 text-white' : 'border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
+                      >
+                        {resetConfirm ? 'Confirm reset?' : 'Reset progress'}
+                      </button>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-3">
+                      {/* Input + Submit */}
                       <div>
                         <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-1.5">
                           Chapters read
@@ -808,37 +858,53 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                               : ''}
                         </p>
                       </div>
+                      <button
+                        onClick={handleSubmit}
+                        disabled={parsedChapters.length === 0}
+                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+                      >
+                        Submit
+                      </button>
 
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleSubmit}
-                          disabled={parsedChapters.length === 0}
-                          className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
-                        >
-                          Submit
-                        </button>
-                        {selectedBook.chapters_read > 0 && (
+                      {/* Divider */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <div className="flex-1 h-px bg-slate-100 dark:bg-slate-700" />
+                        <span className="text-xs text-slate-300 dark:text-slate-600 select-none">other actions</span>
+                        <div className="flex-1 h-px bg-slate-100 dark:bg-slate-700" />
+                      </div>
+
+                      {/* Undo + Reset row (only when progress exists) */}
+                      {selectedBook.chapters_read > 0 && (
+                        <div className="flex gap-2">
                           <button
                             onClick={handleUndo}
-                            className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:border-red-200 dark:hover:bg-slate-700 text-sm transition-colors"
-                            title="Undo last entry"
+                            className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:bg-slate-700/50 text-sm transition-colors"
+                            title="Undo last entry (u)"
                           >
                             Undo
                           </button>
-                        )}
-                      </div>
+                          <button
+                            onClick={handleReset}
+                            className={`flex-1 py-2 rounded-xl text-sm transition-colors ${resetConfirm ? 'bg-red-600 hover:bg-red-700 text-white border border-red-600' : 'border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-red-500 hover:border-red-300 dark:hover:bg-slate-700/50'}`}
+                            title={resetConfirm ? 'Click again to confirm' : 'Reset all progress (R)'}
+                          >
+                            {resetConfirm ? 'Confirm reset?' : 'Reset'}
+                          </button>
+                        </div>
+                      )}
 
+                      {/* Mark all as read */}
                       {confirmMarkAll ? (
                         <div className="flex gap-2">
                           <button
                             onClick={handleMarkAllRead}
                             className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors"
                           >
-                            Confirm — mark all {selectedBook.num_chapters} chapters
+                            Confirm — all {selectedBook.num_chapters} chapters
                           </button>
                           <button
                             onClick={() => setConfirmMarkAll(false)}
-                            className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-red-500 hover:border-red-200 dark:hover:bg-slate-700 text-sm transition-colors"
+                            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-red-500 hover:border-red-200 dark:hover:bg-slate-700/50 text-sm transition-colors"
                           >
                             Cancel
                           </button>
@@ -846,7 +912,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                       ) : (
                         <button
                           onClick={() => setConfirmMarkAll(true)}
-                          className="w-full py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:bg-slate-700 text-sm transition-colors"
+                          className="w-full py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:bg-slate-700/50 text-sm transition-colors"
                         >
                           Mark all as read
                         </button>
@@ -975,6 +1041,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                 { keys: ['Tab'], altKeys: ['i'], description: 'Focus chapter input' },
                 { keys: ['Enter'], description: 'Submit progress' },
                 { keys: ['u'], description: 'Undo last entry' },
+                { keys: ['R'], description: 'Reset all progress (two-step)' },
+                { keys: ['A'], description: 'Mark all chapters as read (two-step)' },
                 { keys: ['p'], description: 'Go to Profile' },
                 { keys: ['Esc'], description: 'Deselect / clear search' },
                 { keys: ['?'], description: 'Show / hide this help' },

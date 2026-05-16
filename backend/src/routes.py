@@ -283,6 +283,48 @@ def undo_progress():
         conn.close()
 
 
+@app.route('/api/progress/reset', methods=['POST'])
+@jwt_required()
+def reset_progress():
+    user_id = int(get_jwt_identity())
+    data = request.json
+    book_name = data.get('book_name')
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute(
+            "SELECT cycle_id FROM reading_cycles WHERE user_id = %s ORDER BY cycle_number DESC",
+            (user_id,))
+        cycle = cur.fetchone()
+        if not cycle:
+            return jsonify({'success': False, 'error': 'No active cycle'}), 404
+        cycle_id = cycle['cycle_id']
+
+        cur.execute("SELECT book_id FROM bible_books WHERE name = %s", (book_name,))
+        book = cur.fetchone()
+        if not book:
+            return jsonify({'success': False, 'error': 'Book not found'}), 404
+        book_id = book['book_id']
+
+        cur.execute("""
+            DELETE FROM chapter_progress
+            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+        """, (user_id, cycle_id, book_id))
+
+        conn.commit()
+        return jsonify({
+            'success': True,
+            'chapters_read': 0,
+            'chapters_read_list': [],
+        })
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
+
+
 @app.route('/api/cycles', methods=['GET'])
 @jwt_required()
 def get_cycles():

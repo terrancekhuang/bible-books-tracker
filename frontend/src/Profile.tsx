@@ -41,11 +41,35 @@ const TOTAL_BOOKS = 66
 const TOTAL_CHAPTERS = 1189
 
 function intensityClass(chapters: number): string {
-  if (chapters === 0) return 'bg-slate-100'
-  if (chapters <= 2) return 'bg-indigo-200'
-  if (chapters <= 5) return 'bg-indigo-400'
+  if (chapters === 0) return 'bg-slate-100 dark:bg-slate-700'
+  if (chapters <= 2) return 'bg-indigo-200 dark:bg-indigo-800'
+  if (chapters <= 5) return 'bg-indigo-400 dark:bg-indigo-600'
   if (chapters <= 10) return 'bg-indigo-600'
   return 'bg-indigo-800'
+}
+
+function MoonIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  )
+}
+
+function SunIcon() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  )
 }
 
 function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
@@ -92,7 +116,7 @@ function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
           style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)`, gap: 2 }}
         >
           {monthLabels.map((label, i) => (
-            <div key={i} className="text-xs text-slate-400 overflow-visible whitespace-nowrap">
+            <div key={i} className="text-xs text-slate-400 dark:text-slate-500 overflow-visible whitespace-nowrap">
               {label}
             </div>
           ))}
@@ -103,7 +127,7 @@ function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
       <div className="flex" style={{ gap: 2 }}>
         <div className="flex flex-col justify-around shrink-0" style={{ width: 16, marginRight: 4 }}>
           {['', 'M', '', 'W', '', 'F', ''].map((d, i) => (
-            <div key={i} className="text-xs text-slate-400 text-right">{d}</div>
+            <div key={i} className="text-xs text-slate-400 dark:text-slate-500 text-right">{d}</div>
           ))}
         </div>
         <div
@@ -128,11 +152,11 @@ function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
 
       {/* Legend */}
       <div className="flex items-center gap-1 mt-1 self-end">
-        <span className="text-xs text-slate-400">Less</span>
-        {['bg-slate-100', 'bg-indigo-200', 'bg-indigo-400', 'bg-indigo-600', 'bg-indigo-800'].map(cls => (
-          <div key={cls} className={`rounded-sm ${cls}`} style={{ width: 12, height: 12 }} />
+        <span className="text-xs text-slate-400 dark:text-slate-500">Less</span>
+        {['bg-slate-100 dark:bg-slate-700', 'bg-indigo-200 dark:bg-indigo-800', 'bg-indigo-400 dark:bg-indigo-600', 'bg-indigo-600', 'bg-indigo-800'].map((cls, i) => (
+          <div key={i} className={`rounded-sm ${cls}`} style={{ width: 12, height: 12 }} />
         ))}
-        <span className="text-xs text-slate-400">More</span>
+        <span className="text-xs text-slate-400 dark:text-slate-500">More</span>
       </div>
     </div>
   )
@@ -140,14 +164,14 @@ function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex flex-col gap-1">
-      <p className="text-xs text-slate-400 font-medium uppercase tracking-wide">{label}</p>
-      <p className="text-2xl font-bold text-slate-900">{value}</p>
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-4 flex flex-col gap-1">
+      <p className="text-xs text-slate-400 dark:text-slate-500 font-medium uppercase tracking-wide">{label}</p>
+      <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
     </div>
   )
 }
 
-export default function Profile({ onLogout }: { onLogout: () => void }) {
+export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: () => void; theme: 'light' | 'dark'; onToggleTheme: () => void }) {
   const navigate = useNavigate()
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [user, setUser] = useState<UserInfo | null>(null)
@@ -190,39 +214,48 @@ export default function Profile({ onLogout }: { onLogout: () => void }) {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
+      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="flex items-center justify-between px-5 py-3">
           <button
             onClick={() => navigate('/')}
-            className="text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
+            className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
           >
             ← Back
           </button>
-          <h1 className="text-lg font-bold text-indigo-700 tracking-tight">Profile</h1>
-          <button
-            className="text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors"
-            onClick={onLogout}
-          >
-            Sign out
-          </button>
+          <h1 className="text-lg font-bold text-indigo-700 dark:text-indigo-400 tracking-tight">Profile</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onToggleTheme}
+              className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+            >
+              {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+            </button>
+            <button
+              className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              onClick={onLogout}
+            >
+              Sign out
+            </button>
+          </div>
         </div>
       </header>
 
       <div className="flex flex-col gap-4 px-5 py-5 max-w-3xl mx-auto w-full">
         {/* User info */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex items-center gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4">
           {user?.picture_url ? (
             <img src={user.picture_url} alt="avatar" className="w-14 h-14 rounded-full" referrerPolicy="no-referrer" />
           ) : (
-            <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-xl font-bold text-indigo-600">
+            <div className="w-14 h-14 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xl font-bold text-indigo-600 dark:text-indigo-400">
               {user?.name?.[0] ?? '?'}
             </div>
           )}
           <div>
-            <p className="text-lg font-semibold text-slate-900">{user?.name ?? '—'}</p>
-            <p className="text-sm text-slate-400">{user?.email ?? '—'}</p>
+            <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">{user?.name ?? '—'}</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">{user?.email ?? '—'}</p>
           </div>
         </div>
 
@@ -237,30 +270,30 @@ export default function Profile({ onLogout }: { onLogout: () => void }) {
         </div>
 
         {/* Activity heatmap */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-slate-700 mb-4">Reading Activity</h2>
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-4">Reading Activity</h2>
           <ActivityHeatmap activity={activity} />
         </div>
 
         {/* Current cycle */}
         {currentCycle && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-slate-700 mb-3">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
               Current Cycle — #{currentCycle.cycle_number}
             </h2>
-            <div className="flex justify-between text-sm text-slate-500 mb-1.5">
+            <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400 mb-1.5">
               <span>Chapters</span>
-              <span className="font-medium text-slate-700">
+              <span className="font-medium text-slate-700 dark:text-slate-200">
                 {currentCycle.chapters_read} / {TOTAL_CHAPTERS}
               </span>
             </div>
-            <div className="h-2 rounded-full bg-slate-100 overflow-hidden mb-3">
+            <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden mb-3">
               <div
                 className="h-full rounded-full bg-indigo-500 transition-all"
                 style={{ width: `${Math.round((currentCycle.chapters_read / TOTAL_CHAPTERS) * 100)}%` }}
               />
             </div>
-            <div className="flex gap-4 text-sm text-slate-500">
+            <div className="flex gap-4 text-sm text-slate-500 dark:text-slate-400">
               <span>{Math.round((currentCycle.chapters_read / TOTAL_CHAPTERS) * 100)}% complete</span>
               <span>{currentCycle.books_complete} / {TOTAL_BOOKS} books</span>
             </div>
@@ -279,15 +312,15 @@ export default function Profile({ onLogout }: { onLogout: () => void }) {
 
         {/* Past cycles */}
         {pastCycles.length > 0 && (
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-slate-700 mb-3">Cycle History</h2>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">Cycle History</h2>
             <div className="flex flex-col gap-2">
               {pastCycles.map(cycle => {
                 const pct = Math.round((cycle.chapters_read / TOTAL_CHAPTERS) * 100)
                 return (
-                  <div key={cycle.cycle_id} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
-                    <span className="text-sm font-medium text-slate-700">Cycle {cycle.cycle_number}</span>
-                    <span className="text-sm text-slate-400">
+                  <div key={cycle.cycle_id} className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-200">Cycle {cycle.cycle_number}</span>
+                    <span className="text-sm text-slate-400 dark:text-slate-500">
                       {pct}% · {cycle.chapters_read} chapters · {cycle.books_complete} books
                     </span>
                   </div>
@@ -300,14 +333,14 @@ export default function Profile({ onLogout }: { onLogout: () => void }) {
 
       {/* Confirmation dialog */}
       <dialog ref={dialogRef} className="modal">
-        <div className="modal-box rounded-2xl">
-          <h3 className="font-bold text-lg text-slate-900">Start a new cycle?</h3>
-          <p className="py-4 text-sm text-slate-600">
+        <div className="modal-box rounded-2xl dark:bg-slate-800">
+          <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">Start a new cycle?</h3>
+          <p className="py-4 text-sm text-slate-600 dark:text-slate-300">
             Starting a new cycle resets your reading progress. Your current cycle's progress is saved in history.
           </p>
           <div className="modal-action">
             <button
-              className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
               onClick={() => dialogRef.current?.close()}
             >
               Cancel

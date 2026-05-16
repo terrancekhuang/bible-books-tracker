@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authHeaders } from "./lib/auth";
-import { MoonIcon, SunIcon } from "./components/Icons";
+import { MoonIcon, SunIcon, FlameIcon, CalendarIcon, BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import ActivityHeatmap, { type ActivityDay } from "./components/ActivityHeatmap";
 import StatCard from "./components/StatCard";
 import UserMenu from "./components/UserMenu";
@@ -114,7 +114,10 @@ export default function Profile({
           >
             ← Back
           </button>
-          <h1 className="text-lg font-bold text-indigo-700 dark:text-indigo-400 tracking-tight">
+          <h1
+            className="text-lg font-bold text-indigo-700 dark:text-indigo-400 tracking-tight"
+            style={{ fontFamily: "'Lora', Georgia, serif" }}
+          >
             Profile
           </h1>
           <div className="flex items-center gap-3">
@@ -166,15 +169,16 @@ export default function Profile({
 
         {/* Stats cards */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatCard label="Today" value={stats?.chapters_today ?? 0} />
-          <StatCard label="This Week" value={stats?.chapters_this_week ?? 0} />
+          <StatCard label="Today" value={stats?.chapters_today ?? 0} icon={<CalendarIcon size={18} />} />
+          <StatCard label="This Week" value={stats?.chapters_this_week ?? 0} icon={<TargetIcon size={18} />} />
           <StatCard
             label="Current Streak"
             value={`${stats?.current_streak ?? 0}d`}
+            icon={<FlameIcon size={18} />}
           />
-          <StatCard label="Best Streak" value={`${stats?.best_streak ?? 0}d`} />
-          <StatCard label="Total Chapters" value={stats?.total_chapters ?? 0} />
-          <StatCard label="Reading Days" value={stats?.total_days ?? 0} />
+          <StatCard label="Best Streak" value={`${stats?.best_streak ?? 0}d`} icon={<TrophyIcon size={18} />} />
+          <StatCard label="Total Chapters" value={stats?.total_chapters ?? 0} icon={<BookOpenIcon size={18} />} />
+          <StatCard label="Reading Days" value={stats?.total_days ?? 0} icon={<StarIcon size={18} />} />
         </div>
 
         {/* Activity heatmap */}

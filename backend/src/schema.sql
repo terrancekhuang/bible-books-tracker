@@ -106,12 +106,29 @@ ON CONFLICT (name) DO NOTHING;
 CREATE TABLE IF NOT EXISTS reading_log (
   id             SERIAL PRIMARY KEY,
   user_id        INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
-  read_date      DATE NOT NULL DEFAULT CURRENT_DATE,
-  chapters_count INTEGER NOT NULL,
-  UNIQUE(user_id, read_date)
+  logged_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  chapters_count INTEGER NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_reading_log_user_date ON reading_log(user_id, read_date);
+-- Migrate existing DBs that still have the old read_date DATE column
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'reading_log' AND column_name = 'read_date'
+  ) THEN
+    ALTER TABLE reading_log RENAME COLUMN read_date TO logged_at;
+    ALTER TABLE reading_log
+      ALTER COLUMN logged_at TYPE TIMESTAMPTZ
+      USING logged_at::TIMESTAMPTZ;
+    ALTER TABLE reading_log
+      ALTER COLUMN logged_at SET DEFAULT NOW();
+    ALTER TABLE reading_log
+      DROP CONSTRAINT IF EXISTS reading_log_user_id_read_date_key;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_reading_log_user_logged_at ON reading_log(user_id, logged_at);
 
 CREATE TABLE IF NOT EXISTS chapter_progress (
   user_id        INTEGER REFERENCES users(user_id) ON DELETE CASCADE,

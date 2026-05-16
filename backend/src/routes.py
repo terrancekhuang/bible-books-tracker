@@ -7,7 +7,8 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import psycopg2
 import os
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
+from datetime import date
 from config import Config
 
 app = Flask(__name__)
@@ -110,23 +111,33 @@ def get_books():
     conn = get_db_connection()
     cur = conn.cursor()
     query = """
+    WITH latest_cycle AS (
+        SELECT cycle_id FROM reading_cycles
+        WHERE user_id = %s ORDER BY cycle_number DESC LIMIT 1
+    )
     SELECT
         b.book_id,
         b.name,
         b.testament,
         b.category,
         b.num_chapters,
-        COALESCE(p.chapters_read, 0) AS chapters_read
+        COALESCE(p.chapters_read, 0) AS chapters_read,
+        COALESCE(
+            ARRAY_AGG(cp.chapter_number ORDER BY cp.chapter_number)
+            FILTER (WHERE cp.chapter_number IS NOT NULL),
+            ARRAY[]::INTEGER[]
+        ) AS chapters_read_list
     FROM bible_books b
     LEFT JOIN progress p ON b.book_id = p.book_id
         AND p.user_id = %s
-        AND p.cycle_id = (
-            SELECT cycle_id FROM reading_cycles
-            WHERE user_id = %s ORDER BY cycle_number DESC LIMIT 1
-        )
+        AND p.cycle_id = (SELECT cycle_id FROM latest_cycle)
+    LEFT JOIN chapter_progress cp ON b.book_id = cp.book_id
+        AND cp.user_id = %s
+        AND cp.cycle_id = (SELECT cycle_id FROM latest_cycle)
+    GROUP BY b.book_id, b.name, b.testament, b.category, b.num_chapters, p.chapters_read
     ORDER BY b.book_id ASC
     """
-    cur.execute(query, (user_id, user_id))
+    cur.execute(query, (user_id, user_id, user_id))
     raw_data = cur.fetchall()
     conn.close()
 
@@ -136,7 +147,8 @@ def get_books():
         "testament": item[2],
         "category": item[3],
         "num_chapters": item[4],
-        "chapters_read": item[5]
+        "chapters_read": item[5],
+        "chapters_read_list": list(item[6]) if item[6] else [],
     } for item in raw_data]
 
     return jsonify(books)
@@ -148,7 +160,7 @@ def update_progress():
     user_id = int(get_jwt_identity())
     data = request.json
     book_name = data.get('book_name')
-    chapters_to_add = data.get('chapters_today')
+    chapter_numbers = data.get('chapters', [])
 
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -170,34 +182,54 @@ def update_progress():
         book_id = book['book_id']
         num_chapters = book['num_chapters']
 
-        cur.execute("""
-        INSERT INTO progress (user_id, cycle_id, book_id, chapters_read)
-        VALUES (%s, %s, %s, LEAST(%s, %s))
-        ON CONFLICT (user_id, cycle_id, book_id)
-        DO UPDATE SET chapters_read = LEAST(progress.chapters_read + %s, %s)
-        RETURNING chapters_read
-        """, (user_id, cycle_id, book_id, chapters_to_add, num_chapters, chapters_to_add, num_chapters))
+        chapter_numbers = [ch for ch in chapter_numbers if 1 <= ch <= num_chapters]
+        if not chapter_numbers:
+            return jsonify({'success': False, 'error': 'No valid chapter numbers provided'}), 400
 
+        execute_values(cur,
+            "INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number) VALUES %s ON CONFLICT DO NOTHING",
+            [(user_id, cycle_id, book_id, ch) for ch in chapter_numbers]
+        )
+        newly_inserted = cur.rowcount
+
+        cur.execute("""
+            INSERT INTO progress (user_id, cycle_id, book_id, chapters_read)
+            SELECT %s, %s, %s, COUNT(*)
+            FROM chapter_progress
+            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+            ON CONFLICT (user_id, cycle_id, book_id)
+            DO UPDATE SET chapters_read = EXCLUDED.chapters_read
+            RETURNING chapters_read
+        """, (user_id, cycle_id, book_id, user_id, cycle_id, book_id))
         result = cur.fetchone()
 
-        if chapters_to_add and chapters_to_add > 0:
+        if newly_inserted > 0:
             cur.execute("""
                 INSERT INTO reading_log (user_id, read_date, chapters_count)
                 VALUES (%s, CURRENT_DATE, %s)
                 ON CONFLICT (user_id, read_date)
                 DO UPDATE SET chapters_count = reading_log.chapters_count + EXCLUDED.chapters_count
-            """, (user_id, chapters_to_add))
+            """, (user_id, newly_inserted))
+
+        cur.execute("""
+            SELECT COALESCE(
+                ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
+                ARRAY[]::INTEGER[]
+            ) AS list
+            FROM chapter_progress
+            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+        """, (user_id, cycle_id, book_id))
+        chapters_read_list = list(cur.fetchone()['list'] or [])
 
         conn.commit()
         cur.close()
         conn.close()
 
-        if not result:
-            raise Exception("Failed to update progress.")
-
         return jsonify({
             'success': True,
-            'chapters_read': result['chapters_read']
+            'chapters_read': result['chapters_read'],
+            'newly_logged': newly_inserted,
+            'chapters_read_list': chapters_read_list,
         })
     except Exception as e:
         conn.rollback()
@@ -206,6 +238,82 @@ def update_progress():
         return jsonify({
             'success': False, 'error': str(e)
         }), 500
+
+
+@app.route('/api/progress/undo', methods=['POST'])
+@jwt_required()
+def undo_progress():
+    user_id = int(get_jwt_identity())
+    data = request.json
+    book_name = data.get('book_name')
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute(
+            "SELECT cycle_id FROM reading_cycles WHERE user_id = %s ORDER BY cycle_number DESC",
+            (user_id,))
+        cycle = cur.fetchone()
+        if not cycle:
+            return jsonify({'success': False, 'error': 'No active cycle'}), 404
+        cycle_id = cycle['cycle_id']
+
+        cur.execute("SELECT book_id FROM bible_books WHERE name = %s", (book_name,))
+        book = cur.fetchone()
+        if not book:
+            return jsonify({'success': False, 'error': 'Book not found'}), 404
+        book_id = book['book_id']
+
+        cur.execute("""
+            SELECT MAX(logged_at) AS latest FROM chapter_progress
+            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+        """, (user_id, cycle_id, book_id))
+        row = cur.fetchone()
+        if not row['latest']:
+            return jsonify({'success': False, 'error': 'Nothing to undo'}), 400
+        latest = row['latest']
+
+        cur.execute("""
+            DELETE FROM chapter_progress
+            WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND logged_at = %s
+        """, (user_id, cycle_id, book_id, latest))
+        deleted_count = cur.rowcount
+
+        cur.execute("""
+            INSERT INTO progress (user_id, cycle_id, book_id, chapters_read)
+            SELECT %s, %s, %s, COUNT(*)
+            FROM chapter_progress WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+            ON CONFLICT (user_id, cycle_id, book_id)
+            DO UPDATE SET chapters_read = EXCLUDED.chapters_read
+            RETURNING chapters_read
+        """, (user_id, cycle_id, book_id, user_id, cycle_id, book_id))
+        result = cur.fetchone()
+        chapters_read = result['chapters_read'] if result else 0
+
+        if deleted_count > 0 and latest.date() == date.today():
+            cur.execute("""
+                UPDATE reading_log
+                SET chapters_count = GREATEST(chapters_count - %s, 0)
+                WHERE user_id = %s AND read_date = CURRENT_DATE
+            """, (deleted_count, user_id))
+
+        cur.execute("""
+            SELECT COALESCE(
+                ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
+                ARRAY[]::INTEGER[]
+            ) AS list
+            FROM chapter_progress
+            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+        """, (user_id, cycle_id, book_id))
+        chapters_read_list = list(cur.fetchone()['list'] or [])
+
+        conn.commit()
+        return jsonify({'success': True, 'chapters_read': chapters_read, 'chapters_read_list': chapters_read_list})
+    except Exception as e:
+        conn.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+    finally:
+        cur.close()
+        conn.close()
 
 
 @app.route('/api/cycles', methods=['GET'])

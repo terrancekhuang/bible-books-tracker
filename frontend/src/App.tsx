@@ -4,12 +4,13 @@ import Login from './Login'
 import Profile from './Profile'
 
 interface Book {
-  id: number;
+  book_id: number;
   name: string;
   testament: string;
   category: string;
   num_chapters: number;
   chapters_read: number;
+  chapters_read_list: number[];
 }
 
 type SortKey = "name" | "chapters_read" | "percent" | "status";
@@ -64,11 +65,63 @@ function FilterSelect({
   );
 }
 
+function SegmentedProgressBar({ total, readChapters }: { total: number; readChapters: number[] }) {
+  const readSet = new Set(readChapters);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [tooltip, setTooltip] = useState<{ chapter: number; x: number; y: number } | null>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!barRef.current) return;
+    const rect = barRef.current.getBoundingClientRect();
+    const chapter = Math.max(1, Math.min(total, Math.ceil(((e.clientX - rect.left) / rect.width) * total)));
+    setTooltip({ chapter, x: e.clientX, y: e.clientY });
+  };
+
+  return (
+    <div className="mt-2.5">
+      <div
+        ref={barRef}
+        className="flex h-1.5 rounded-full overflow-hidden gap-px cursor-default"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={() => setTooltip(null)}
+      >
+        {Array.from({ length: total }, (_, i) => (
+          <div key={i} className={`flex-1 ${readSet.has(i + 1) ? 'bg-indigo-500' : 'bg-slate-100'}`} />
+        ))}
+      </div>
+      {tooltip && (
+        <div
+          className="fixed bg-slate-800 text-white text-xs px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap z-50"
+          style={{ left: tooltip.x, top: tooltip.y - 28, transform: 'translateX(-50%)' }}
+        >
+          Ch. {tooltip.chapter} {readSet.has(tooltip.chapter) ? '· ✓' : ''}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function parseChapters(input: string, max: number): number[] {
+  if (!input.trim()) return [];
+  const result = new Set<number>();
+  for (const part of input.split(',').map(s => s.trim()).filter(Boolean)) {
+    if (part.includes('-')) {
+      const [a, b] = part.split('-').map(s => parseInt(s.trim()));
+      if (isNaN(a) || isNaN(b) || a > b || a < 1 || b > max) return [];
+      for (let i = a; i <= b; i++) result.add(i);
+    } else {
+      const n = parseInt(part);
+      if (isNaN(n) || n < 1 || n > max) return [];
+      result.add(n);
+    }
+  }
+  return [...result].sort((a, b) => a - b);
+}
+
 function Tracker({ onLogout }: { onLogout: () => void }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chaptersInput, setChaptersInput] = useState('');
-  const chaptersToday = parseInt(chaptersInput) || 0;
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
@@ -96,13 +149,14 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
       })
       .then((rawData) => {
         if (!rawData) return
-        const transformedBooks = rawData.map((item: Book) => ({
-          book_id: item.id,
+        const transformedBooks = rawData.map((item: any) => ({
+          book_id: item.book_id,
           name: item.name,
           testament: item.testament,
           category: item.category,
           num_chapters: item.num_chapters,
           chapters_read: item.chapters_read,
+          chapters_read_list: item.chapters_read_list || [],
         }));
         setBooks(transformedBooks);
       });
@@ -155,6 +209,9 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
   )];
   const anyFilterActive = filterTestament !== '' || filterCategory !== '' || filterStatus !== '';
   const clearFilters = () => { setFilterTestament(''); setFilterCategory(''); setFilterStatus(''); };
+
+  const parsedChapters = selectedBook ? parseChapters(chaptersInput, selectedBook.num_chapters) : [];
+  const inputIsInvalid = chaptersInput.trim() !== '' && parsedChapters.length === 0;
 
   const tabFilteredBooks = filteredBooks.filter(b => {
     if (filterTestament && b.testament !== filterTestament) return false;
@@ -217,19 +274,6 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
         return;
       }
 
-      if ((e.key === '+' || e.key === '=') && !isInput && selectedBook) {
-        e.preventDefault();
-        const max = selectedBook.num_chapters - selectedBook.chapters_read;
-        setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max)));
-        return;
-      }
-
-      if (e.key === '-' && !isInput && selectedBook) {
-        e.preventDefault();
-        setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0)));
-        return;
-      }
-
       if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && !isInput) {
         e.preventDefault();
         const currentIndex = selectedBook
@@ -276,7 +320,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
   }, [selectedBook, tabFilteredBooks, chaptersInput, showHelp]);
 
   const handleSubmit = async () => {
-    if (!selectedBook || chaptersToday === 0) return;
+    if (!selectedBook || parsedChapters.length === 0) return;
 
     try {
       const response = await fetch("/api/progress", {
@@ -284,7 +328,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
         headers: authHeaders(),
         body: JSON.stringify({
           book_name: selectedBook.name,
-          chapters_today: chaptersToday,
+          chapters: parsedChapters,
         }),
       });
 
@@ -296,22 +340,31 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
         throw new Error(data.error || "Failed to update progress");
       }
 
-      setBooks(
-        books.map((book) =>
-          book.name === selectedBook.name
-            ? { ...book, chapters_read: data.chapters_read }
-            : book,
-        ),
-      );
-
-      setSelectedBook({
-        ...selectedBook,
-        chapters_read: data.chapters_read,
-      });
-
-      setChaptersInput('1');
+      setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
+      setSelectedBook({ ...selectedBook, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list });
+      setChaptersInput('');
     } catch (e) {
       console.error("Error updating progress:", e);
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!selectedBook) return;
+    try {
+      const response = await fetch("/api/progress/undo", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ book_name: selectedBook.name }),
+      });
+      const data = await response.json();
+      if (response.status === 401) { onLogout(); return; }
+      if (data.success) {
+        setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
+        setSelectedBook({ ...selectedBook, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list });
+        setChaptersInput('');
+      }
+    } catch (e) {
+      console.error("Error undoing progress:", e);
     }
   };
 
@@ -470,15 +523,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                       </div>
                     ) : (
                       <>
-                        <div className="mt-2.5 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                          <div
-                            className={[
-                              "h-full rounded-full transition-all",
-                              inProgress ? "bg-indigo-500" : "bg-slate-200",
-                            ].join(" ")}
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
+                        <SegmentedProgressBar total={book.num_chapters} readChapters={book.chapters_read_list} />
                         <p className="text-xs text-slate-400 mt-1">
                           {book.chapters_read || 0} / {book.num_chapters}
                         </p>
@@ -525,12 +570,7 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                         {selectedBook.chapters_read || 0} / {selectedBook.num_chapters} chapters
                       </span>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-indigo-500 transition-all"
-                        style={{ width: `${calculateProgress(selectedBook)}%` }}
-                      />
-                    </div>
+                    <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} />
                     <p className="text-xs text-slate-400 mt-1">
                       {calculateProgress(selectedBook)}% complete
                     </p>
@@ -544,32 +584,49 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                     <div className="flex flex-col gap-3">
                       <div>
                         <label className="text-sm font-medium text-slate-600 block mb-1.5">
-                          Chapters read today
+                          Chapters read
                         </label>
                         <input
                           ref={chaptersInputRef}
-                          type="number"
-                          min="0"
-                          max={selectedBook.num_chapters - selectedBook.chapters_read}
+                          type="text"
+                          placeholder="e.g. 1-5, 7, 10-12"
                           value={chaptersInput}
-                          onChange={(e) => setChaptersInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            const max = selectedBook.num_chapters - selectedBook.chapters_read;
-                            if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); }
-                            if (e.key === '+' || e.key === '=') { e.preventDefault(); setChaptersInput(v => String(Math.min((parseInt(v) || 0) + 1, max))); }
-                            if (e.key === '-') { e.preventDefault(); setChaptersInput(v => String(Math.max((parseInt(v) || 0) - 1, 0))); }
-                          }}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-slate-900 transition"
+                          onChange={e => setChaptersInput(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
+                          className={[
+                            "w-full px-3 py-2 rounded-lg border outline-none transition",
+                            inputIsInvalid
+                              ? "border-red-300 focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                              : "border-slate-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100",
+                          ].join(' ')}
                         />
+                        <p className={`text-xs mt-1 min-h-[1rem] ${inputIsInvalid ? 'text-red-400' : 'text-slate-400'}`}>
+                          {inputIsInvalid
+                            ? 'Invalid format — try "1-5" or "3, 7, 12"'
+                            : parsedChapters.length > 0
+                              ? `Will log: ${parsedChapters.length} chapter${parsedChapters.length !== 1 ? 's' : ''} (${parsedChapters.slice(0, 8).join(', ')}${parsedChapters.length > 8 ? '…' : ''})`
+                              : ''}
+                        </p>
                       </div>
 
-                      <button
-                        onClick={handleSubmit}
-                        disabled={chaptersToday === 0}
-                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
-                      >
-                        Submit
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleSubmit}
+                          disabled={parsedChapters.length === 0}
+                          className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+                        >
+                          Submit
+                        </button>
+                        {selectedBook.chapters_read > 0 && (
+                          <button
+                            onClick={handleUndo}
+                            className="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-500 hover:text-red-500 hover:border-red-200 text-sm transition-colors"
+                            title="Undo last entry"
+                          >
+                            Undo
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </>
@@ -619,10 +676,8 @@ function Tracker({ onLogout }: { onLogout: () => void }) {
                 { keys: ['Esc'], description: 'Deselect book / clear search' },
                 { keys: ['←', '→'], description: 'Navigate books left / right' },
                 { keys: ['↑', '↓'], description: 'Navigate books up / down' },
-                { keys: ['Tab'], description: 'Focus chapters input' },
+                { keys: ['Tab'], description: 'Focus chapter input' },
                 { keys: ['Enter'], description: 'Submit chapter progress' },
-                { keys: ['+', '='], description: 'Increment chapter count' },
-                { keys: ['-'], description: 'Decrement chapter count' },
                 { keys: ['?'], description: 'Show / hide this help' },
               ] as { keys: string[]; description: string }[]).map(({ keys, description }) => (
                 <div key={description} className="flex items-center justify-between">

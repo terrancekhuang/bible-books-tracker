@@ -113,3 +113,21 @@ CREATE TABLE IF NOT EXISTS reading_log (
 
 CREATE INDEX IF NOT EXISTS idx_reading_log_user_date ON reading_log(user_id, read_date);
 
+CREATE TABLE IF NOT EXISTS chapter_progress (
+  user_id        INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
+  cycle_id       INTEGER REFERENCES reading_cycles(cycle_id) ON DELETE CASCADE,
+  book_id        INTEGER REFERENCES bible_books(book_id) ON DELETE CASCADE,
+  chapter_number INTEGER NOT NULL,
+  logged_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, cycle_id, book_id, chapter_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_chapter_progress_user_cycle_book
+  ON chapter_progress(user_id, cycle_id, book_id);
+
+INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number, logged_at)
+SELECT p.user_id, p.cycle_id, p.book_id, gs.n, NOW()
+FROM progress p
+CROSS JOIN LATERAL generate_series(1, GREATEST(p.chapters_read, 0)) AS gs(n)
+WHERE p.chapters_read > 0
+ON CONFLICT DO NOTHING;

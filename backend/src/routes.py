@@ -121,7 +121,7 @@ def get_books():
         b.testament,
         b.category,
         b.num_chapters,
-        COALESCE(p.chapters_read, 0) AS chapters_read,
+        COUNT(cp.chapter_number) AS chapters_read,
         COALESCE(
             ARRAY_AGG(cp.chapter_number ORDER BY cp.chapter_number)
             FILTER (WHERE cp.chapter_number IS NOT NULL),
@@ -129,16 +129,13 @@ def get_books():
         ) AS chapters_read_list,
         MAX(cp.logged_at) AS last_read_at
     FROM bible_books b
-    LEFT JOIN progress p ON b.book_id = p.book_id
-        AND p.user_id = %s
-        AND p.cycle_id = (SELECT cycle_id FROM latest_cycle)
     LEFT JOIN chapter_progress cp ON b.book_id = cp.book_id
         AND cp.user_id = %s
         AND cp.cycle_id = (SELECT cycle_id FROM latest_cycle)
-    GROUP BY b.book_id, b.name, b.testament, b.category, b.num_chapters, p.chapters_read
+    GROUP BY b.book_id, b.name, b.testament, b.category, b.num_chapters
     ORDER BY b.book_id ASC
     """
-    cur.execute(query, (user_id, user_id, user_id))
+    cur.execute(query, (user_id, user_id))
     raw_data = cur.fetchall()
     conn.close()
 
@@ -195,31 +192,15 @@ def update_progress():
         newly_inserted = cur.rowcount
 
         cur.execute("""
-            INSERT INTO progress (user_id, cycle_id, book_id, chapters_read)
-            SELECT %s, %s, %s, COUNT(*)
-            FROM chapter_progress
-            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-            ON CONFLICT (user_id, cycle_id, book_id)
-            DO UPDATE SET chapters_read = EXCLUDED.chapters_read
-            RETURNING chapters_read
-        """, (user_id, cycle_id, book_id, user_id, cycle_id, book_id))
-        result = cur.fetchone()
-
-        if newly_inserted > 0:
-            cur.execute("""
-                INSERT INTO reading_log (user_id, chapters_count)
-                VALUES (%s, %s)
-            """, (user_id, newly_inserted))
-
-        cur.execute("""
-            SELECT COALESCE(
-                ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
-                ARRAY[]::INTEGER[]
-            ) AS list
+            SELECT COUNT(*) AS chapters_read,
+                COALESCE(
+                    ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
+                    ARRAY[]::INTEGER[]
+                ) AS list
             FROM chapter_progress
             WHERE user_id = %s AND cycle_id = %s AND book_id = %s
         """, (user_id, cycle_id, book_id))
-        chapters_read_list = list(cur.fetchone()['list'] or [])
+        result = cur.fetchone()
 
         conn.commit()
         cur.close()
@@ -229,7 +210,7 @@ def update_progress():
             'success': True,
             'chapters_read': result['chapters_read'],
             'newly_logged': newly_inserted,
-            'chapters_read_list': chapters_read_list,
+            'chapters_read_list': list(result['list'] or []),
         })
     except Exception as e:
         conn.rollback()
@@ -276,38 +257,24 @@ def undo_progress():
             DELETE FROM chapter_progress
             WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND logged_at = %s
         """, (user_id, cycle_id, book_id, latest))
-        deleted_count = cur.rowcount
 
         cur.execute("""
-            INSERT INTO progress (user_id, cycle_id, book_id, chapters_read)
-            SELECT %s, %s, %s, COUNT(*)
-            FROM chapter_progress WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-            ON CONFLICT (user_id, cycle_id, book_id)
-            DO UPDATE SET chapters_read = EXCLUDED.chapters_read
-            RETURNING chapters_read
-        """, (user_id, cycle_id, book_id, user_id, cycle_id, book_id))
-        result = cur.fetchone()
-        chapters_read = result['chapters_read'] if result else 0
-
-        if deleted_count > 0:
-            cur.execute("""
-                UPDATE reading_log
-                SET chapters_count = GREATEST(chapters_count - %s, 0)
-                WHERE user_id = %s AND logged_at = %s::timestamptz
-            """, (deleted_count, user_id, latest))
-
-        cur.execute("""
-            SELECT COALESCE(
-                ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
-                ARRAY[]::INTEGER[]
-            ) AS list
+            SELECT COUNT(*) AS chapters_read,
+                COALESCE(
+                    ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
+                    ARRAY[]::INTEGER[]
+                ) AS list
             FROM chapter_progress
             WHERE user_id = %s AND cycle_id = %s AND book_id = %s
         """, (user_id, cycle_id, book_id))
-        chapters_read_list = list(cur.fetchone()['list'] or [])
+        result = cur.fetchone()
 
         conn.commit()
-        return jsonify({'success': True, 'chapters_read': chapters_read, 'chapters_read_list': chapters_read_list})
+        return jsonify({
+            'success': True,
+            'chapters_read': result['chapters_read'],
+            'chapters_read_list': list(result['list'] or []),
+        })
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -324,15 +291,21 @@ def get_cycles():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
+            WITH cycle_book_counts AS (
+                SELECT cycle_id, book_id, COUNT(*) AS chap_count
+                FROM chapter_progress
+                WHERE user_id = %s
+                GROUP BY cycle_id, book_id
+            )
             SELECT
                 rc.cycle_id,
                 rc.cycle_number,
-                COALESCE(SUM(p.chapters_read), 0) AS chapters_read,
-                COALESCE(SUM(b.num_chapters), 0) AS total_chapters,
-                COUNT(CASE WHEN p.chapters_read >= b.num_chapters THEN 1 END) AS books_complete
+                COALESCE(SUM(cbc.chap_count), 0)::BIGINT AS chapters_read,
+                COALESCE(SUM(b.num_chapters), 0)::BIGINT AS total_chapters,
+                COUNT(CASE WHEN cbc.chap_count >= b.num_chapters THEN 1 END)::BIGINT AS books_complete
             FROM reading_cycles rc
-            LEFT JOIN progress p ON rc.cycle_id = p.cycle_id AND p.user_id = %s
-            LEFT JOIN bible_books b ON p.book_id = b.book_id
+            LEFT JOIN cycle_book_counts cbc ON rc.cycle_id = cbc.cycle_id
+            LEFT JOIN bible_books b ON cbc.book_id = b.book_id
             WHERE rc.user_id = %s
             GROUP BY rc.cycle_id, rc.cycle_number
             ORDER BY rc.cycle_number ASC
@@ -373,10 +346,11 @@ def get_activity():
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT logged_at, chapters_count AS chapters
-            FROM reading_log
+            SELECT DATE_TRUNC('day', logged_at) AS logged_at, COUNT(*) AS chapters
+            FROM chapter_progress
             WHERE user_id = %s
               AND logged_at >= NOW() - INTERVAL '365 days'
+            GROUP BY DATE_TRUNC('day', logged_at)
             ORDER BY logged_at
         """, (user_id,))
         rows = cur.fetchall()
@@ -406,16 +380,16 @@ def get_stats():
                                    tzinfo=timezone.utc) - timedelta(minutes=tz_offset)
 
         cur.execute("""
-            SELECT COALESCE(SUM(chapters_count), 0) AS total_chapters,
+            SELECT COUNT(*) AS total_chapters,
                    COUNT(DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date) AS total_days
-            FROM reading_log WHERE user_id = %s
+            FROM chapter_progress WHERE user_id = %s
         """, (tz_offset, user_id))
         totals = cur.fetchone()
 
         cur.execute("""
             WITH local_dates AS (
                 SELECT DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date AS read_date
-                FROM reading_log WHERE user_id = %s
+                FROM chapter_progress WHERE user_id = %s
             ),
             dates AS (
                 SELECT read_date,
@@ -437,9 +411,9 @@ def get_stats():
 
         cur.execute("""
             SELECT
-                COALESCE(SUM(CASE WHEN logged_at >= %s AND logged_at < %s THEN chapters_count END), 0) AS chapters_today,
-                COALESCE(SUM(CASE WHEN logged_at >= %s THEN chapters_count END), 0) AS chapters_this_week
-            FROM reading_log WHERE user_id = %s
+                COALESCE(COUNT(CASE WHEN logged_at >= %s AND logged_at < %s THEN 1 END), 0) AS chapters_today,
+                COALESCE(COUNT(CASE WHEN logged_at >= %s THEN 1 END), 0) AS chapters_this_week
+            FROM chapter_progress WHERE user_id = %s
         """, (today_start_utc, today_end_utc, week_start_utc, user_id))
         period_row = cur.fetchone()
 

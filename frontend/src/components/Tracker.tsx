@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
+import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
 import { MoonIcon, SunIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
@@ -54,6 +55,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const [showHelp, setShowHelp] = useState(false);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [pendingCount, setPendingCount] = useState(0);
 
   const chaptersInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -68,6 +71,43 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   }, []);
 
   useEffect(() => {
+    getPendingCount().then(setPendingCount);
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      flushQueue(onLogout).then(() =>
+        getPendingCount().then(n => {
+          setPendingCount(n);
+          if (n === 0) {
+            fetch("/api/books", { headers: authHeaders() })
+              .then(r => r.json())
+              .then(rawData => {
+                setBooks(rawData.map((item: Book & { chapters_read_list: number[] }) => ({
+                  book_id: item.book_id,
+                  name: item.name,
+                  testament: item.testament,
+                  category: item.category,
+                  num_chapters: item.num_chapters,
+                  chapters_read: item.chapters_read,
+                  chapters_read_list: item.chapters_read_list || [],
+                })));
+              })
+              .catch(() => {});
+          }
+        })
+      );
+    };
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [onLogout]);
+
+  useEffect(() => {
     fetch("/api/books", { headers: authHeaders() })
       .then((res) => {
         if (res.status === 401) { onLogout(); return null }
@@ -75,7 +115,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       })
       .then((rawData) => {
         if (!rawData) return
-        const transformedBooks = rawData.map((item: any) => ({
+        const transformedBooks = rawData.map((item: Book) => ({
           book_id: item.book_id,
           name: item.name,
           testament: item.testament,
@@ -288,29 +328,34 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const handleSubmit = async () => {
     if (!selectedBook || parsedChapters.length === 0) return;
 
-    try {
-      const response = await fetch("/api/progress", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({
-          book_name: selectedBook.name,
-          chapters: parsedChapters,
-        }),
-      });
+    const optimisticList = [...new Set([...selectedBook.chapters_read_list, ...parsedChapters])].sort((a, b) => a - b);
+    const optimisticBook = { ...selectedBook, chapters_read: optimisticList.length, chapters_read_list: optimisticList };
+    setBooks(prev => prev.map(b => b.name === selectedBook.name ? optimisticBook : b));
+    setSelectedBook(optimisticBook);
+    setChaptersInput('');
 
-      const data = await response.json();
+    const body = JSON.stringify({ book_name: selectedBook.name, chapters: parsedChapters });
+    const headers = authHeaders() as Record<string, string>;
+
+    try {
+      const response = await fetch("/api/progress", { method: "POST", headers, body });
 
       if (response.status === 401) { onLogout(); return; }
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || "Failed to update progress");
-      }
+      const data = await response.json();
+      if (!response.ok || !data.success) throw new Error(data.error || "Failed");
 
-      setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
-      setSelectedBook({ ...selectedBook, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list });
-      setChaptersInput('');
+      setBooks(prev => prev.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
+      setSelectedBook(prev => prev ? { ...prev, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : null);
     } catch (e) {
-      console.error("Error updating progress:", e);
+      if (!navigator.onLine || e instanceof TypeError) {
+        await enqueueWrite("/api/progress", "POST", headers, body);
+        setPendingCount(c => c + 1);
+      } else {
+        setBooks(prev => prev.map(b => b.name === selectedBook.name ? selectedBook : b));
+        setSelectedBook(selectedBook);
+        console.error("Error updating progress:", e);
+      }
     }
   };
 
@@ -339,6 +384,16 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
   return (
     <div className="flex flex-col min-h-screen md:h-screen bg-slate-50 dark:bg-slate-900">
+      {!isOnline && (
+        <div className="bg-amber-500 text-white text-xs font-medium text-center py-1.5 px-4">
+          Offline{pendingCount > 0 ? ` — ${pendingCount} change${pendingCount > 1 ? 's' : ''} will sync when reconnected` : ''}
+        </div>
+      )}
+      {isOnline && pendingCount > 0 && (
+        <div className="bg-indigo-600 text-white text-xs font-medium text-center py-1.5 px-4">
+          Syncing {pendingCount} pending change{pendingCount > 1 ? 's' : ''}…
+        </div>
+      )}
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="flex items-center justify-between px-5 py-3">

@@ -16,6 +16,7 @@ interface Book {
   num_chapters: number;
   chapters_read: number;
   chapters_read_list: number[];
+  last_read_at: string | null;
 }
 
 interface Stats {
@@ -110,6 +111,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   num_chapters: item.num_chapters,
                   chapters_read: item.chapters_read,
                   chapters_read_list: item.chapters_read_list || [],
+                  last_read_at: item.last_read_at ?? null,
                 })));
               })
               .catch(() => {});
@@ -143,6 +145,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
           num_chapters: item.num_chapters,
           chapters_read: item.chapters_read,
           chapters_read_list: item.chapters_read_list || [],
+          last_read_at: item.last_read_at ?? null,
         }));
         setBooks(transformedBooks);
       });
@@ -162,7 +165,10 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
   const totalRead = books.reduce((sum, b) => sum + b.chapters_read, 0)
   const booksComplete = books.filter(b => b.chapters_read >= b.num_chapters).length
-  const continueBook = books.find(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters)
+  const continueBooks = books
+    .filter(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters && b.last_read_at !== null)
+    .sort((a, b) => (b.last_read_at! > a.last_read_at! ? 1 : -1))
+    .slice(0, 3)
 
   const calculateProgress = (book: Book) => {
     if (!book.chapters_read) return 0;
@@ -788,24 +794,29 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   </div>
 
                   {/* Continue reading */}
-                  {continueBook ? (
+                  {continueBooks.length > 0 ? (
                     <div>
                       <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium mb-2">Continue Reading</p>
-                      <button
-                        className="w-full flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-3.5 text-left hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors group"
-                        onClick={() => setSelectedBook(continueBook)}
-                      >
-                        <div className="text-indigo-500 dark:text-indigo-400 shrink-0">
-                          <CategoryIcon category={continueBook.category} size={20} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">{continueBook.name}</p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                            {continueBook.chapters_read} / {continueBook.num_chapters} chapters · {Math.round((continueBook.chapters_read / continueBook.num_chapters) * 100)}%
-                          </p>
-                        </div>
-                        <span className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 dark:group-hover:text-indigo-500 transition-colors text-lg">→</span>
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        {continueBooks.map(book => (
+                          <button
+                            key={book.name}
+                            className="w-full flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-3 text-left hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors group"
+                            onClick={() => setSelectedBook(book)}
+                          >
+                            <div className="text-indigo-500 dark:text-indigo-400 shrink-0">
+                              <CategoryIcon category={book.category} size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">{book.name}</p>
+                              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                                {book.chapters_read} / {book.num_chapters} ch · {Math.round((book.chapters_read / book.num_chapters) * 100)}%
+                              </p>
+                            </div>
+                            <span className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 dark:group-hover:text-indigo-500 transition-colors text-lg">→</span>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   ) : books.length > 0 ? (
                     <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-2">

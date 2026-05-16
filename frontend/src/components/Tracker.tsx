@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
-import { MoonIcon, SunIcon } from './Icons'
+import { MoonIcon, SunIcon, FlameIcon, CalendarIcon, CategoryIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import UserMenu from './UserMenu'
+import CircularProgress from './CircularProgress'
 
 interface Book {
   book_id: number;
@@ -17,8 +18,19 @@ interface Book {
   chapters_read_list: number[];
 }
 
+interface Stats {
+  chapters_today: number;
+  chapters_this_week: number;
+  current_streak: number;
+  best_streak: number;
+  total_chapters: number;
+  total_days: number;
+}
+
 type SortKey = "name" | "chapters_read" | "percent" | "status";
 type SortDir = "asc" | "desc";
+
+const TOTAL_CHAPTERS = 1189
 
 const statusRank = (book: Book) => {
   if (book.chapters_read >= book.num_chapters) return 2;
@@ -51,6 +63,7 @@ interface UserInfo {
 export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: () => void; theme: 'light' | 'dark'; onToggleTheme: () => void }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chaptersInput, setChaptersInput] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -140,6 +153,16 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setUser(data) });
   }, []);
+
+  useEffect(() => {
+    fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setStats(data) });
+  }, []);
+
+  const totalRead = books.reduce((sum, b) => sum + b.chapters_read, 0)
+  const booksComplete = books.filter(b => b.chapters_read >= b.num_chapters).length
+  const continueBook = books.find(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters)
 
   const calculateProgress = (book: Book) => {
     if (!book.chapters_read) return 0;
@@ -395,6 +418,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;
 
+  const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
+
   return (
     <div className="flex flex-col min-h-screen md:h-screen bg-slate-50 dark:bg-slate-900">
       {!isOnline && (
@@ -407,10 +432,14 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
           Syncing {pendingCount} pending change{pendingCount > 1 ? 's' : ''}…
         </div>
       )}
+
       {/* Header */}
       <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
         <div className="flex items-center justify-between px-5 py-3">
-          <h1 className="text-xl md:text-2xl font-bold text-indigo-700 dark:text-indigo-400 tracking-tight">
+          <h1
+            className="text-xl md:text-2xl font-bold text-indigo-700 dark:text-indigo-400 tracking-tight"
+            style={{ fontFamily: "'Lora', Georgia, serif" }}
+          >
             Bible Books Tracker
           </h1>
           <div className="flex items-center gap-3">
@@ -426,6 +455,38 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
               userName={user?.name}
               onLogout={onLogout}
             />
+          </div>
+        </div>
+
+        {/* Progress strip */}
+        <div className="px-5 pb-2.5">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                style={{ width: `${overallPct}%` }}
+              />
+            </div>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 tabular-nums">
+              {overallPct}%
+            </span>
+          </div>
+          <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 dark:text-slate-500">
+            <span className="tabular-nums">{totalRead.toLocaleString()}/{TOTAL_CHAPTERS.toLocaleString()} ch</span>
+            {stats && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-1">
+                  <FlameIcon size={12} />
+                  {stats.current_streak}d streak
+                </span>
+                <span>·</span>
+                <span className="flex items-center gap-1">
+                  <CalendarIcon size={12} />
+                  Today: {stats.chapters_today}
+                </span>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -540,26 +601,39 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                       setSelectedBook(book);
                     }}
                     className={[
-                      "rounded-xl border p-3 cursor-pointer transition-all duration-150",
+                      "rounded-xl border p-3.5 cursor-pointer transition-all duration-150 flex flex-col gap-1",
                       isSelected
                         ? "border-indigo-500 ring-2 ring-indigo-100 dark:ring-indigo-900/40 bg-indigo-50 dark:bg-indigo-900/20 shadow-md"
-                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md hover:-translate-y-0.5",
-                      isComplete && !isSelected ? "opacity-50" : "",
+                        : isComplete
+                          ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 hover:shadow-md hover:-translate-y-0.5"
+                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md hover:-translate-y-0.5",
                     ].join(" ")}
                   >
+                    {/* Category icon + label */}
+                    <div className={[
+                      "flex items-center gap-1.5",
+                      isSelected
+                        ? "text-indigo-500 dark:text-indigo-400"
+                        : isComplete
+                          ? "text-emerald-500 dark:text-emerald-400"
+                          : "text-indigo-400 dark:text-indigo-500",
+                    ].join(" ")}>
+                      <CategoryIcon category={book.category} size={14} />
+                      <p className="text-xs font-medium truncate">{book.category}</p>
+                    </div>
+
                     <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight">{book.name}</p>
-                    <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-0.5">{book.category}</p>
 
                     {isComplete ? (
-                      <div className="mt-2.5 flex items-center gap-1">
-                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
                           ✓ Complete
                         </span>
                       </div>
                     ) : (
                       <>
                         <SegmentedProgressBar total={book.num_chapters} readChapters={book.chapters_read_list} />
-                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                        <p className="text-xs text-slate-400 dark:text-slate-500">
                           {book.chapters_read || 0} / {book.num_chapters}
                         </p>
                       </>
@@ -587,15 +661,19 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   )}
 
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{selectedBook.name}</h2>
-                    <div className="flex flex-wrap gap-1.5 mt-2">
-                      <span className="text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-full">
-                        {selectedBook.testament}
-                      </span>
-                      <span className="text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 px-2.5 py-1 rounded-full">
-                        {selectedBook.category}
-                      </span>
+                    <div className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400 mb-1.5">
+                      <CategoryIcon category={selectedBook.category} size={18} />
+                      <span className="text-sm font-medium">{selectedBook.category}</span>
                     </div>
+                    <h2
+                      className="text-2xl font-bold text-slate-900 dark:text-slate-100"
+                      style={{ fontFamily: "'Lora', Georgia, serif" }}
+                    >
+                      {selectedBook.name}
+                    </h2>
+                    <span className="inline-block mt-2 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-full">
+                      {selectedBook.testament}
+                    </span>
                   </div>
 
                   <div>
@@ -666,8 +744,74 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   )}
                 </>
               ) : (
-                <div className="flex flex-col items-center justify-center flex-1 text-slate-400 dark:text-slate-500 py-12">
-                  <p className="text-sm">Select a book to view details</p>
+                /* Dashboard overview when no book is selected */
+                <div className="flex flex-col gap-5">
+                  {/* Circular progress */}
+                  <div className="flex flex-col items-center gap-2 pt-2">
+                    <div className="relative">
+                      <CircularProgress value={totalRead} max={TOTAL_CHAPTERS} size={148} />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span
+                          className="text-3xl font-bold text-slate-900 dark:text-slate-100 leading-none"
+                          style={{ fontFamily: "'Lora', Georgia, serif" }}
+                        >
+                          {overallPct}%
+                        </span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 mt-1">complete</span>
+                      </div>
+                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
+                      {totalRead.toLocaleString()} / {TOTAL_CHAPTERS.toLocaleString()} chapters &nbsp;·&nbsp; {booksComplete} / 66 books
+                    </p>
+                  </div>
+
+                  {/* Quick stats */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3.5 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+                        <FlameIcon size={13} />
+                        <span>Streak</span>
+                      </div>
+                      <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                        {stats?.current_streak ?? 0}<span className="text-sm font-medium text-slate-400 dark:text-slate-500 ml-0.5">d</span>
+                      </p>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3.5 flex flex-col gap-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
+                        <CalendarIcon size={13} />
+                        <span>Today</span>
+                      </div>
+                      <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
+                        {stats?.chapters_today ?? 0}<span className="text-sm font-medium text-slate-400 dark:text-slate-500 ml-0.5">ch</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Continue reading */}
+                  {continueBook ? (
+                    <div>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium mb-2">Continue Reading</p>
+                      <button
+                        className="w-full flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-3.5 text-left hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors group"
+                        onClick={() => setSelectedBook(continueBook)}
+                      >
+                        <div className="text-indigo-500 dark:text-indigo-400 shrink-0">
+                          <CategoryIcon category={continueBook.category} size={20} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">{continueBook.name}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                            {continueBook.chapters_read} / {continueBook.num_chapters} chapters · {Math.round((continueBook.chapters_read / continueBook.num_chapters) * 100)}%
+                          </p>
+                        </div>
+                        <span className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 dark:group-hover:text-indigo-500 transition-colors text-lg">→</span>
+                      </button>
+                    </div>
+                  ) : books.length > 0 ? (
+                    <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-2">
+                      Select a book from the grid to begin
+                    </p>
+                  ) : null}
                 </div>
               )}
             </div>

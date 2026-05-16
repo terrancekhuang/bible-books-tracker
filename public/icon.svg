@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="96" fill="#4338ca"/>
+  <!-- Left page -->
+  <path d="M256 148 C224 148 178 158 144 180 L144 362 C178 342 224 334 256 336 Z" fill="white"/>
+  <!-- Right page -->
+  <path d="M256 148 C288 148 334 158 368 180 L368 362 C334 342 288 334 256 336 Z" fill="#e0e7ff"/>
+  <!-- Spine -->
+  <rect x="250" y="143" width="12" height="198" rx="6" fill="#818cf8"/>
+  <!-- Left page lines -->
+  <line x1="162" y1="210" x2="238" y2="202" stroke="#c7d2fe" stroke-width="8" stroke-linecap="round"/>
+  <line x1="162" y1="232" x2="238" y2="226" stroke="#c7d2fe" stroke-width="8" stroke-linecap="round"/>
+  <line x1="162" y1="254" x2="238" y2="250" stroke="#c7d2fe" stroke-width="8" stroke-linecap="round"/>
+  <line x1="162" y1="276" x2="238" y2="274" stroke="#c7d2fe" stroke-width="8" stroke-linecap="round"/>
+  <line x1="162" y1="298" x2="238" y2="298" stroke="#c7d2fe" stroke-width="8" stroke-linecap="round"/>
+  <line x1="162" y1="320" x2="210" y2="322" stroke="#c7d2fe" stroke-width="8" stroke-linecap="round"/>
+  <!-- Right page lines -->
+  <line x1="274" y1="202" x2="350" y2="210" stroke="#a5b4fc" stroke-width="8" stroke-linecap="round"/>
+  <line x1="274" y1="226" x2="350" y2="232" stroke="#a5b4fc" stroke-width="8" stroke-linecap="round"/>
+  <line x1="274" y1="250" x2="350" y2="254" stroke="#a5b4fc" stroke-width="8" stroke-linecap="round"/>
+  <line x1="274" y1="274" x2="350" y2="276" stroke="#a5b4fc" stroke-width="8" stroke-linecap="round"/>
+  <line x1="274" y1="298" x2="350" y2="298" stroke="#a5b4fc" stroke-width="8" stroke-linecap="round"/>
+  <line x1="302" y1="322" x2="350" y2="320" stroke="#a5b4fc" stroke-width="8" stroke-linecap="round"/>
+  <!-- Bottom curve of book -->
+  <path d="M144 362 Q200 385 256 382 Q312 385 368 362" stroke="#818cf8" stroke-width="8" fill="none" stroke-linecap="round"/>
+</svg>

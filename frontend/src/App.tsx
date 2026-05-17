@@ -4,6 +4,7 @@ import { TOKEN_KEY, getToken } from './lib/auth'
 import Login from './Login'
 import Profile from './Profile'
 import Tracker from './components/Tracker'
+import Dashboard from './Dashboard'
 
 export default function App() {
   const [jwt, setJwt] = useState<string | null>(getToken)
@@ -42,6 +43,10 @@ export default function App() {
       />
       <Route
         path="/"
+        element={jwt ? <Dashboard onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/tracker"
         element={jwt ? <Tracker onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
       />
       <Route

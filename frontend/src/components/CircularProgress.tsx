@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 
-export default function CircularProgress({ value, max, size = 128, pulseKey = 0 }: { value: number; max: number; size?: number; pulseKey?: number }) {
+export default function CircularProgress({ value, max, size = 128, pulseKey = 0, trackClassName, arcClassName }: { value: number; max: number; size?: number; pulseKey?: number; trackClassName?: string; arcClassName?: string }) {
   const strokeWidth = 10
   const r = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * r
@@ -29,7 +29,7 @@ export default function CircularProgress({ value, max, size = 128, pulseKey = 0 
         fill="none"
         strokeWidth={strokeWidth}
         stroke="currentColor"
-        className="text-slate-100 dark:text-slate-700"
+        className={trackClassName ?? "text-slate-100 dark:text-slate-700"}
       />
       {/* Progress arc */}
       <circle
@@ -40,7 +40,7 @@ export default function CircularProgress({ value, max, size = 128, pulseKey = 0 
         strokeDasharray={circumference}
         strokeDashoffset={dashOffset}
         stroke="currentColor"
-        className="text-indigo-500 transition-all duration-700 ease-out"
+        className={arcClassName ?? "text-indigo-500 transition-all duration-700 ease-out"}
       />
       {/* Ripple on update */}
       {isPulsing && (
@@ -52,7 +52,7 @@ export default function CircularProgress({ value, max, size = 128, pulseKey = 0 
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
           stroke="currentColor"
-          className="text-indigo-400"
+          className={arcClassName ?? "text-indigo-400"}
           style={{
             animation: 'ring-ripple 700ms ease-out forwards',
             transformBox: 'fill-box' as never,

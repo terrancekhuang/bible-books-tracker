@@ -1,12 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
-import { MoonIcon, SunIcon, FlameIcon, CalendarIcon, CategoryIcon } from './Icons'
+import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
-import UserMenu from './UserMenu'
-import CircularProgress from './CircularProgress'
+import NavBar from './NavBar'
 
 interface Book {
   book_id: number;
@@ -69,8 +68,6 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const [chaptersInput, setChaptersInput] = useState('');
   const [confirmMarkAll, setConfirmMarkAll] = useState(false);
   const [resetConfirm, setResetConfirm] = useState(false);
-  const [ringPulseKey, setRingPulseKey] = useState(0);
-  const [displayPct, setDisplayPct] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
@@ -87,12 +84,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lastKeyRef = useRef<string | null>(null);
   const lastKeyTimeoutRef = useRef<number | null>(null);
-  const bookCardRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
-  const prevTopPositions = useRef<Map<string, number>>(new Map());
-  const animFrameRef = useRef<number | null>(null);
-  const prevPctRef = useRef<number | null>(null);
-  const prevTotalReadRef = useRef<number | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -175,71 +168,18 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   useEffect(() => { fetchStats(); }, []);
 
   const totalRead = books.reduce((sum, b) => sum + b.chapters_read, 0)
-  const booksComplete = books.filter(b => b.chapters_read >= b.num_chapters).length
-  const continueBooks = books
-    .filter(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters && b.last_read_at !== null)
-    .sort((a, b) => (b.last_read_at! > a.last_read_at! ? 1 : -1))
-    .slice(0, 3)
   const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
 
-  // Pulse the ring when chapters increase
+  // Auto-select book from navigation state (e.g. from Dashboard "Continue Reading")
   useEffect(() => {
-    if (prevTotalReadRef.current === null) { prevTotalReadRef.current = totalRead; return; }
-    if (totalRead > prevTotalReadRef.current) setRingPulseKey(k => k + 1);
-    prevTotalReadRef.current = totalRead;
-  }, [totalRead]);
-
-  // Count-up animation for the dashboard percentage
-  useEffect(() => {
-    if (prevPctRef.current === null) {
-      prevPctRef.current = overallPct;
-      setDisplayPct(overallPct);
-      return;
+    const state = location.state as { selectBook?: string } | null;
+    if (!state?.selectBook || books.length === 0) return;
+    const book = books.find(b => b.name === state.selectBook);
+    if (book) {
+      setSelectedBook(book);
+      window.history.replaceState({}, '');
     }
-    const start = prevPctRef.current;
-    const end = overallPct;
-    prevPctRef.current = end;
-    if (start === end) return;
-    const startTime = performance.now();
-    const animate = (now: number) => {
-      const t = Math.min((now - startTime) / 700, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setDisplayPct(Math.round(start + (end - start) * eased));
-      if (t < 1) animFrameRef.current = requestAnimationFrame(animate);
-    };
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    animFrameRef.current = requestAnimationFrame(animate);
-    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
-  }, [overallPct]);
-
-  // FLIP animation for Continue Reading reorder / new entries
-  useLayoutEffect(() => {
-    continueBooks.forEach(book => {
-      const el = bookCardRefs.current.get(book.name);
-      if (!el) return;
-      const currentTop = el.getBoundingClientRect().top;
-      const prevTop = prevTopPositions.current.get(book.name);
-      if (prevTop !== undefined && Math.abs(prevTop - currentTop) > 1) {
-        const delta = prevTop - currentTop;
-        el.style.transition = 'none';
-        el.style.transform = `translateY(${delta}px)`;
-        el.getBoundingClientRect();
-        el.style.transition = 'transform 480ms cubic-bezier(0.22, 1, 0.36, 1)';
-        el.style.transform = '';
-      } else if (prevTop === undefined) {
-        el.style.transition = 'none';
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(12px)';
-        el.getBoundingClientRect();
-        el.style.transition = 'transform 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease-out';
-        el.style.transform = '';
-        el.style.opacity = '';
-      }
-      prevTopPositions.current.set(book.name, currentTop);
-    });
-    const current = new Set(continueBooks.map(b => b.name));
-    [...prevTopPositions.current.keys()].forEach(k => { if (!current.has(k)) prevTopPositions.current.delete(k); });
-  }, [continueBooks]);
+  }, [books, location.state]);
 
   const calculateProgress = (book: Book) => {
     if (!book.chapters_read) return 0;
@@ -551,7 +491,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const showDetail = !isMobile || !!selectedBook;
 
   return (
-    <div className="flex flex-col min-h-screen md:h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="flex flex-col min-h-screen md:h-screen bg-slate-50 dark:bg-slate-900 pb-20 md:pb-0">
       {!isOnline && (
         <div className="bg-amber-500 text-white text-xs font-medium text-center py-1.5 px-4">
           Offline{pendingCount > 0 ? ` — ${pendingCount} change${pendingCount > 1 ? 's' : ''} will sync when reconnected` : ''}
@@ -563,63 +503,45 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         </div>
       )}
 
-      {/* Header */}
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
-        <div className="flex items-center justify-between px-5 py-3">
-          <h1
-            className="text-xl md:text-2xl font-bold text-indigo-700 dark:text-indigo-400 tracking-tight"
-            style={{ fontFamily: "'Lora', Georgia, serif" }}
-          >
-            Bible Books Tracker
-          </h1>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onToggleTheme}
-              className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
-            >
-              {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-            </button>
-            <UserMenu
-              pictureUrl={user?.picture_url}
-              userName={user?.name}
-              onLogout={onLogout}
+      <NavBar
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onLogout={onLogout}
+        pictureUrl={user?.picture_url}
+        userName={user?.name}
+      />
+
+      {/* Progress strip */}
+      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 pt-2 pb-2.5">
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+              style={{ width: `${overallPct}%` }}
             />
           </div>
+          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 tabular-nums">
+            {overallPct}%
+          </span>
         </div>
-
-        {/* Progress strip */}
-        <div className="px-5 pb-2.5">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-                style={{ width: `${overallPct}%` }}
-              />
-            </div>
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 tabular-nums">
-              {overallPct}%
-            </span>
-          </div>
-          <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 dark:text-slate-500">
-            <span className="tabular-nums">{totalRead.toLocaleString()}/{TOTAL_CHAPTERS.toLocaleString()} ch</span>
-            {stats && (
-              <>
-                <span>·</span>
-                <span className="flex items-center gap-1">
-                  <FlameIcon size={12} />
-                  {stats.current_streak}d streak
-                </span>
-                <span>·</span>
-                <span className="flex items-center gap-1">
-                  <CalendarIcon size={12} />
-                  Today: {stats.chapters_today}
-                </span>
-              </>
-            )}
-          </div>
+        <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 dark:text-slate-500">
+          <span className="tabular-nums">{totalRead.toLocaleString()}/{TOTAL_CHAPTERS.toLocaleString()} ch</span>
+          {stats && (
+            <>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <FlameIcon size={12} />
+                {stats.current_streak}d streak
+              </span>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <CalendarIcon size={12} />
+                Today: {stats.chapters_today}
+              </span>
+            </>
+          )}
         </div>
-      </header>
+      </div>
 
       <div className="flex flex-col md:flex-row gap-4 flex-1 md:overflow-hidden px-4 md:px-5 py-4">
         {/* Book Grid Panel */}
@@ -929,80 +851,9 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   )}
                 </>
               ) : (
-                /* Dashboard overview when no book is selected */
-                <div className="flex flex-col gap-5">
-                  {/* Circular progress */}
-                  <div className="flex flex-col items-center gap-2 pt-2">
-                    <div className="relative">
-                      <CircularProgress value={totalRead} max={TOTAL_CHAPTERS} size={148} pulseKey={ringPulseKey} />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span
-                          className="text-3xl font-bold text-slate-900 dark:text-slate-100 leading-none tabular-nums"
-                          style={{ fontFamily: "'Lora', Georgia, serif" }}
-                        >
-                          {displayPct}%
-                        </span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500 mt-1">complete</span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
-                      {totalRead.toLocaleString()} / {TOTAL_CHAPTERS.toLocaleString()} chapters &nbsp;·&nbsp; {booksComplete} / 66 books
-                    </p>
-                  </div>
-
-                  {/* Quick stats */}
-                  <div className="grid grid-cols-2 gap-2.5">
-                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3.5 flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-                        <FlameIcon size={13} />
-                        <span>Streak</span>
-                      </div>
-                      <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                        {stats?.current_streak ?? 0}<span className="text-sm font-medium text-slate-400 dark:text-slate-500 ml-0.5">d</span>
-                      </p>
-                    </div>
-                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-3.5 flex flex-col gap-1.5">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500">
-                        <CalendarIcon size={13} />
-                        <span>Today</span>
-                      </div>
-                      <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
-                        {stats?.chapters_today ?? 0}<span className="text-sm font-medium text-slate-400 dark:text-slate-500 ml-0.5">ch</span>
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Continue reading */}
-                  {continueBooks.length > 0 ? (
-                    <div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider font-medium mb-2">Continue Reading</p>
-                      <div className="flex flex-col gap-2">
-                        {continueBooks.map(book => (
-                          <button
-                            key={book.name}
-                            ref={el => { bookCardRefs.current.set(book.name, el); }}
-                            className="w-full flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-3 text-left hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors group"
-                            onClick={() => setSelectedBook(book)}
-                          >
-                            <div className="text-indigo-500 dark:text-indigo-400 shrink-0">
-                              <CategoryIcon category={book.category} size={18} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate">{book.name}</p>
-                              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
-                                {book.chapters_read} / {book.num_chapters} ch · {Math.round((book.chapters_read / book.num_chapters) * 100)}%
-                              </p>
-                            </div>
-                            <span className="text-slate-300 dark:text-slate-600 group-hover:text-indigo-400 dark:group-hover:text-indigo-500 transition-colors text-lg">→</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : books.length > 0 ? (
-                    <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-2">
-                      Select a book from the grid to begin
-                    </p>
-                  ) : null}
+                <div className="flex flex-col items-center justify-center h-full py-12 text-slate-400 dark:text-slate-500 gap-2">
+                  <BookOpenIcon size={40} />
+                  <p className="text-sm">Select a book to view details</p>
                 </div>
               )}
             </div>
@@ -1015,7 +866,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         <button
           onClick={() => setShowHelp(v => !v)}
           title="Keyboard shortcuts (?)"
-          className="fixed bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors text-sm font-bold select-none"
+          className="fixed bottom-20 md:bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors text-sm font-bold select-none"
         >
           ?
         </button>

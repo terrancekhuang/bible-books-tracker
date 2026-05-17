@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authHeaders } from "./lib/auth";
-import { MoonIcon, SunIcon, FlameIcon, CalendarIcon, BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
-import ActivityHeatmap, { type ActivityDay } from "./components/ActivityHeatmap";
+import { BookOpenIcon, TrophyIcon, StarIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
-import UserMenu from "./components/UserMenu";
+import NavBar from "./components/NavBar";
 
 interface UserInfo {
   user_id: number;
@@ -25,9 +24,6 @@ interface Stats {
   total_chapters: number;
   total_days: number;
   best_streak: number;
-  current_streak: number;
-  chapters_today: number;
-  chapters_this_week: number;
 }
 
 const TOTAL_BOOKS = 66;
@@ -46,7 +42,6 @@ export default function Profile({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [cycles, setCycles] = useState<Cycle[]>([]);
-  const [activity, setActivity] = useState<ActivityDay[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [creating, setCreating] = useState(false);
 
@@ -67,14 +62,12 @@ export default function Profile({
         }
         return r.json();
       }),
-      fetch("/api/activity", { headers }).then((r) => (r.ok ? r.json() : [])),
       fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, {
         headers,
       }).then((r) => (r.ok ? r.json() : null)),
-    ]).then(([userData, cyclesData, activityData, statsData]) => {
+    ]).then(([userData, cyclesData, statsData]) => {
       if (userData) setUser(userData);
       if (cyclesData) setCycles(cyclesData);
-      if (activityData) setActivity(activityData);
       if (statsData) setStats(statsData);
     });
   }, []);
@@ -95,7 +88,7 @@ export default function Profile({
       }
       if (!res.ok) throw new Error("Failed to create cycle");
       dialogRef.current?.close();
-      navigate("/");
+      navigate("/tracker");
     } catch (e) {
       console.error(e);
     } finally {
@@ -104,43 +97,14 @@ export default function Profile({
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm">
-        <div className="flex items-center justify-between px-5 py-3">
-          <button
-            onClick={() => navigate("/")}
-            className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition-colors"
-          >
-            ← Back
-          </button>
-          <h1
-            className="text-lg font-bold text-indigo-700 dark:text-indigo-400 tracking-tight"
-            style={{ fontFamily: "'Lora', Georgia, serif" }}
-          >
-            Profile
-          </h1>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onToggleTheme}
-              className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-              title={
-                theme === "light"
-                  ? "Switch to dark mode"
-                  : "Switch to light mode"
-              }
-            >
-              {theme === "light" ? <MoonIcon /> : <SunIcon />}
-            </button>
-            <UserMenu
-              pictureUrl={user?.picture_url}
-              userName={user?.name}
-              onLogout={onLogout}
-              showProfileLink={false}
-            />
-          </div>
-        </div>
-      </header>
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 pb-20 md:pb-0">
+      <NavBar
+        theme={theme}
+        onToggleTheme={onToggleTheme}
+        onLogout={onLogout}
+        pictureUrl={user?.picture_url}
+        userName={user?.name}
+      />
 
       <div className="flex flex-col gap-4 px-5 py-5 max-w-3xl mx-auto w-full">
         {/* User info */}
@@ -168,25 +132,10 @@ export default function Profile({
         </div>
 
         {/* Stats cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <StatCard label="Today" value={stats?.chapters_today ?? 0} icon={<CalendarIcon size={18} />} />
-          <StatCard label="This Week" value={stats?.chapters_this_week ?? 0} icon={<TargetIcon size={18} />} />
-          <StatCard
-            label="Current Streak"
-            value={`${stats?.current_streak ?? 0}d`}
-            icon={<FlameIcon size={18} />}
-          />
+        <div className="grid grid-cols-3 gap-3">
           <StatCard label="Best Streak" value={`${stats?.best_streak ?? 0}d`} icon={<TrophyIcon size={18} />} />
           <StatCard label="Total Chapters" value={stats?.total_chapters ?? 0} icon={<BookOpenIcon size={18} />} />
           <StatCard label="Reading Days" value={stats?.total_days ?? 0} icon={<StarIcon size={18} />} />
-        </div>
-
-        {/* Activity heatmap */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-4">
-            Reading Activity
-          </h2>
-          <ActivityHeatmap activity={activity} />
         </div>
 
         {/* Current cycle */}

@@ -7,3 +7,8 @@
   0%   { opacity: 0.55; transform: scale(1); }
   100% { opacity: 0;    transform: scale(1.22); }
 }
+
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

@@ -77,6 +77,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const [showHelp, setShowHelp] = useState(false);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [openedFromNav, setOpenedFromNav] = useState(false);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -177,6 +178,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
     const book = books.find(b => b.name === state.selectBook);
     if (book) {
       setSelectedBook(book);
+      setOpenedFromNav(true);
       window.history.replaceState({}, '');
     }
   }, [books, location.state]);
@@ -714,7 +716,15 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   {isMobile && (
                     <button
                       className="self-start text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 mb-1 transition-colors"
-                      onClick={() => { setSelectedBook(null); setChaptersInput(''); }}
+                      onClick={() => {
+                        if (openedFromNav) {
+                          setOpenedFromNav(false);
+                          navigate(-1);
+                        } else {
+                          setSelectedBook(null);
+                          setChaptersInput('');
+                        }
+                      }}
                     >
                       ← Back
                     </button>

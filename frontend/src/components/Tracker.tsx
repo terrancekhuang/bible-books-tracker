@@ -299,7 +299,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
       if (e.key === 'u' && !isInput && selectedBook) {
         e.preventDefault();
-        handleUndo();
+        if (isOnline) handleUndo();
         return;
       }
 
@@ -818,8 +818,9 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                         <div className="flex gap-2">
                           <button
                             onClick={handleUndo}
-                            className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:bg-slate-700/50 text-sm transition-colors"
-                            title="Undo last entry (u)"
+                            disabled={!isOnline}
+                            className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:bg-slate-700/50 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            title={isOnline ? "Undo last entry (u)" : "Unavailable offline"}
                           >
                             Undo
                           </button>

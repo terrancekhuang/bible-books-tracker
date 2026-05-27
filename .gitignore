@@ -27,3 +27,10 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Claude Code local config
+.claude/

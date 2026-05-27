@@ -459,6 +459,14 @@ def get_stats():
         """, (today_start_utc, today_end_utc, week_start_utc, user_id))
         period_row = cur.fetchone()
 
+        cur.execute("""
+            SELECT COUNT(*) AS chapters_last_7_days
+            FROM chapter_progress
+            WHERE user_id = %s
+              AND logged_at >= NOW() - INTERVAL '7 days'
+        """, (user_id,))
+        seven_day_row = cur.fetchone()
+
         return jsonify({
             'total_chapters': int(totals['total_chapters']),
             'total_days': int(totals['total_days']),
@@ -466,7 +474,38 @@ def get_stats():
             'current_streak': int(streak_row['current_streak'] or 0),
             'chapters_today': int(period_row['chapters_today']),
             'chapters_this_week': int(period_row['chapters_this_week']),
+            'chapters_last_7_days': int(seven_day_row['chapters_last_7_days']),
         })
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.route('/api/favorites', methods=['GET'])
+@jwt_required()
+def get_favorites():
+    user_id = int(get_jwt_identity())
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT
+                bb.book_id,
+                bb.name AS book_name,
+                COUNT(DISTINCT cp.cycle_id) AS cycle_count
+            FROM chapter_progress cp
+            JOIN bible_books bb ON cp.book_id = bb.book_id
+            WHERE cp.user_id = %s
+            GROUP BY bb.book_id, bb.name
+            ORDER BY cycle_count DESC
+            LIMIT 5
+        """, (user_id,))
+        rows = cur.fetchall()
+        return jsonify([{
+            'book_id': r['book_id'],
+            'book_name': r['book_name'],
+            'cycle_count': int(r['cycle_count']),
+        } for r in rows])
     finally:
         cur.close()
         conn.close()

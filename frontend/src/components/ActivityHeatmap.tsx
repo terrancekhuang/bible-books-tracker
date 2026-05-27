@@ -14,10 +14,8 @@ function intensityClass(chapters: number): string {
 export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
   const chaptersByDate = new Map<string, number>()
   for (const d of activity) {
-    const dt = new Date(d.logged_at)
-    const pad = (n: number) => String(n).padStart(2, '0')
-    const key = `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
-    chaptersByDate.set(key, (chaptersByDate.get(key) ?? 0) + d.chapters)
+    // logged_at is already a local date string (YYYY-MM-DD) from the backend
+    chaptersByDate.set(d.logged_at, (chaptersByDate.get(d.logged_at) ?? 0) + d.chapters)
   }
 
   const today = new Date()

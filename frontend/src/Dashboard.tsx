@@ -107,7 +107,7 @@ export default function Dashboard({
       return Promise.all([
         fetch('/api/books', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.json() }),
         fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
-        fetch('/api/activity', { headers }).then(r => { if (r.status === 401) { onLogout(); return [] } return r.ok ? r.json() : [] }),
+        fetch(`/api/activity?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { onLogout(); return [] } return r.ok ? r.json() : [] }),
         fetch('/auth/me', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
       ]).then(([booksData, statsData, activityData, userData]) => {
         if (booksData) {

@@ -384,19 +384,20 @@ def create_cycle():
 @jwt_required()
 def get_activity():
     user_id = int(get_jwt_identity())
+    tz_offset = int(request.args.get('tz_offset', 0))  # minutes: -getTimezoneOffset()
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
         cur.execute("""
-            SELECT DATE_TRUNC('day', logged_at) AS logged_at, COUNT(*) AS chapters
+            SELECT (logged_at + INTERVAL '1 minute' * %s)::date AS local_date, COUNT(*) AS chapters
             FROM chapter_progress
             WHERE user_id = %s
               AND logged_at >= NOW() - INTERVAL '365 days'
-            GROUP BY DATE_TRUNC('day', logged_at)
-            ORDER BY logged_at
-        """, (user_id,))
+            GROUP BY (logged_at + INTERVAL '1 minute' * %s)::date
+            ORDER BY local_date
+        """, (tz_offset, user_id, tz_offset))
         rows = cur.fetchall()
-        return jsonify([{'logged_at': r['logged_at'].isoformat(), 'chapters': r['chapters']} for r in rows])
+        return jsonify([{'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']} for r in rows])
     finally:
         cur.close()
         conn.close()

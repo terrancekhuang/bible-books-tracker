@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authHeaders } from './lib/auth'
+import { flushQueue } from './lib/offlineQueue'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
@@ -101,25 +102,33 @@ export default function Dashboard({
   const navigate = useNavigate()
 
   useEffect(() => {
-    const headers = authHeaders()
-    Promise.all([
-      fetch('/api/books', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.json() }),
-      fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => r.ok ? r.json() : null),
-      fetch('/api/activity', { headers }).then(r => r.ok ? r.json() : []),
-      fetch('/auth/me', { headers }).then(r => r.ok ? r.json() : null),
-    ]).then(([booksData, statsData, activityData, userData]) => {
-      if (booksData) {
-        setBooks(booksData.map((b: Book) => ({
-          ...b,
-          chapters_read_list: b.chapters_read_list ?? [],
-          last_read_at: b.last_read_at ?? null,
-        })))
-      }
-      if (statsData) setStats(statsData)
-      if (activityData) setActivity(activityData)
-      if (userData) setUser(userData)
-    })
-  }, [])
+    const fetchAll = () => {
+      const headers = authHeaders()
+      return Promise.all([
+        fetch('/api/books', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.json() }),
+        fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
+        fetch('/api/activity', { headers }).then(r => { if (r.status === 401) { onLogout(); return [] } return r.ok ? r.json() : [] }),
+        fetch('/auth/me', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
+      ]).then(([booksData, statsData, activityData, userData]) => {
+        if (booksData) {
+          setBooks(booksData.map((b: Book) => ({
+            ...b,
+            chapters_read_list: b.chapters_read_list ?? [],
+            last_read_at: b.last_read_at ?? null,
+          })))
+        }
+        if (statsData) setStats(statsData)
+        if (activityData) setActivity(activityData)
+        if (userData) setUser(userData)
+      })
+    }
+
+    const run = () => navigator.onLine ? flushQueue(onLogout).then(fetchAll) : fetchAll()
+    run()
+
+    window.addEventListener('online', run)
+    return () => window.removeEventListener('online', run)
+  }, [onLogout])
 
   const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
   const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
@@ -127,7 +136,12 @@ export default function Dashboard({
 
   const continueBooks = books
     .filter(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters)
-    .sort((a, b) => (b.last_read_at ?? '').localeCompare(a.last_read_at ?? ''))
+    .sort((a, b) => {
+      if (!a.last_read_at && !b.last_read_at) return 0
+      if (!a.last_read_at) return 1
+      if (!b.last_read_at) return -1
+      return b.last_read_at.localeCompare(a.last_read_at)
+    })
     .slice(0, 3)
 
   const otRead = books

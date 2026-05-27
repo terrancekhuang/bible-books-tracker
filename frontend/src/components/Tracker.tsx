@@ -273,6 +273,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
           setSearch('');
           searchInputRef.current?.blur();
         } else {
+          setOpenedFromNav(false);
           setSelectedBook(null);
           setChaptersInput('');
         }
@@ -396,7 +397,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBook, tabFilteredBooks, chaptersInput, showHelp, resetConfirm, confirmMarkAll]);
+  }, [selectedBook, tabFilteredBooks, chaptersInput, showHelp, resetConfirm, confirmMarkAll, isOnline]);
 
   useEffect(() => {
     setConfirmMarkAll(false);
@@ -453,8 +454,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         headers: authHeaders(),
         body: JSON.stringify({ book_name: selectedBook.name }),
       });
-      const data = await response.json();
       if (response.status === 401) { onLogout(); return; }
+      const data = await response.json();
       if (data.success) {
         setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
         setSelectedBook({ ...selectedBook, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list });
@@ -660,6 +661,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                     data-book={book.name}
                     onClick={() => {
                       if (selectedBook?.name !== book.name) setChaptersInput('');
+                      setOpenedFromNav(false);
                       setSelectedBook(book);
                     }}
                     className={[

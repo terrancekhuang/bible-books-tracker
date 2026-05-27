@@ -52,7 +52,7 @@ export default function CircularProgress({ value, max, size = 128, pulseKey = 0,
           strokeDasharray={circumference}
           strokeDashoffset={dashOffset}
           stroke="currentColor"
-          className={arcClassName ?? "text-indigo-400"}
+          className={arcClassName?.split(' ').find(c => c.startsWith('text-')) ?? "text-indigo-400"}
           style={{
             animation: 'ring-ripple 700ms ease-out forwards',
             transformBox: 'fill-box' as never,

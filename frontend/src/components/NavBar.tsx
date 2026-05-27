@@ -74,7 +74,7 @@ export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, use
       </header>
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
-        <div className="flex">
+        <div className="flex" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           {MOBILE_TABS.map(({ to, label, Icon }) => {
             const isActive = pathname === to
             return (

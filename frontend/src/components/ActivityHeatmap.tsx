@@ -49,13 +49,16 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
     return d.getDate() <= 7 ? d.toLocaleString('en-US', { month: 'short' }) : ''
   })
 
+  const cellSize = 11
+
   return (
-    <div className="w-full flex flex-col" style={{ gap: 2 }}>
+    <div className="overflow-x-auto">
+    <div className="flex flex-col" style={{ gap: 2, minWidth: weeks.length * (cellSize + 2) + 22 }}>
       <div className="flex" style={{ gap: 2 }}>
         <div style={{ width: 20, flexShrink: 0 }} />
         <div
-          className="flex-1 grid"
-          style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)`, gap: 2 }}
+          className="grid"
+          style={{ gridTemplateColumns: `repeat(${weeks.length}, ${cellSize}px)`, gap: 2 }}
         >
           {monthLabels.map((label, i) => (
             <div key={i} className="text-xs text-slate-400 dark:text-slate-500 overflow-visible whitespace-nowrap">
@@ -72,17 +75,16 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
           ))}
         </div>
         <div
-          className="flex-1 grid"
-          style={{ gridTemplateColumns: `repeat(${weeks.length}, 1fr)`, gap: 2 }}
+          className="grid"
+          style={{ gridTemplateColumns: `repeat(${weeks.length}, ${cellSize}px)`, gap: 2 }}
         >
           {weeks.map((week, wi) => (
             <div key={wi} className="flex flex-col" style={{ gap: 2 }}>
               {week.map((day, di) => (
                 <div
                   key={di}
-                  className={`w-full aspect-square rounded-sm ${
-                    day.isFuture ? '' : intensityClass(day.chapters)
-                  }`}
+                  style={{ width: cellSize, height: cellSize }}
+                  className={`rounded-sm ${day.isFuture ? '' : intensityClass(day.chapters)}`}
                   title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
                 />
               ))}
@@ -98,6 +100,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
         ))}
         <span className="text-xs text-slate-400 dark:text-slate-500">More</span>
       </div>
+    </div>
     </div>
   )
 }

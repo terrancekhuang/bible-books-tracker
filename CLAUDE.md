@@ -39,8 +39,9 @@ Run the backend from the project root — it reads `backend/src/schema.sql` rela
 Create `.env` in the project root:
 ```
 GOOGLE_CLIENT_ID=...
-JWT_SECRET_KEY=...
+JWT_SECRET_KEY=...          # required — no fallback; backend fails to start if missing
 DATABASE_URL=postgresql://postgres:pass@localhost:5432/bible-books-tracker
+FRONTEND_URL=http://localhost:3000   # CORS allowed origin; omit in Vercel (same-origin)
 ```
 
 Create `frontend/.env`:

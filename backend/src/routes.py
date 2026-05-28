@@ -512,6 +512,40 @@ def get_favorites():
         conn.close()
 
 
+@app.route('/api/settings', methods=['GET'])
+@jwt_required()
+def get_settings():
+    user_id = int(get_jwt_identity())
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("SELECT weekly_goal FROM users WHERE user_id = %s", (user_id,))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+        conn.close()
+    return jsonify({'weekly_goal': row['weekly_goal'] if row else 7})
+
+
+@app.route('/api/settings', methods=['PUT'])
+@jwt_required()
+def update_settings():
+    user_id = int(get_jwt_identity())
+    data = request.get_json()
+    weekly_goal = data.get('weekly_goal')
+    if not isinstance(weekly_goal, int) or weekly_goal < 1:
+        return jsonify({'error': 'weekly_goal must be a positive integer'}), 400
+    conn = get_db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE users SET weekly_goal = %s WHERE user_id = %s", (weekly_goal, user_id))
+        conn.commit()
+    finally:
+        cur.close()
+        conn.close()
+    return jsonify({'weekly_goal': weekly_goal})
+
+
 if __name__ == '__main__':
     initialize_database()
     app.run(debug=True, port=5001)

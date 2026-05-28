@@ -93,10 +93,7 @@ export default function Dashboard({
   const [activity, setActivity] = useState<ActivityDay[]>([])
   const [user, setUser] = useState<UserInfo | null>(null)
   const [displayPct, setDisplayPct] = useState(0)
-  const [weeklyGoal, setWeeklyGoal] = useState<number>(() => {
-    const saved = localStorage.getItem('weekly_reading_goal')
-    return saved ? Math.max(1, parseInt(saved, 10)) : 7
-  })
+  const [weeklyGoal, setWeeklyGoal] = useState<number>(7)
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
   const animFrameRef = useRef<number | null>(null)
@@ -119,7 +116,8 @@ export default function Dashboard({
         fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
         fetch(`/api/activity?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { onLogout(); return [] } return r.ok ? r.json() : [] }),
         fetch('/auth/me', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
-      ]).then(([booksData, statsData, activityData, userData]) => {
+        fetch('/api/settings', { headers }).then(r => r.ok ? r.json() : null),
+      ]).then(([booksData, statsData, activityData, userData, settingsData]) => {
         if (booksData) {
           const mapped = booksData.map((b: Book) => ({
             ...b,
@@ -132,6 +130,7 @@ export default function Dashboard({
         if (statsData) { setStats(statsData); setCache('stats', statsData) }
         if (activityData) { setActivity(activityData); setCache('activity', activityData) }
         if (userData) { setUser(userData); setCache('user', userData) }
+        if (settingsData?.weekly_goal) setWeeklyGoal(settingsData.weekly_goal)
       })
     }
 
@@ -191,7 +190,11 @@ export default function Dashboard({
     const n = parseInt(val, 10)
     if (!isNaN(n) && n > 0) {
       setWeeklyGoal(n)
-      localStorage.setItem('weekly_reading_goal', String(n))
+      fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ weekly_goal: n }),
+      })
     }
     setEditingGoal(false)
   }

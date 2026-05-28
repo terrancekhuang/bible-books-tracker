@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authHeaders } from "./lib/auth";
+import { getCache, setCache, invalidateCache } from "./lib/cache";
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
 import NavBar from "./components/NavBar";
@@ -160,6 +161,16 @@ export default function Profile({
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
+    const cachedUser = getCache<UserInfo>('user')
+    if (cachedUser) setUser(cachedUser)
+    const cachedCycles = getCache<Cycle[]>('cycles')
+    if (cachedCycles) setCycles(cachedCycles)
+    const cachedStats = getCache<Stats>('stats')
+    if (cachedStats) setStats(cachedStats)
+    const cachedFavorites = getCache<FavoriteBook[]>('favorites')
+    if (cachedFavorites) { setFavorites(cachedFavorites); setFavoritesLoading(false) }
+    const hasCachedFavorites = cachedFavorites !== null
+
     const headers = authHeaders();
     Promise.all([
       fetch("/auth/me", { headers }).then((r) => {
@@ -178,12 +189,13 @@ export default function Profile({
         return r.ok ? r.json() : null;
       }),
     ]).then(([userData, cyclesData, statsData, favoritesData]) => {
-      if (userData) setUser(userData);
-      if (cyclesData) setCycles(cyclesData);
-      if (statsData) setStats(statsData);
+      if (userData) { setUser(userData); setCache('user', userData) }
+      if (cyclesData) { setCycles(cyclesData); setCache('cycles', cyclesData) }
+      if (statsData) { setStats(statsData); setCache('stats', statsData) }
       if (favoritesData !== null && favoritesData !== undefined) {
         setFavorites(favoritesData);
-      } else {
+        setCache('favorites', favoritesData)
+      } else if (!hasCachedFavorites) {
         setFavoritesError(true);
       }
       setFavoritesLoading(false);
@@ -261,6 +273,7 @@ export default function Profile({
       });
       if (res.status === 401) { onLogout(); return; }
       if (!res.ok) throw new Error("Failed to create cycle");
+      invalidateCache('cycles', 'stats', 'books')
       dialogRef.current?.close();
       navigate("/tracker");
     } catch (e) {

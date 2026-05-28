@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
+import { getCache, setCache } from '../lib/cache'
 import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
@@ -106,7 +107,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
             fetch("/api/books", { headers: authHeaders() })
               .then(r => r.json())
               .then(rawData => {
-                setBooks(rawData.map((item: Book & { chapters_read_list: number[] }) => ({
+                const mapped = rawData.map((item: Book & { chapters_read_list: number[] }) => ({
                   book_id: item.book_id,
                   name: item.name,
                   testament: item.testament,
@@ -115,7 +116,9 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   chapters_read: item.chapters_read,
                   chapters_read_list: item.chapters_read_list || [],
                   last_read_at: item.last_read_at ?? null,
-                })));
+                }))
+                setBooks(mapped)
+                setCache('books', mapped)
               })
               .catch(() => {});
           }
@@ -133,6 +136,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   }, [onLogout]);
 
   useEffect(() => {
+    const cached = getCache<Book[]>('books')
+    if (cached) setBooks(cached)
     fetch("/api/books", { headers: authHeaders() })
       .then((res) => {
         if (res.status === 401) { onLogout(); return null }
@@ -149,24 +154,31 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
           chapters_read: item.chapters_read,
           chapters_read_list: item.chapters_read_list || [],
           last_read_at: item.last_read_at ?? null,
-        }));
-        setBooks(transformedBooks);
-      });
+        }))
+        setBooks(transformedBooks)
+        setCache('books', transformedBooks)
+      })
   }, []);
 
   useEffect(() => {
+    const cached = getCache<UserInfo>('user')
+    if (cached) setUser(cached)
     fetch("/auth/me", { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setUser(data) });
+      .then(data => { if (data) { setUser(data); setCache('user', data) } })
   }, []);
 
   const fetchStats = () => {
     fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers: authHeaders() })
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setStats(data) });
-  };
+      .then(data => { if (data) { setStats(data); setCache('stats', data) } })
+  }
 
-  useEffect(() => { fetchStats(); }, []);
+  useEffect(() => {
+    const cached = getCache<Stats>('stats')
+    if (cached) setStats(cached)
+    fetchStats()
+  }, []);
 
   const totalRead = books.reduce((sum, b) => sum + b.chapters_read, 0)
   const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
@@ -420,6 +432,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       if (!response.ok || !data.success) throw new Error(data.error || "Failed");
       setBooks(prev => prev.map(b => b.name === book.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now } : b));
       setSelectedBook(prev => prev ? { ...prev, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now } : null);
+      const cachedBooks = getCache<Book[]>('books')
+      if (cachedBooks) setCache('books', cachedBooks.map(b => b.name === book.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now } : b))
       if (data.newly_logged > 0) fetchStats();
     } catch (e) {
       if (!navigator.onLine || e instanceof TypeError) {
@@ -460,6 +474,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
         setSelectedBook({ ...selectedBook, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list });
         setChaptersInput('');
+        const cachedBooks = getCache<Book[]>('books')
+        if (cachedBooks) setCache('books', cachedBooks.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b))
         fetchStats();
       }
     } catch (e) {
@@ -483,6 +499,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         setSelectedBook({ ...selectedBook, chapters_read: 0, chapters_read_list: [] });
         setChaptersInput('');
         setResetConfirm(false);
+        const cachedBooks = getCache<Book[]>('books')
+        if (cachedBooks) setCache('books', cachedBooks.map(b => b.name === selectedBook.name ? { ...b, chapters_read: 0, chapters_read_list: [] } : b))
         fetchStats();
       }
     } catch (e) {

@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authHeaders } from './lib/auth'
 import { flushQueue } from './lib/offlineQueue'
+import { getCache, setCache } from './lib/cache'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
@@ -102,6 +103,15 @@ export default function Dashboard({
   const navigate = useNavigate()
 
   useEffect(() => {
+    const cachedBooks = getCache<Book[]>('books')
+    if (cachedBooks) setBooks(cachedBooks.map(b => ({ ...b, chapters_read_list: b.chapters_read_list ?? [], last_read_at: b.last_read_at ?? null })))
+    const cachedStats = getCache<Stats>('stats')
+    if (cachedStats) setStats(cachedStats)
+    const cachedActivity = getCache<ActivityDay[]>('activity')
+    if (cachedActivity) setActivity(cachedActivity)
+    const cachedUser = getCache<UserInfo>('user')
+    if (cachedUser) setUser(cachedUser)
+
     const fetchAll = () => {
       const headers = authHeaders()
       return Promise.all([
@@ -111,15 +121,17 @@ export default function Dashboard({
         fetch('/auth/me', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
       ]).then(([booksData, statsData, activityData, userData]) => {
         if (booksData) {
-          setBooks(booksData.map((b: Book) => ({
+          const mapped = booksData.map((b: Book) => ({
             ...b,
             chapters_read_list: b.chapters_read_list ?? [],
             last_read_at: b.last_read_at ?? null,
-          })))
+          }))
+          setBooks(mapped)
+          setCache('books', mapped)
         }
-        if (statsData) setStats(statsData)
-        if (activityData) setActivity(activityData)
-        if (userData) setUser(userData)
+        if (statsData) { setStats(statsData); setCache('stats', statsData) }
+        if (activityData) { setActivity(activityData); setCache('activity', activityData) }
+        if (userData) { setUser(userData); setCache('user', userData) }
       })
     }
 

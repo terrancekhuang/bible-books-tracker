@@ -5,9 +5,11 @@ import Login from './Login'
 import Profile from './Profile'
 import Tracker from './components/Tracker'
 import Dashboard from './Dashboard'
+import PWAInstallModal, { shouldShowPWAPrompt } from './components/PWAInstallModal'
 
 export default function App() {
   const [jwt, setJwt] = useState<string | null>(getToken)
+  const [showPwaPrompt, setShowPwaPrompt] = useState(false)
   const navigate = useNavigate()
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -26,6 +28,7 @@ export default function App() {
   const handleLoginSuccess = (token: string) => {
     localStorage.setItem(TOKEN_KEY, token)
     setJwt(token)
+    if (shouldShowPWAPrompt()) setShowPwaPrompt(true)
     navigate('/')
   }
 
@@ -36,23 +39,26 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={jwt ? <Navigate to="/" replace /> : <Login onLoginSuccess={handleLoginSuccess} />}
-      />
-      <Route
-        path="/"
-        element={jwt ? <Dashboard onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
-      />
-      <Route
-        path="/tracker"
-        element={jwt ? <Tracker onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
-      />
-      <Route
-        path="/profile"
-        element={jwt ? <Profile onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
-      />
-    </Routes>
+    <>
+      <Routes>
+        <Route
+          path="/login"
+          element={jwt ? <Navigate to="/" replace /> : <Login onLoginSuccess={handleLoginSuccess} />}
+        />
+        <Route
+          path="/"
+          element={jwt ? <Dashboard onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/tracker"
+          element={jwt ? <Tracker onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/profile"
+          element={jwt ? <Profile onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
+        />
+      </Routes>
+      {showPwaPrompt && <PWAInstallModal onDismiss={() => setShowPwaPrompt(false)} />}
+    </>
   )
 }

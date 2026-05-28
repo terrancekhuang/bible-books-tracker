@@ -11,4 +11,5 @@ class Config:
     )
 
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'dev-fallback-change-me')
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
+    FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')

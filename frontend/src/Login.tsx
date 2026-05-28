@@ -12,6 +12,7 @@ interface Star {
   alpha: number
   alphaVel: number
   speed: number
+  depth: number // 0 = farthest, 1 = closest — drives parallax shift amount
 }
 
 interface ShootingStar {
@@ -26,6 +27,7 @@ interface ShootingStar {
 
 function CosmicCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const mouseRef = useRef<{ x: number; y: number }>({ x: -1, y: -1 })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -37,18 +39,24 @@ function CosmicCanvas() {
     const shootingStars: ShootingStar[] = []
     let rafId: number
     let frame = 0
+    let lerpX = 0
+    let lerpY = 0
 
     const init = () => {
       canvas.width = window.innerWidth
       canvas.height = window.innerHeight
-      stars = Array.from({ length: 270 }, () => ({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 1.3 + 0.15,
-        alpha: Math.random(),
-        alphaVel: (Math.random() - 0.5) * 0.007,
-        speed: Math.random() * 0.03 + 0.006,
-      }))
+      stars = Array.from({ length: 270 }, () => {
+        const r = Math.random() * 1.3 + 0.15
+        return {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          r,
+          alpha: Math.random(),
+          alphaVel: (Math.random() - 0.5) * 0.007,
+          speed: Math.random() * 0.03 + 0.006,
+          depth: (r - 0.15) / 1.3,
+        }
+      })
     }
 
     const spawnShooting = () => {
@@ -66,9 +74,20 @@ function CosmicCanvas() {
       })
     }
 
+    const onMouseMove = (e: MouseEvent) => {
+      mouseRef.current = { x: e.clientX, y: e.clientY }
+    }
+    window.addEventListener('mousemove', onMouseMove)
+
     const tick = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       frame++
+
+      // Lerp cursor offset from center — gives parallax a smooth, weighted feel
+      const mx = mouseRef.current.x < 0 ? canvas.width / 2 : mouseRef.current.x
+      const my = mouseRef.current.y < 0 ? canvas.height / 2 : mouseRef.current.y
+      lerpX += ((mx - canvas.width / 2) - lerpX) * 0.06
+      lerpY += ((my - canvas.height / 2) - lerpY) * 0.06
 
       for (const s of stars) {
         s.alpha += s.alphaVel
@@ -77,18 +96,22 @@ function CosmicCanvas() {
         s.y -= s.speed
         if (s.y < -s.r) { s.y = canvas.height + s.r; s.x = Math.random() * canvas.width }
 
+        // Parallax: close stars (depth≈1) shift more, far stars (depth≈0) barely move
+        const px = s.x - lerpX * s.depth * 0.03
+        const py = s.y - lerpY * s.depth * 0.03
+
         if (s.r > 0.85) {
-          const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 5)
+          const glow = ctx.createRadialGradient(px, py, 0, px, py, s.r * 5)
           glow.addColorStop(0, `rgba(170, 195, 255, ${s.alpha * 0.13})`)
           glow.addColorStop(1, 'transparent')
           ctx.beginPath()
-          ctx.arc(s.x, s.y, s.r * 5, 0, Math.PI * 2)
+          ctx.arc(px, py, s.r * 5, 0, Math.PI * 2)
           ctx.fillStyle = glow
           ctx.fill()
         }
 
         ctx.beginPath()
-        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+        ctx.arc(px, py, s.r, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`
         ctx.fill()
       }
@@ -131,13 +154,17 @@ function CosmicCanvas() {
     init()
     tick()
     window.addEventListener('resize', init)
-    return () => { cancelAnimationFrame(rafId); window.removeEventListener('resize', init) }
+    return () => {
+      cancelAnimationFrame(rafId)
+      window.removeEventListener('resize', init)
+      window.removeEventListener('mousemove', onMouseMove)
+    }
   }, [])
 
   return (
     <canvas
       ref={canvasRef}
-      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 2 }}
     />
   )
 }
@@ -202,6 +229,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           position: absolute;
           border-radius: 50%;
           pointer-events: none;
+          z-index: 1;
         }
         .cosmos-nebula-1 {
           width: 820px; height: 820px;

@@ -5,6 +5,7 @@ import { authHeaders } from './lib/auth'
 import { flushQueue } from './lib/offlineQueue'
 import { getCache, setCache } from './lib/cache'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
+import BannerCanvas from './components/BannerCanvas'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
 import NavBar from './components/NavBar'
@@ -212,8 +213,13 @@ export default function Dashboard({
       />
 
       {/* Hero */}
-      <div className="bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700 px-5 py-10 md:py-14">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-14">
+      <div className={`relative overflow-hidden px-5 py-10 md:py-14 ${
+        theme === 'dark'
+          ? 'bg-gradient-to-br from-indigo-600 via-indigo-700 to-violet-700'
+          : 'bg-gradient-to-br from-sky-300 via-indigo-400 to-violet-400'
+      }`}>
+        <BannerCanvas theme={theme} />
+        <div className="relative z-10 max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-14">
 
           {/* Ring */}
           <div

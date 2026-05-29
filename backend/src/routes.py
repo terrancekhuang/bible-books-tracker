@@ -532,8 +532,10 @@ def get_settings():
 def update_settings():
     user_id = int(get_jwt_identity())
     data = request.get_json()
+    if not data:
+        return jsonify({'error': 'weekly_goal must be a positive integer'}), 400
     weekly_goal = data.get('weekly_goal')
-    if not isinstance(weekly_goal, int) or weekly_goal < 1:
+    if not isinstance(weekly_goal, int) or isinstance(weekly_goal, bool) or weekly_goal < 1:
         return jsonify({'error': 'weekly_goal must be a positive integer'}), 400
     conn = get_db_connection()
     cur = conn.cursor()

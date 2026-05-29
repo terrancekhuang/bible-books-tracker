@@ -190,12 +190,15 @@ export default function Dashboard({
   const saveGoal = (val: string) => {
     const n = parseInt(val, 10)
     if (!isNaN(n) && n > 0) {
+      const prev = weeklyGoal
       setWeeklyGoal(n)
       fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ weekly_goal: n }),
       })
+        .then(r => { if (!r.ok) setWeeklyGoal(prev) })
+        .catch(() => setWeeklyGoal(prev))
     }
     setEditingGoal(false)
   }

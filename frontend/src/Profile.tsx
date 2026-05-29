@@ -169,8 +169,6 @@ export default function Profile({
     if (cachedStats) setStats(cachedStats)
     const cachedFavorites = getCache<FavoriteBook[]>('favorites')
     if (cachedFavorites) { setFavorites(cachedFavorites); setFavoritesLoading(false) }
-    const hasCachedFavorites = cachedFavorites !== null
-
     const headers = authHeaders();
     Promise.all([
       fetch("/auth/me", { headers }).then((r) => {
@@ -192,7 +190,7 @@ export default function Profile({
       if (userData) { setUser(userData); setCache('user', userData) }
       if (cyclesData) { setCycles(cyclesData); setCache('cycles', cyclesData) }
       if (statsData) { setStats(statsData); setCache('stats', statsData) }
-      if (favoritesData !== null && favoritesData !== undefined) {
+      if (favoritesData != null) {
         setFavorites(favoritesData);
         setCache('favorites', favoritesData)
       } else {

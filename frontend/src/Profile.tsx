@@ -195,7 +195,7 @@ export default function Profile({
       if (favoritesData !== null && favoritesData !== undefined) {
         setFavorites(favoritesData);
         setCache('favorites', favoritesData)
-      } else if (!hasCachedFavorites) {
+      } else {
         setFavoritesError(true);
       }
       setFavoritesLoading(false);
@@ -273,7 +273,7 @@ export default function Profile({
       });
       if (res.status === 401) { onLogout(); return; }
       if (!res.ok) throw new Error("Failed to create cycle");
-      invalidateCache('cycles', 'stats', 'books')
+      invalidateCache('cycles', 'stats', 'books', 'activity')
       dialogRef.current?.close();
       navigate("/tracker");
     } catch (e) {

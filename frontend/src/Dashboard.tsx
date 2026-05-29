@@ -194,7 +194,7 @@ export default function Dashboard({
       setWeeklyGoal(n)
       fetch('/api/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        headers: authHeaders(),
         body: JSON.stringify({ weekly_goal: n }),
       })
         .then(r => { if (!r.ok) setWeeklyGoal(prev) })

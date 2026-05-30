@@ -75,8 +75,6 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const [filterTestament, setFilterTestament] = useState('');
   const [filterCategory,  setFilterCategory]  = useState('');
   const [filterStatus,    setFilterStatus]     = useState('');
-  const [showHelp, setShowHelp] = useState(false);
-
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [openedFromNav, setOpenedFromNav] = useState(false);
   const [isOnline, setIsOnline] = useState(() => navigator.onLine);
@@ -271,14 +269,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
-      if (e.key === '?' && !isInput) {
-        e.preventDefault();
-        setShowHelp(v => !v);
-        return;
-      }
-
       if (e.key === 'Escape') {
-        if (showHelp) { setShowHelp(false); return; }
         if (resetConfirm) { setResetConfirm(false); return; }
         if (confirmMarkAll) { setConfirmMarkAll(false); return; }
         if (target === searchInputRef.current) {
@@ -351,16 +342,6 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         return;
       }
 
-      if (!isInput && lastKeyRef.current === 'g' && (e.key === 'd' || e.key === 't' || e.key === 'p')) {
-        e.preventDefault();
-        if (lastKeyTimeoutRef.current !== null) clearTimeout(lastKeyTimeoutRef.current);
-        lastKeyRef.current = null;
-        if (e.key === 'd') navigate('/');
-        else if (e.key === 't') navigate('/tracker');
-        else navigate('/profile');
-        return;
-      }
-
       if (e.key === 'G' && !isInput) {
         e.preventDefault();
         if (tabFilteredBooks.length > 0) { setSelectedBook(tabFilteredBooks[tabFilteredBooks.length - 1]); setChaptersInput(''); }
@@ -413,7 +394,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedBook, tabFilteredBooks, chaptersInput, showHelp, resetConfirm, confirmMarkAll, isOnline]);
+  }, [selectedBook, tabFilteredBooks, chaptersInput, resetConfirm, confirmMarkAll, isOnline]);
 
   useEffect(() => {
     setConfirmMarkAll(false);
@@ -896,84 +877,6 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         )}
       </div>
 
-      {/* Help FAB — desktop only */}
-      {!isMobile && (
-        <button
-          onClick={() => setShowHelp(v => !v)}
-          title="Keyboard shortcuts (?)"
-          className="fixed bottom-20 md:bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors text-sm font-bold select-none"
-        >
-          ?
-        </button>
-      )}
-
-      {/* Help modal — desktop only */}
-      {showHelp && !isMobile && (
-        <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-          onClick={() => setShowHelp(false)}
-        >
-          <div
-            className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Keyboard Shortcuts</h2>
-              <button
-                onClick={() => setShowHelp(false)}
-                className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 text-xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-            <div className="flex flex-col gap-3">
-              {([
-                { keys: ['/'], description: 'Focus search' },
-                { keys: ['←', '→', '↑', '↓'], altKeys: ['h', 'l', 'k', 'j'], description: 'Navigate books' },
-                { keys: ['g', 'g'], description: 'Go to first book' },
-                { keys: ['G'], description: 'Go to last book' },
-                { keys: ['Tab'], altKeys: ['i'], description: 'Focus chapter input' },
-                { keys: ['Enter'], description: 'Submit progress' },
-                { keys: ['u'], description: 'Undo last entry' },
-                { keys: ['R'], description: 'Reset all progress (two-step)' },
-                { keys: ['A'], description: 'Mark all chapters as read (two-step)' },
-                { keys: ['g', 'd'], description: 'Go to Dashboard' },
-                { keys: ['g', 't'], description: 'Go to Tracker' },
-                { keys: ['g', 'p'], description: 'Go to Profile' },
-                { keys: ['Esc'], description: 'Deselect / clear search' },
-                { keys: ['?'], description: 'Show / hide this help' },
-              ] as { keys: string[]; altKeys?: string[]; description: string }[]).map(({ keys, altKeys, description }) => (
-                <div key={description} className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    {keys.map(k => (
-                      <kbd
-                        key={k}
-                        className="inline-flex items-center justify-center rounded border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-1.5 py-0.5 text-xs font-mono shadow-[0_1px_0_#cbd5e1] dark:shadow-[0_1px_0_#475569] text-slate-700 dark:text-slate-300 min-w-[1.5rem]"
-                      >
-                        {k}
-                      </kbd>
-                    ))}
-                    {altKeys && (
-                      <>
-                        <span className="text-slate-400 dark:text-slate-500 text-xs px-0.5">/</span>
-                        {altKeys.map(k => (
-                          <kbd
-                            key={k}
-                            className="inline-flex items-center justify-center rounded border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-1.5 py-0.5 text-xs font-mono shadow-[0_1px_0_#cbd5e1] dark:shadow-[0_1px_0_#475569] text-slate-700 dark:text-slate-300 min-w-[1.5rem]"
-                          >
-                            {k}
-                          </kbd>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                  <span className="text-sm text-slate-600 dark:text-slate-400">{description}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

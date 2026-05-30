@@ -338,12 +338,6 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         return;
       }
 
-      if (e.key === 'p' && !isInput) {
-        e.preventDefault();
-        navigate('/profile');
-        return;
-      }
-
       if (e.key === 'g' && !isInput) {
         e.preventDefault();
         if (lastKeyRef.current === 'g') {
@@ -354,6 +348,16 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
           lastKeyRef.current = 'g';
           lastKeyTimeoutRef.current = window.setTimeout(() => { lastKeyRef.current = null; }, 500);
         }
+        return;
+      }
+
+      if (!isInput && lastKeyRef.current === 'g' && (e.key === 'd' || e.key === 't' || e.key === 'p')) {
+        e.preventDefault();
+        if (lastKeyTimeoutRef.current !== null) clearTimeout(lastKeyTimeoutRef.current);
+        lastKeyRef.current = null;
+        if (e.key === 'd') navigate('/');
+        else if (e.key === 't') navigate('/tracker');
+        else navigate('/profile');
         return;
       }
 
@@ -933,7 +937,9 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                 { keys: ['u'], description: 'Undo last entry' },
                 { keys: ['R'], description: 'Reset all progress (two-step)' },
                 { keys: ['A'], description: 'Mark all chapters as read (two-step)' },
-                { keys: ['p'], description: 'Go to Profile' },
+                { keys: ['g', 'd'], description: 'Go to Dashboard' },
+                { keys: ['g', 't'], description: 'Go to Tracker' },
+                { keys: ['g', 'p'], description: 'Go to Profile' },
                 { keys: ['Esc'], description: 'Deselect / clear search' },
                 { keys: ['?'], description: 'Show / hide this help' },
               ] as { keys: string[]; altKeys?: string[]; description: string }[]).map(({ keys, altKeys, description }) => (

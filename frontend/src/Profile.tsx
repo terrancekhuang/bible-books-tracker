@@ -342,7 +342,7 @@ export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: 
         {/* Favorite Books */}
         <div className="p-5" style={glassCard}>
           <h2 className="mb-1" style={sectionHeadStyle}>Favorite Books</h2>
-          <p className="text-xs mb-3" style={{ color: dimText, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>most-read across all cycles</p>
+          <p className="mb-3" style={{ color: dimText, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 15 }}>most-read across all cycles</p>
 
           {favoritesLoading && <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Loading…</p>}
           {!favoritesLoading && favoritesError && <p className="text-sm" style={{ color: 'rgba(240,100,100,0.7)', fontFamily: "'Raleway', sans-serif" }}>Could not load favorites.</p>}

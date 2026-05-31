@@ -39,16 +39,16 @@ export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, use
   return (
     <>
       <header className="sticky top-0 z-40" style={style}>
-        <div className="flex items-center justify-between px-5 py-3 max-w-7xl mx-auto">
+        <div className="grid grid-cols-3 items-center px-5 py-3 max-w-7xl mx-auto w-full">
           <Link
             to="/"
-            className="text-xl font-semibold tracking-widest shrink-0"
+            className="text-xl font-semibold tracking-widest shrink-0 justify-self-start"
             style={{ fontFamily: "'Cinzel', serif", color: isDark ? '#dde6ff' : '#0d1533' }}
           >
             Bible Books Tracker
           </Link>
 
-          <nav className="hidden md:flex items-center gap-1 mx-6">
+          <nav className="hidden md:flex items-center justify-center gap-1">
             {NAV_LINKS.map(({ to, label }) => {
               const isActive = pathname === to
               return (
@@ -69,7 +69,7 @@ export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, use
             })}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 justify-self-end">
             <button
               onClick={onToggleTheme}
               className="p-1.5 rounded-lg transition-colors"

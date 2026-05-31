@@ -836,6 +836,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
           </div>
         )}
       </div>
+
     </div>
   );
 }

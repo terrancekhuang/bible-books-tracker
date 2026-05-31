@@ -87,6 +87,12 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const navigate = useNavigate();
   const location = useLocation();
 
+  const isDark = theme === 'dark'
+  const primaryText = isDark ? '#dde6ff' : '#0d1533'
+  const dimText = isDark ? 'rgba(195,210,255,0.72)' : 'rgba(13,21,51,0.55)'
+  const bodyText = isDark ? 'rgba(195,210,255,0.9)' : 'rgba(13,21,51,0.78)'
+  const trackBg = isDark ? 'rgba(150,175,255,0.12)' : 'rgba(13,21,51,0.1)'
+
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handler);
@@ -181,7 +187,6 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const totalRead = books.reduce((sum, b) => sum + b.chapters_read, 0)
   const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
 
-  // Auto-select book from navigation state (e.g. from Dashboard "Continue Reading")
   useEffect(() => {
     const state = location.state as { selectBook?: string } | null;
     if (!state?.selectBook || books.length === 0) return;
@@ -199,18 +204,11 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   };
 
   const handleSort = (key: SortKey) => {
-    if (key === sortKey) {
-      setSortDir(sortDir === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
-      setSortDir("asc");
-    }
+    if (key === sortKey) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const resetSort = () => {
-    setSortKey(null);
-    setSortDir("asc");
-  };
+  const resetSort = () => { setSortKey(null); setSortDir("asc"); };
 
   const sortedBooks = sortKey === null
     ? books
@@ -259,9 +257,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
   useEffect(() => {
     if (!selectedBook || isMobile) return;
-    document
-      .querySelector(`[data-book="${selectedBook.name}"]`)
-      ?.scrollIntoView({ block: 'nearest' });
+    document.querySelector(`[data-book="${selectedBook.name}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [selectedBook, isMobile]);
 
   useEffect(() => {
@@ -273,61 +269,23 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         if (resetConfirm) { setResetConfirm(false); return; }
         if (confirmMarkAll) { setConfirmMarkAll(false); return; }
         if (target === searchInputRef.current) {
-          setSearch('');
-          searchInputRef.current?.blur();
+          setSearch(''); searchInputRef.current?.blur();
         } else {
-          setOpenedFromNav(false);
-          setSelectedBook(null);
-          setChaptersInput('');
+          setOpenedFromNav(false); setSelectedBook(null); setChaptersInput('');
         }
         return;
       }
-
-      if (e.key === '/' && !isInput) {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-        return;
-      }
-
-      if (e.key === 'Tab' && !isInput && selectedBook) {
-        e.preventDefault();
-        chaptersInputRef.current?.focus();
-        return;
-      }
-
-      if (e.key === 'Enter' && !isInput && selectedBook) {
-        e.preventDefault();
-        handleSubmit();
-        return;
-      }
-
-      if (e.key === 'u' && !isInput && selectedBook) {
-        e.preventDefault();
-        if (isOnline) handleUndo();
-        return;
-      }
-
-      if (e.key === 'R' && !isInput && selectedBook) {
-        e.preventDefault();
-        handleReset();
-        return;
-      }
-
+      if (e.key === '/' && !isInput) { e.preventDefault(); searchInputRef.current?.focus(); return; }
+      if (e.key === 'Tab' && !isInput && selectedBook) { e.preventDefault(); chaptersInputRef.current?.focus(); return; }
+      if (e.key === 'Enter' && !isInput && selectedBook) { e.preventDefault(); handleSubmit(); return; }
+      if (e.key === 'u' && !isInput && selectedBook) { e.preventDefault(); if (isOnline) handleUndo(); return; }
+      if (e.key === 'R' && !isInput && selectedBook) { e.preventDefault(); handleReset(); return; }
       if (e.key === 'A' && !isInput && selectedBook) {
         e.preventDefault();
-        if (confirmMarkAll) {
-          handleMarkAllRead();
-        } else {
-          setConfirmMarkAll(true);
-        }
+        if (confirmMarkAll) handleMarkAllRead(); else setConfirmMarkAll(true);
         return;
       }
-
-      if (e.key === 'i' && !isInput && selectedBook) {
-        e.preventDefault();
-        chaptersInputRef.current?.focus();
-        return;
-      }
+      if (e.key === 'i' && !isInput && selectedBook) { e.preventDefault(); chaptersInputRef.current?.focus(); return; }
 
       if (e.key === 'g' && !isInput) {
         e.preventDefault();
@@ -341,7 +299,6 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         }
         return;
       }
-
       if (e.key === 'G' && !isInput) {
         e.preventDefault();
         if (tabFilteredBooks.length > 0) { setSelectedBook(tabFilteredBooks[tabFilteredBooks.length - 1]); setChaptersInput(''); }
@@ -353,53 +310,33 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
       if ((resolvedKey === 'ArrowRight' || resolvedKey === 'ArrowLeft') && !isInput) {
         e.preventDefault();
-        const currentIndex = selectedBook
-          ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name)
-          : -1;
+        const currentIndex = selectedBook ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name) : -1;
         if (resolvedKey === 'ArrowRight') {
-          if (currentIndex === -1 && tabFilteredBooks.length > 0) {
-            setSelectedBook(tabFilteredBooks[0]);
-          } else if (currentIndex < tabFilteredBooks.length - 1) {
-            setSelectedBook(tabFilteredBooks[currentIndex + 1]);
-          }
+          if (currentIndex === -1 && tabFilteredBooks.length > 0) setSelectedBook(tabFilteredBooks[0]);
+          else if (currentIndex < tabFilteredBooks.length - 1) setSelectedBook(tabFilteredBooks[currentIndex + 1]);
         } else {
-          if (currentIndex > 0) {
-            setSelectedBook(tabFilteredBooks[currentIndex - 1]);
-          }
+          if (currentIndex > 0) setSelectedBook(tabFilteredBooks[currentIndex - 1]);
         }
-        setChaptersInput('');
-        return;
+        setChaptersInput(''); return;
       }
-
       if ((resolvedKey === 'ArrowDown' || resolvedKey === 'ArrowUp') && !isInput) {
         e.preventDefault();
         const numCols = window.innerWidth < 640 ? 2 : 3;
-        const currentIndex = selectedBook
-          ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name)
-          : -1;
+        const currentIndex = selectedBook ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name) : -1;
         if (resolvedKey === 'ArrowDown') {
-          if (currentIndex === -1 && tabFilteredBooks.length > 0) {
-            setSelectedBook(tabFilteredBooks[0]);
-          } else {
-            const next = currentIndex + numCols;
-            if (next < tabFilteredBooks.length) setSelectedBook(tabFilteredBooks[next]);
-          }
+          if (currentIndex === -1 && tabFilteredBooks.length > 0) setSelectedBook(tabFilteredBooks[0]);
+          else { const next = currentIndex + numCols; if (next < tabFilteredBooks.length) setSelectedBook(tabFilteredBooks[next]); }
         } else {
-          const prev = currentIndex - numCols;
-          if (prev >= 0) setSelectedBook(tabFilteredBooks[prev]);
+          const prev = currentIndex - numCols; if (prev >= 0) setSelectedBook(tabFilteredBooks[prev]);
         }
         setChaptersInput('');
       }
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedBook, tabFilteredBooks, chaptersInput, resetConfirm, confirmMarkAll, isOnline]);
 
-  useEffect(() => {
-    setConfirmMarkAll(false);
-    setResetConfirm(false);
-  }, [selectedBook]);
+  useEffect(() => { setConfirmMarkAll(false); setResetConfirm(false); }, [selectedBook]);
 
   const submitChapters = async (book: Book, chapters: number[]) => {
     if (chapters.length === 0) return;
@@ -448,11 +385,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const handleUndo = async () => {
     if (!selectedBook) return;
     try {
-      const response = await fetch("/api/progress/undo", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ book_name: selectedBook.name }),
-      });
+      const response = await fetch("/api/progress/undo", { method: "POST", headers: authHeaders(), body: JSON.stringify({ book_name: selectedBook.name }) });
       if (response.status === 401) { onLogout(); return; }
       const data = await response.json();
       if (data.success) {
@@ -463,102 +396,126 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         if (cachedBooks) setCache('books', cachedBooks.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b))
         fetchStats();
       }
-    } catch (e) {
-      console.error("Error undoing progress:", e);
-    }
+    } catch (e) { console.error("Error undoing progress:", e); }
   };
 
   const handleReset = async () => {
     if (!selectedBook) return;
     if (!resetConfirm) { setResetConfirm(true); return; }
     try {
-      const response = await fetch("/api/progress/reset", {
-        method: "POST",
-        headers: authHeaders(),
-        body: JSON.stringify({ book_name: selectedBook.name }),
-      });
+      const response = await fetch("/api/progress/reset", { method: "POST", headers: authHeaders(), body: JSON.stringify({ book_name: selectedBook.name }) });
       if (response.status === 401) { onLogout(); return; }
       const data = await response.json();
       if (data.success) {
         setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: 0, chapters_read_list: [] } : b));
         setSelectedBook({ ...selectedBook, chapters_read: 0, chapters_read_list: [] });
-        setChaptersInput('');
-        setResetConfirm(false);
+        setChaptersInput(''); setResetConfirm(false);
         const cachedBooks = getCache<Book[]>('books')
         if (cachedBooks) setCache('books', cachedBooks.map(b => b.name === selectedBook.name ? { ...b, chapters_read: 0, chapters_read_list: [] } : b))
         fetchStats();
       }
-    } catch (e) {
-      console.error("Error resetting progress:", e);
-    }
+    } catch (e) { console.error("Error resetting progress:", e); }
   };
 
   const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;
 
+  const glassPanel = {
+    background: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.88)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    border: isDark ? '1px solid rgba(150,175,255,0.22)' : '1px solid rgba(100,130,255,0.14)',
+    borderRadius: '1rem',
+  }
+
+  const inputStyle = {
+    background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.75)',
+    border: `1px solid ${isDark ? 'rgba(150,175,255,0.22)' : 'rgba(100,130,255,0.2)'}`,
+    borderRadius: '0.5rem',
+    color: primaryText,
+    fontFamily: "'Raleway', sans-serif",
+    outline: 'none',
+  }
+
+  const filterStyle = (active: boolean) => ({
+    fontFamily: "'Raleway', sans-serif",
+    fontSize: 12,
+    color: active ? primaryText : dimText,
+    background: active ? (isDark ? 'rgba(150,175,255,0.14)' : 'rgba(13,21,51,0.08)') : 'transparent',
+    borderRadius: '0.375rem',
+    padding: '3px 8px',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  })
+
   return (
-    <div className="flex flex-col min-h-screen md:h-screen bg-slate-50 dark:bg-slate-900 pb-20 md:pb-0">
+    <div className="flex flex-col min-h-screen md:h-screen pb-20 md:pb-0">
+      {/* Status banners */}
       {!isOnline && (
-        <div className="bg-amber-500 text-white text-xs font-medium text-center py-1.5 px-4">
+        <div
+          className="text-xs font-medium text-center py-1.5 px-4"
+          style={{ background: 'rgba(200,160,40,0.2)', color: 'rgba(240,200,80,0.9)', fontFamily: "'Raleway', sans-serif", backdropFilter: 'blur(8px)' }}
+        >
           Offline{pendingCount > 0 ? ` — ${pendingCount} change${pendingCount > 1 ? 's' : ''} will sync when reconnected` : ''}
         </div>
       )}
       {isOnline && pendingCount > 0 && (
-        <div className="bg-indigo-600 text-white text-xs font-medium text-center py-1.5 px-4">
+        <div
+          className="text-xs font-medium text-center py-1.5 px-4"
+          style={{ background: 'rgba(100,130,255,0.18)', color: 'rgba(170,195,255,0.9)', fontFamily: "'Raleway', sans-serif", backdropFilter: 'blur(8px)' }}
+        >
           Syncing {pendingCount} pending change{pendingCount > 1 ? 's' : ''}…
         </div>
       )}
 
-      <NavBar
-        theme={theme}
-        onToggleTheme={onToggleTheme}
-        onLogout={onLogout}
-        pictureUrl={user?.picture_url}
-        userName={user?.name}
-      />
+      <NavBar theme={theme} onToggleTheme={onToggleTheme} onLogout={onLogout} pictureUrl={user?.picture_url} userName={user?.name} />
 
       {/* Progress strip */}
-      <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 pt-2 pb-2.5">
+      <div
+        className="px-5 pt-2 pb-2.5"
+        style={{
+          background: isDark ? 'rgba(6,12,30,0.5)' : 'rgba(255,255,255,0.7)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          borderBottom: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(100,130,255,0.1)',
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: trackBg }}>
             <div
-              className="h-full bg-indigo-500 rounded-full transition-all duration-500"
-              style={{ width: `${overallPct}%` }}
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${overallPct}%`, background: isDark ? 'rgba(150,175,255,0.7)' : 'rgba(13,21,51,0.6)' }}
             />
           </div>
-          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 tabular-nums">
+          <span className="text-xs font-semibold shrink-0 tabular-nums" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
             {overallPct}%
           </span>
         </div>
-        <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 dark:text-slate-500">
+        <div className="flex items-center gap-3 mt-1 text-xs" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
           <span className="tabular-nums">{totalRead.toLocaleString()}/{TOTAL_CHAPTERS.toLocaleString()} ch</span>
           {stats && (
             <>
               <span>·</span>
-              <span className="flex items-center gap-1">
-                <FlameIcon size={12} />
-                {stats.current_streak}d streak
-              </span>
+              <span className="flex items-center gap-1"><FlameIcon size={12} />{stats.current_streak}d streak</span>
               <span>·</span>
-              <span className="flex items-center gap-1">
-                <CalendarIcon size={12} />
-                Today: {stats.chapters_today}
-              </span>
+              <span className="flex items-center gap-1"><CalendarIcon size={12} />Today: {stats.chapters_today}</span>
             </>
           )}
         </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 flex-1 md:overflow-hidden px-4 md:px-5 py-4">
+
         {/* Book Grid Panel */}
         {showGrid && (
-          <div className="flex flex-col flex-1 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden md:overflow-y-auto">
-            {/* Search + Sort controls */}
-            <div className="flex items-center gap-2 p-3 border-b border-slate-100 dark:border-slate-700">
+          <div className="flex flex-col flex-1 overflow-hidden md:overflow-y-auto rounded-2xl" style={glassPanel}>
+            {/* Search */}
+            <div className="flex items-center gap-2 p-3" style={{ borderBottom: isDark ? '1px solid rgba(150,175,255,0.07)' : '1px solid rgba(13,21,51,0.07)' }}>
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder={isMobile ? "Search books…" : "Search books… (press /)"}
+                placeholder={isMobile ? "Search books…" : "Search books… (/)"}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => {
@@ -569,82 +526,37 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                     searchInputRef.current?.blur();
                   }
                 }}
-                className="flex-1 text-sm px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-700 dark:text-slate-100 border border-slate-200 dark:border-slate-600 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40 transition placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                className="flex-1 text-sm px-3 py-2"
+                style={{ ...inputStyle, transition: 'border-color 0.15s' }}
+                onFocus={e => (e.target.style.borderColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)')}
+                onBlur={e => (e.target.style.borderColor = isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)')}
               />
               {sortKey !== null && (
                 <button
-                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 px-2 py-1 rounded hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors whitespace-nowrap"
                   onClick={resetSort}
+                  style={{ ...filterStyle(false), color: dimText }}
+                  className="whitespace-nowrap text-xs px-2 py-1 rounded"
                 >
                   Reset order
                 </button>
               )}
             </div>
 
-            {/* Filter bar */}
-            <div className="flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap">
-              <FilterSelect
-                value={filterTestament}
-                onChange={v => {
-                  setFilterTestament(v);
-                  if (v && filterCategory) {
-                    const valid = new Set(books.filter(b => b.testament === v).map(b => b.category));
-                    if (!valid.has(filterCategory)) setFilterCategory('');
-                  }
-                }}
-                placeholder="Testament"
-                options={availableTestamentOptions}
-              />
-              <FilterSelect
-                value={filterCategory}
-                onChange={v => {
-                  setFilterCategory(v);
-                  if (v && filterTestament) {
-                    const valid = new Set(books.filter(b => b.category === v).map(b => b.testament));
-                    if (!valid.has(filterTestament)) setFilterTestament('');
-                  }
-                }}
-                placeholder="Category"
-                options={availableCategoryOptions}
-              />
-              <FilterSelect
-                value={filterStatus}
-                onChange={setFilterStatus}
-                placeholder="Status"
-                options={[
-                  { value: 'not_started', label: 'Not Started' },
-                  { value: 'in_progress', label: 'In Progress' },
-                  { value: 'complete',    label: 'Complete' },
-                ]}
-              />
+            {/* Filters */}
+            <div className="flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap" style={{ borderBottom: isDark ? '1px solid rgba(150,175,255,0.04)' : '1px solid rgba(13,21,51,0.04)' }}>
+              <FilterSelect value={filterTestament} onChange={v => { setFilterTestament(v); if (v && filterCategory) { const valid = new Set(books.filter(b => b.testament === v).map(b => b.category)); if (!valid.has(filterCategory)) setFilterCategory(''); } }} placeholder="Testament" options={availableTestamentOptions} theme={theme} />
+              <FilterSelect value={filterCategory} onChange={v => { setFilterCategory(v); if (v && filterTestament) { const valid = new Set(books.filter(b => b.category === v).map(b => b.testament)); if (!valid.has(filterTestament)) setFilterTestament(''); } }} placeholder="Category" options={availableCategoryOptions} theme={theme} />
+              <FilterSelect value={filterStatus} onChange={setFilterStatus} placeholder="Status" options={[{ value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'complete', label: 'Complete' }]} theme={theme} />
               {anyFilterActive && (
-                <button
-                  onClick={clearFilters}
-                  className="text-xs text-slate-400 dark:text-slate-500 hover:text-red-500 px-2 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors whitespace-nowrap"
-                >
+                <button onClick={clearFilters} className="text-xs px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap" style={{ color: 'rgba(240,100,100,0.7)', fontFamily: "'Raleway', sans-serif" }}>
                   Clear filters
                 </button>
               )}
-              {/* Sort controls */}
               <div className="ml-auto flex gap-1">
                 {(["name", "chapters_read", "percent", "status"] as SortKey[]).map(key => {
-                  const labels: Record<SortKey, string> = {
-                    name: "Name",
-                    chapters_read: "Chapters",
-                    percent: "%",
-                    status: "Status",
-                  };
+                  const labels: Record<SortKey, string> = { name: "Name", chapters_read: "Chapters", percent: "%", status: "Status" };
                   return (
-                    <button
-                      key={key}
-                      onClick={() => handleSort(key)}
-                      className={[
-                        "text-xs px-2 py-1 rounded transition-colors",
-                        sortKey === key
-                          ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 font-medium"
-                          : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700",
-                      ].join(" ")}
-                    >
+                    <button key={key} onClick={() => handleSort(key)} style={filterStyle(sortKey === key)}>
                       {labels[key]}{sortIndicator(key)}
                     </button>
                   );
@@ -656,51 +568,78 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3">
               {tabFilteredBooks.map((book) => {
                 const isComplete = book.chapters_read >= book.num_chapters;
+                const inProgress = book.chapters_read > 0 && !isComplete;
                 const isSelected = selectedBook?.name === book.name;
+
+                let cardStyle = {}
+                if (isSelected && isComplete) {
+                  cardStyle = {
+                    background: isDark ? 'rgba(60,200,140,0.2)' : 'rgba(40,170,110,0.18)',
+                    border: isDark ? '2px solid rgba(80,215,155,0.6)' : '2px solid rgba(40,170,110,0.55)',
+                    boxShadow: isDark ? '0 0 20px rgba(60,200,140,0.18)' : '0 0 16px rgba(40,170,110,0.12)',
+                  }
+                } else if (isSelected && inProgress) {
+                  cardStyle = {
+                    background: isDark ? 'rgba(215,185,90,0.2)' : 'rgba(200,160,40,0.18)',
+                    border: isDark ? '2px solid rgba(230,200,110,0.6)' : '2px solid rgba(180,140,30,0.5)',
+                    boxShadow: isDark ? '0 0 20px rgba(215,185,90,0.15)' : '0 0 16px rgba(200,160,40,0.1)',
+                  }
+                } else if (isSelected) {
+                  cardStyle = {
+                    background: isDark ? 'rgba(100,130,255,0.22)' : 'rgba(100,130,255,0.18)',
+                    border: isDark ? '2px solid rgba(170,195,255,0.6)' : '2px solid rgba(100,130,255,0.5)',
+                    boxShadow: isDark ? '0 0 20px rgba(150,175,255,0.18)' : '0 0 16px rgba(100,130,255,0.12)',
+                  }
+                } else if (isComplete) {
+                  cardStyle = {
+                    background: isDark ? 'rgba(60,200,140,0.1)' : 'rgba(40,170,110,0.1)',
+                    border: '1px solid ' + (isDark ? 'rgba(60,200,140,0.24)' : 'rgba(40,170,110,0.24)'),
+                  }
+                } else if (inProgress) {
+                  cardStyle = {
+                    background: isDark ? 'rgba(215,185,90,0.1)' : 'rgba(200,160,40,0.1)',
+                    border: '1px solid ' + (isDark ? 'rgba(225,195,100,0.24)' : 'rgba(180,140,30,0.22)'),
+                  }
+                } else {
+                  cardStyle = {
+                    background: isDark ? 'rgba(100,130,255,0.09)' : 'rgba(215,225,255,0.72)',
+                    border: '1px solid ' + (isDark ? 'rgba(130,160,255,0.16)' : 'rgba(130,160,255,0.22)'),
+                  }
+                }
+
+                const iconColor = isComplete
+                  ? (isDark ? 'rgba(80,200,140,0.9)' : 'rgba(40,160,100,0.8)')
+                  : inProgress
+                    ? (isDark ? 'rgba(225,195,100,0.9)' : 'rgba(160,120,20,0.75)')
+                    : isSelected
+                      ? (isDark ? 'rgba(200,215,255,0.9)' : 'rgba(60,90,200,0.8)')
+                      : dimText
 
                 return (
                   <div
                     key={book.name}
                     data-book={book.name}
-                    onClick={() => {
-                      if (selectedBook?.name !== book.name) setChaptersInput('');
-                      setOpenedFromNav(false);
-                      setSelectedBook(book);
-                    }}
-                    className={[
-                      "rounded-xl border p-3.5 cursor-pointer transition-all duration-150 flex flex-col gap-1",
-                      isSelected
-                        ? "border-indigo-500 ring-2 ring-indigo-100 dark:ring-indigo-900/40 bg-indigo-50 dark:bg-indigo-900/20 shadow-md"
-                        : isComplete
-                          ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50/60 dark:bg-emerald-900/10 hover:shadow-md hover:-translate-y-0.5"
-                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md hover:-translate-y-0.5",
-                    ].join(" ")}
+                    onClick={() => { if (selectedBook?.name !== book.name) setChaptersInput(''); setOpenedFromNav(false); setSelectedBook(book); }}
+                    className="rounded-xl p-3.5 cursor-pointer flex flex-col gap-1 transition-all duration-150"
+                    style={{ ...cardStyle, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = '' }}
                   >
-                    {/* Category icon + label */}
-                    <div className={[
-                      "flex items-center gap-1.5",
-                      isSelected
-                        ? "text-indigo-500 dark:text-indigo-400"
-                        : isComplete
-                          ? "text-emerald-500 dark:text-emerald-400"
-                          : "text-indigo-400 dark:text-indigo-500",
-                    ].join(" ")}>
+                    <div className="flex items-center gap-1.5" style={{ color: iconColor }}>
                       <CategoryIcon category={book.category} size={14} />
-                      <p className="text-xs font-medium truncate">{book.category}</p>
+                      <p className="text-xs font-medium truncate" style={{ fontFamily: "'Raleway', sans-serif" }}>{book.category}</p>
                     </div>
-
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-tight">{book.name}</p>
-
+                    <p className="text-sm font-semibold leading-tight" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>{book.name}</p>
                     {isComplete ? (
                       <div className="mt-1 flex items-center gap-1">
-                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(60,200,140,0.15)', color: 'rgba(80,200,140,0.9)', fontFamily: "'Raleway', sans-serif" }}>
                           ✓ Complete
                         </span>
                       </div>
                     ) : (
                       <>
-                        <SegmentedProgressBar total={book.num_chapters} readChapters={book.chapters_read_list} />
-                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                        <SegmentedProgressBar total={book.num_chapters} readChapters={book.chapters_read_list} theme={theme} />
+                        <p className="text-xs" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                           {book.chapters_read || 0} / {book.num_chapters}
                         </p>
                       </>
@@ -715,70 +654,74 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         {/* Detail Panel */}
         {showDetail && (
           <div className="flex flex-col w-full md:w-96 md:overflow-y-auto shrink-0">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 flex flex-col gap-4 flex-1">
+            <div className="p-6 flex flex-col gap-4 flex-1" style={glassPanel}>
               {selectedBook ? (
                 <>
                   {isMobile && (
                     <button
-                      className="self-start text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 mb-1 transition-colors"
-                      onClick={() => {
-                        if (openedFromNav) {
-                          setOpenedFromNav(false);
-                          navigate(-1);
-                        } else {
-                          setSelectedBook(null);
-                          setChaptersInput('');
-                        }
-                      }}
+                      className="self-start text-sm font-medium mb-1 transition-colors"
+                      style={{ color: isDark ? 'rgba(170,195,255,0.7)' : 'rgba(13,21,51,0.5)', fontFamily: "'Raleway', sans-serif" }}
+                      onClick={() => { if (openedFromNav) { setOpenedFromNav(false); navigate(-1); } else { setSelectedBook(null); setChaptersInput(''); } }}
                     >
                       ← Back
                     </button>
                   )}
 
                   <div>
-                    <div className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400 mb-1.5">
+                    <div className="flex items-center gap-2 mb-1.5" style={{ color: dimText }}>
                       <CategoryIcon category={selectedBook.category} size={18} />
-                      <span className="text-sm font-medium">{selectedBook.category}</span>
+                      <span className="text-sm font-medium" style={{ fontFamily: "'Raleway', sans-serif" }}>{selectedBook.category}</span>
                     </div>
-                    <h2
-                      className="text-2xl font-bold text-slate-900 dark:text-slate-100"
-                      style={{ fontFamily: "'Lora', Georgia, serif" }}
-                    >
+                    <h2 className="text-2xl font-bold" style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.03em' }}>
                       {selectedBook.name}
                     </h2>
-                    <span className="inline-block mt-2 text-xs font-medium bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-full">
+                    <span
+                      className="inline-block mt-2 text-xs font-medium px-2.5 py-1 rounded-full"
+                      style={{
+                        background: isDark ? 'rgba(150,175,255,0.1)' : 'rgba(13,21,51,0.06)',
+                        color: isDark ? 'rgba(195,210,255,0.7)' : 'rgba(13,21,51,0.55)',
+                        fontFamily: "'Raleway', sans-serif",
+                        letterSpacing: '0.04em',
+                      }}
+                    >
                       {selectedBook.testament}
                     </span>
                   </div>
 
                   <div>
-                    <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400 mb-1.5">
-                      <span>Progress</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-200">
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Progress</span>
+                      <span className="font-medium" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>
                         {selectedBook.chapters_read || 0} / {selectedBook.num_chapters} chapters
                       </span>
                     </div>
-                    <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} />
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                    <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} theme={theme} />
+                    <p className="text-xs mt-1" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                       {calculateProgress(selectedBook)}% complete
                     </p>
                   </div>
 
                   {selectedBook.chapters_read >= selectedBook.num_chapters ? (
-                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 p-4 text-center flex flex-col gap-2">
-                      <p className="text-emerald-700 dark:text-emerald-400 font-semibold">All chapters read! ✓</p>
+                    <div
+                      className="rounded-xl p-4 text-center flex flex-col gap-2"
+                      style={{ background: 'rgba(60,200,140,0.08)', border: '1px solid rgba(60,200,140,0.2)' }}
+                    >
+                      <p className="font-semibold" style={{ color: 'rgba(80,200,140,0.9)', fontFamily: "'Raleway', sans-serif" }}>All chapters read! ✓</p>
                       <button
                         onClick={handleReset}
-                        className={`w-full py-2 rounded-xl text-sm font-medium transition-colors ${resetConfirm ? 'bg-red-600 hover:bg-red-700 text-white' : 'border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40'}`}
+                        className="w-full py-2 rounded-xl text-sm font-medium transition-colors"
+                        style={resetConfirm
+                          ? { background: 'rgba(220,60,60,0.2)', border: '1px solid rgba(220,60,60,0.4)', color: 'rgba(240,100,100,0.9)', fontFamily: "'Raleway', sans-serif" }
+                          : { background: 'transparent', border: '1px solid rgba(60,200,140,0.25)', color: 'rgba(80,200,140,0.7)', fontFamily: "'Raleway', sans-serif" }
+                        }
                       >
                         {resetConfirm ? 'Confirm reset?' : 'Reset progress'}
                       </button>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-3">
-                      {/* Input + Submit */}
                       <div>
-                        <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block mb-1.5">
+                        <label className="text-sm font-medium block mb-1.5" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>
                           Chapters read
                         </label>
                         <input
@@ -788,14 +731,15 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                           value={chaptersInput}
                           onChange={e => setChaptersInput(e.target.value)}
                           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
-                          className={[
-                            "w-full px-3 py-2 rounded-lg border outline-none transition dark:bg-slate-700 dark:text-slate-100",
-                            inputIsInvalid
-                              ? "border-red-300 dark:border-red-700 focus:border-red-400 focus:ring-2 focus:ring-red-100 dark:focus:ring-red-900/40"
-                              : "border-slate-200 dark:border-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/40",
-                          ].join(' ')}
+                          className="w-full px-3 py-2"
+                          style={{
+                            ...inputStyle,
+                            borderColor: inputIsInvalid ? 'rgba(220,80,80,0.4)' : undefined,
+                          }}
+                          onFocus={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.6)' : (isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)'))}
+                          onBlur={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.4)' : (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)'))}
                         />
-                        <p className={`text-xs mt-1 min-h-[1rem] ${inputIsInvalid ? 'text-red-400' : 'text-slate-400 dark:text-slate-500'}`}>
+                        <p className="text-xs mt-1 min-h-[1rem]" style={{ color: inputIsInvalid ? 'rgba(240,100,100,0.75)' : dimText, fontFamily: "'Raleway', sans-serif" }}>
                           {inputIsInvalid
                             ? 'Invalid format — try "1-5" or "3, 7, 12"'
                             : parsedChapters.length > 0
@@ -806,51 +750,63 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                       <button
                         onClick={handleSubmit}
                         disabled={parsedChapters.length === 0}
-                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors"
+                        className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{
+                          background: parsedChapters.length > 0
+                            ? (isDark ? 'rgba(150,175,255,0.22)' : 'rgba(13,21,51,0.12)')
+                            : 'transparent',
+                          border: isDark ? '1px solid rgba(150,175,255,0.28)' : '1px solid rgba(13,21,51,0.18)',
+                          color: primaryText,
+                          fontFamily: "'Raleway', sans-serif",
+                          letterSpacing: '0.05em',
+                        }}
                       >
                         Submit
                       </button>
 
-                      {/* Divider */}
                       <div className="flex items-center gap-2 pt-1">
-                        <div className="flex-1 h-px bg-slate-100 dark:bg-slate-700" />
-                        <span className="text-xs text-slate-300 dark:text-slate-600 select-none">other actions</span>
-                        <div className="flex-1 h-px bg-slate-100 dark:bg-slate-700" />
+                        <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
+                        <span className="text-xs select-none" style={{ color: isDark ? 'rgba(150,175,255,0.25)' : 'rgba(13,21,51,0.22)', fontFamily: "'Raleway', sans-serif" }}>other actions</span>
+                        <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
                       </div>
 
-                      {/* Undo + Reset row (only when progress exists) */}
                       {selectedBook.chapters_read > 0 && (
                         <div className="flex gap-2">
-                          <button
-                            onClick={handleUndo}
-                            disabled={!isOnline}
-                            className="flex-1 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:bg-slate-700/50 text-sm transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            title={isOnline ? "Undo last entry (u)" : "Unavailable offline"}
-                          >
-                            Undo
-                          </button>
-                          <button
-                            onClick={handleReset}
-                            className={`flex-1 py-2 rounded-xl text-sm transition-colors ${resetConfirm ? 'bg-red-600 hover:bg-red-700 text-white border border-red-600' : 'border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-red-500 hover:border-red-300 dark:hover:bg-slate-700/50'}`}
-                            title={resetConfirm ? 'Click again to confirm' : 'Reset all progress (R)'}
-                          >
-                            {resetConfirm ? 'Confirm reset?' : 'Reset'}
-                          </button>
+                          {[
+                            { label: 'Undo', onClick: handleUndo, disabled: !isOnline, confirm: false },
+                            { label: resetConfirm ? 'Confirm reset?' : 'Reset', onClick: handleReset, disabled: false, confirm: resetConfirm },
+                          ].map(({ label, onClick, disabled, confirm }) => (
+                            <button
+                              key={label}
+                              onClick={onClick}
+                              disabled={disabled}
+                              className="flex-1 py-2 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              style={{
+                                background: confirm ? 'rgba(220,60,60,0.18)' : 'transparent',
+                                border: confirm ? '1px solid rgba(220,60,60,0.35)' : isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)',
+                                color: confirm ? 'rgba(240,100,100,0.9)' : dimText,
+                                fontFamily: "'Raleway', sans-serif",
+                              }}
+                            >
+                              {label}
+                            </button>
+                          ))}
                         </div>
                       )}
 
-                      {/* Mark all as read */}
                       {confirmMarkAll ? (
                         <div className="flex gap-2">
                           <button
                             onClick={handleMarkAllRead}
-                            className="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors"
+                            className="flex-1 py-2 rounded-xl font-semibold text-sm transition-colors"
+                            style={{ background: 'rgba(60,200,140,0.2)', border: '1px solid rgba(60,200,140,0.3)', color: 'rgba(80,200,140,0.9)', fontFamily: "'Raleway', sans-serif" }}
                           >
                             Confirm — all {selectedBook.num_chapters} chapters
                           </button>
                           <button
                             onClick={() => setConfirmMarkAll(false)}
-                            className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-red-500 hover:border-red-200 dark:hover:bg-slate-700/50 text-sm transition-colors"
+                            className="px-3.5 py-2 rounded-xl text-sm transition-colors"
+                            style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
                           >
                             Cancel
                           </button>
@@ -858,7 +814,8 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                       ) : (
                         <button
                           onClick={() => setConfirmMarkAll(true)}
-                          className="w-full py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:bg-slate-700/50 text-sm transition-colors"
+                          className="w-full py-2 rounded-xl text-sm transition-colors"
+                          style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
                         >
                           Mark all as read
                         </button>
@@ -867,16 +824,18 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                   )}
                 </>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full py-12 text-slate-400 dark:text-slate-500 gap-2">
-                  <BookOpenIcon size={40} />
-                  <p className="text-sm">Select a book to view details</p>
+                <div className="flex flex-col items-center justify-center h-full py-12 gap-3">
+                  <span style={{ color: dimText }}><BookOpenIcon size={40} /></span>
+                  <p className="text-sm text-center" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Select a book to view details</p>
+                  <p className="text-xs" style={{ color: isDark ? 'rgba(150,175,255,0.3)' : 'rgba(13,21,51,0.25)', fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
+                    "Your word is a lamp to my feet" — Ps 119:105
+                  </p>
                 </div>
               )}
             </div>
           </div>
         )}
       </div>
-
     </div>
   );
 }

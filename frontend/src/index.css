@@ -12,3 +12,49 @@
   from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes nebulaDrift1 {
+  0%, 100% { transform: translate(0,0) scale(1) rotate(0deg); }
+  33%       { transform: translate(50px,-40px) scale(1.12) rotate(18deg); }
+  66%       { transform: translate(-25px,25px) scale(0.93) rotate(-12deg); }
+}
+
+@keyframes nebulaDrift2 {
+  0%, 100% { transform: translate(0,0) scale(1) rotate(0deg); }
+  40%       { transform: translate(-60px,50px) scale(1.08) rotate(-22deg); }
+  70%       { transform: translate(35px,-15px) scale(1.12) rotate(14deg); }
+}
+
+@keyframes nebulaDrift3 {
+  0%, 100% { transform: translate(0,0) scale(1); }
+  50%       { transform: translate(30px,40px) scale(1.1); }
+}
+
+/* Glassmorphism card — light and dark */
+.glass-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(100, 130, 255, 0.14);
+  border-radius: 1rem;
+}
+.dark .glass-card {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(150, 175, 255, 0.22);
+}
+
+/* Subtle input inside glass */
+.glass-input {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(100, 130, 255, 0.18);
+  border-radius: 0.5rem;
+}
+.dark .glass-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(150, 175, 255, 0.18);
+}
+
+/* Celestial font helpers */
+.font-cinzel    { font-family: 'Cinzel', serif; }
+.font-cormorant { font-family: 'Cormorant Garamond', serif; }
+.font-raleway   { font-family: 'Raleway', sans-serif; }

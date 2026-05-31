@@ -6,6 +6,7 @@ import Profile from './Profile'
 import Tracker from './components/Tracker'
 import Dashboard from './Dashboard'
 import PWAInstallModal, { shouldShowPWAPrompt } from './components/PWAInstallModal'
+import CelestialBackground from './components/CelestialBackground'
 
 export default function App() {
   const [jwt, setJwt] = useState<string | null>(getToken)
@@ -87,6 +88,7 @@ export default function App() {
 
   return (
     <>
+      {jwt && <CelestialBackground theme={theme} />}
       <Routes>
         <Route
           path="/login"
@@ -111,7 +113,14 @@ export default function App() {
         <button
           onClick={() => setShowHelp(v => !v)}
           title="Keyboard shortcuts (?)"
-          className="fixed bottom-20 md:bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 dark:hover:border-indigo-600 transition-colors text-sm font-bold select-none"
+          className="fixed bottom-20 md:bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full shadow-lg transition-all select-none font-bold text-sm"
+          style={{
+            background: 'rgba(13,21,51,0.7)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(150,175,255,0.18)',
+            color: 'rgba(195,210,255,0.7)',
+          }}
         >
           ?
         </button>
@@ -119,23 +128,35 @@ export default function App() {
 
       {jwt && showHelp && !isMobile && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+          className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(3,8,16,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
           onClick={() => setShowHelp(false)}
         >
           <div
-            className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4"
+            className="rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4"
+            style={{
+              background: 'rgba(10,18,50,0.96)',
+              backdropFilter: 'blur(32px)',
+              WebkitBackdropFilter: 'blur(32px)',
+              border: '1px solid rgba(150,175,255,0.22)',
+            }}
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Keyboard Shortcuts</h2>
+            <div className="flex items-center justify-between mb-5">
+              <h2
+                className="text-base font-semibold text-[#dde6ff]"
+                style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.06em' }}
+              >
+                Keyboard Shortcuts
+              </h2>
               <button
                 onClick={() => setShowHelp(false)}
-                className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 text-xl leading-none"
+                className="text-[rgba(150,175,255,0.5)] hover:text-[rgba(195,210,255,0.9)] text-xl leading-none transition-colors"
               >
                 ×
               </button>
             </div>
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2.5" style={{ fontFamily: "'Raleway', sans-serif" }}>
               {([
                 { keys: ['g', 'd'], description: 'Go to Dashboard' },
                 { keys: ['g', 't'], description: 'Go to Tracker' },
@@ -154,25 +175,27 @@ export default function App() {
                 { keys: ['?'], description: 'Show / hide this help' },
               ] as { keys: string[] | null; altKeys?: string[]; description: string }[]).map(({ keys, altKeys, description }, i) => (
                 keys === null
-                  ? <div key={i} className="border-t border-slate-200 dark:border-slate-700 my-1" />
+                  ? <div key={i} className="border-t my-1" style={{ borderColor: 'rgba(150,175,255,0.1)' }} />
                   : (
                     <div key={description} className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         {keys.map(k => (
                           <kbd
                             key={k}
-                            className="inline-flex items-center justify-center rounded border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-1.5 py-0.5 text-xs font-mono shadow-[0_1px_0_#cbd5e1] dark:shadow-[0_1px_0_#475569] text-slate-700 dark:text-slate-300 min-w-[1.5rem]"
+                            className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-xs font-mono min-w-[1.5rem]"
+                            style={{ background: 'rgba(150,175,255,0.1)', border: '1px solid rgba(150,175,255,0.2)', color: 'rgba(195,210,255,0.85)' }}
                           >
                             {k}
                           </kbd>
                         ))}
                         {altKeys && (
                           <>
-                            <span className="text-slate-400 dark:text-slate-500 text-xs px-0.5">/</span>
+                            <span className="text-xs px-0.5" style={{ color: 'rgba(150,175,255,0.35)' }}>/</span>
                             {altKeys.map(k => (
                               <kbd
                                 key={k}
-                                className="inline-flex items-center justify-center rounded border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-1.5 py-0.5 text-xs font-mono shadow-[0_1px_0_#cbd5e1] dark:shadow-[0_1px_0_#475569] text-slate-700 dark:text-slate-300 min-w-[1.5rem]"
+                                className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-xs font-mono min-w-[1.5rem]"
+                                style={{ background: 'rgba(150,175,255,0.1)', border: '1px solid rgba(150,175,255,0.2)', color: 'rgba(195,210,255,0.85)' }}
                               >
                                 {k}
                               </kbd>
@@ -180,11 +203,11 @@ export default function App() {
                           </>
                         )}
                       </div>
-                      <span className="text-sm text-slate-600 dark:text-slate-400">{description}</span>
+                      <span className="text-sm" style={{ color: 'rgba(195,210,255,0.6)' }}>{description}</span>
                     </div>
                   )
               ))}
-              <p className="text-xs text-slate-400 dark:text-slate-500 pt-1">Book navigation shortcuts work on the Tracker page.</p>
+              <p className="text-xs pt-1" style={{ color: 'rgba(150,175,255,0.35)' }}>Book navigation shortcuts work on the Tracker page.</p>
             </div>
           </div>
         </div>

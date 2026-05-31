@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
-export default function SegmentedProgressBar({ total, readChapters }: { total: number; readChapters: number[] }) {
+export default function SegmentedProgressBar({ total, readChapters, theme }: { total: number; readChapters: number[]; theme?: 'light' | 'dark' }) {
   const readSet = new Set(readChapters);
   const barRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ chapter: number; x: number; y: number } | null>(null);
+  const isDark = theme === 'dark'
 
   const runs: { start: number; end: number; read: boolean }[] = [];
   for (let i = 1; i <= total; i++) {
@@ -34,15 +35,28 @@ export default function SegmentedProgressBar({ total, readChapters }: { total: n
         {runs.map((run, i) => (
           <div
             key={i}
-            className={`rounded-sm ${run.read ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-600'}`}
-            style={{ flex: run.end - run.start + 1 }}
+            className="rounded-sm"
+            style={{
+              flex: run.end - run.start + 1,
+              background: run.read
+                ? (isDark ? 'rgba(150,175,255,0.72)' : 'rgba(13,21,51,0.55)')
+                : (isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.08)'),
+            }}
           />
         ))}
       </div>
       {tooltip && createPortal(
         <div
-          className="fixed bg-slate-800 text-white text-xs px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap z-50"
-          style={{ left: tooltip.x, top: tooltip.y - 28, transform: 'translateX(-50%)' }}
+          className="fixed text-xs px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap z-50"
+          style={{
+            left: tooltip.x, top: tooltip.y - 28, transform: 'translateX(-50%)',
+            background: 'rgba(13,21,51,0.92)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            border: '1px solid rgba(150,175,255,0.18)',
+            color: 'rgba(195,210,255,0.9)',
+            fontFamily: "'Raleway', sans-serif",
+          }}
         >
           Ch. {tooltip.chapter} {readSet.has(tooltip.chapter) ? '· ✓' : ''}
         </div>,

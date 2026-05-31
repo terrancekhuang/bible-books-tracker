@@ -73,17 +73,7 @@ const BADGE_CFG: Record<
   },
 };
 
-function AchievementBadge({
-  icon,
-  label,
-  tier,
-  animDelay = 0,
-}: {
-  icon: string;
-  label: string;
-  tier: BadgeTier;
-  animDelay?: number;
-}) {
+function AchievementBadge({ icon, label, tier, animDelay = 0 }: { icon: string; label: string; tier: BadgeTier; animDelay?: number }) {
   const cfg = BADGE_CFG[tier];
   const [hovered, setHovered] = useState(false);
 
@@ -93,11 +83,8 @@ function AchievementBadge({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
-          width: 68,
-          height: 68,
-          borderRadius: "50%",
-          background: cfg.ring,
-          padding: 3,
+          width: 68, height: 68, borderRadius: "50%",
+          background: cfg.ring, padding: 3,
           boxShadow: hovered
             ? `0 0 28px ${cfg.glow}, 0 0 8px ${cfg.glow}, 0 4px 20px ${cfg.shadow}`
             : `0 0 14px ${cfg.glow}, 0 2px 10px ${cfg.shadow}`,
@@ -108,31 +95,13 @@ function AchievementBadge({
           flexShrink: 0,
         }}
       >
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            background: cfg.inner,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 30,
-            userSelect: "none",
-          }}
-        >
+        <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: cfg.inner, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 30, userSelect: "none" }}>
           {icon}
         </div>
       </div>
       <span
         className="text-xs font-bold text-center leading-tight"
-        style={{
-          color: cfg.label,
-          maxWidth: "100%",
-          wordBreak: "break-word",
-          overflowWrap: "anywhere",
-          hyphens: "auto",
-        }}
+        style={{ color: cfg.label, maxWidth: "100%", wordBreak: "break-word", overflowWrap: "anywhere", hyphens: "auto", fontFamily: "'Raleway', sans-serif" }}
       >
         {label}
       </span>
@@ -140,16 +109,7 @@ function AchievementBadge({
   );
 }
 
-
-export default function Profile({
-  onLogout,
-  theme,
-  onToggleTheme,
-}: {
-  onLogout: () => void;
-  theme: "light" | "dark";
-  onToggleTheme: () => void;
-}) {
+export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: () => void; theme: "light" | "dark"; onToggleTheme: () => void }) {
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -159,6 +119,28 @@ export default function Profile({
   const [favoritesLoading, setFavoritesLoading] = useState(true);
   const [favoritesError, setFavoritesError] = useState(false);
   const [creating, setCreating] = useState(false);
+
+  const isDark = theme === 'dark'
+  const primaryText = isDark ? '#dde6ff' : '#0d1533'
+  const dimText = isDark ? 'rgba(195,210,255,0.72)' : 'rgba(13,21,51,0.55)'
+  const bodyText = isDark ? 'rgba(195,210,255,0.9)' : 'rgba(13,21,51,0.78)'
+  const trackBg = isDark ? 'rgba(150,175,255,0.12)' : 'rgba(13,21,51,0.1)'
+
+  const sectionHeadStyle = {
+    fontFamily: "'Cinzel', serif",
+    fontSize: 13,
+    fontWeight: 600,
+    color: primaryText,
+    letterSpacing: '0.06em',
+  }
+
+  const glassCard = {
+    background: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.88)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    border: isDark ? '1px solid rgba(150,175,255,0.22)' : '1px solid rgba(100,130,255,0.14)',
+    borderRadius: '1rem',
+  }
 
   useEffect(() => {
     const cachedUser = getCache<UserInfo>('user')
@@ -171,31 +153,16 @@ export default function Profile({
     if (cachedFavorites) { setFavorites(cachedFavorites); setFavoritesLoading(false) }
     const headers = authHeaders();
     Promise.all([
-      fetch("/auth/me", { headers }).then((r) => {
-        if (r.status === 401) { onLogout(); return null; }
-        return r.json();
-      }),
-      fetch("/api/cycles", { headers }).then((r) => {
-        if (r.status === 401) { onLogout(); return null; }
-        return r.json();
-      }),
-      fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then((r) =>
-        r.ok ? r.json() : null
-      ),
-      fetch("/api/favorites", { headers }).then((r) => {
-        if (r.status === 401) { onLogout(); return null; }
-        return r.ok ? r.json() : null;
-      }),
+      fetch("/auth/me", { headers }).then(r => { if (r.status === 401) { onLogout(); return null; } return r.json(); }),
+      fetch("/api/cycles", { headers }).then(r => { if (r.status === 401) { onLogout(); return null; } return r.json(); }),
+      fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => r.ok ? r.json() : null),
+      fetch("/api/favorites", { headers }).then(r => { if (r.status === 401) { onLogout(); return null; } return r.ok ? r.json() : null; }),
     ]).then(([userData, cyclesData, statsData, favoritesData]) => {
       if (userData) { setUser(userData); setCache('user', userData) }
       if (cyclesData) { setCycles(cyclesData); setCache('cycles', cyclesData) }
       if (statsData) { setStats(statsData); setCache('stats', statsData) }
-      if (favoritesData != null) {
-        setFavorites(favoritesData);
-        setCache('favorites', favoritesData)
-      } else {
-        setFavoritesError(true);
-      }
+      if (favoritesData != null) { setFavorites(favoritesData); setCache('favorites', favoritesData) }
+      else setFavoritesError(true);
       setFavoritesLoading(false);
     });
   }, []);
@@ -207,68 +174,32 @@ export default function Profile({
   const paceCardValue = avgPerDay > 0 ? `${avgPerDay} ch/day` : "No recent activity";
   const chaptersRemaining = currentCycle ? TOTAL_CHAPTERS - currentCycle.chapters_read : 0;
   const projectedDays = avgPerDay > 0 ? Math.round(chaptersRemaining / avgPerDay) : null;
-  const projectionNote =
-    projectedDays !== null
-      ? projectedDays < 14
-        ? `~${projectedDays} days to finish`
-        : `~${Math.round(projectedDays / 7)} weeks to finish`
-      : null;
+  const projectionNote = projectedDays !== null
+    ? projectedDays < 14 ? `~${projectedDays} days to finish` : `~${Math.round(projectedDays / 7)} weeks to finish`
+    : null;
 
-  const completedCycles = cycles.filter((c) => c.books_complete === TOTAL_BOOKS).length;
+  const completedCycles = cycles.filter(c => c.books_complete === TOTAL_BOOKS).length;
 
   const earnedBadges = [
-    // — Streak —
-    (stats?.best_streak ?? 0) >= 7 && {
-      icon: "🔥", label: "7-Day Streak", tier: "bronze" as BadgeTier,
-    },
-    (stats?.best_streak ?? 0) >= 30 && {
-      icon: "🏅", label: "30-Day Streak", tier: "silver" as BadgeTier,
-    },
-    (stats?.best_streak ?? 0) >= 100 && {
-      icon: "⚡", label: "100-Day Streak", tier: "gold" as BadgeTier,
-    },
-    (stats?.best_streak ?? 0) >= 365 && {
-      icon: "👑", label: "Year-Long Streak", tier: "rainbow" as BadgeTier,
-    },
-    // — Volume —
-    (stats?.total_chapters ?? 0) >= 100 && {
-      icon: "📖", label: "100 Chapters", tier: "bronze" as BadgeTier,
-    },
-    (stats?.total_chapters ?? 0) >= 500 && {
-      icon: "📚", label: "500 Chapters", tier: "silver" as BadgeTier,
-    },
-    (stats?.total_chapters ?? 0) >= 1000 && {
-      icon: "🌟", label: "1,000 Chapters", tier: "gold" as BadgeTier,
-    },
-    // — Consistency —
-    (stats?.total_days ?? 0) >= 30 && {
-      icon: "🗓️", label: "30 Reading Days", tier: "bronze" as BadgeTier,
-    },
-    (stats?.total_days ?? 0) >= 100 && {
-      icon: "📅", label: "100 Reading Days", tier: "silver" as BadgeTier,
-    },
-    (stats?.total_days ?? 0) >= 365 && {
-      icon: "🏛️", label: "365 Reading Days", tier: "gold" as BadgeTier,
-    },
-    // — Dedication —
-    cycles.length >= 2 && {
-      icon: "🔄", label: "Second Journey", tier: "silver" as BadgeTier,
-    },
-    completedCycles >= 1 && {
-      icon: "✝️", label: "Bible Complete", tier: "rainbow" as BadgeTier,
-    },
-    completedCycles >= 2 && {
-      icon: "🎖️", label: "Twice Blessed", tier: "rainbow" as BadgeTier,
-    },
+    (stats?.best_streak ?? 0) >= 7   && { icon: "🔥", label: "7-Day Streak",    tier: "bronze"  as BadgeTier },
+    (stats?.best_streak ?? 0) >= 30  && { icon: "🏅", label: "30-Day Streak",   tier: "silver"  as BadgeTier },
+    (stats?.best_streak ?? 0) >= 100 && { icon: "⚡", label: "100-Day Streak",  tier: "gold"    as BadgeTier },
+    (stats?.best_streak ?? 0) >= 365 && { icon: "👑", label: "Year-Long Streak",tier: "rainbow" as BadgeTier },
+    (stats?.total_chapters ?? 0) >= 100  && { icon: "📖", label: "100 Chapters",    tier: "bronze"  as BadgeTier },
+    (stats?.total_chapters ?? 0) >= 500  && { icon: "📚", label: "500 Chapters",    tier: "silver"  as BadgeTier },
+    (stats?.total_chapters ?? 0) >= 1000 && { icon: "🌟", label: "1,000 Chapters",  tier: "gold"    as BadgeTier },
+    (stats?.total_days ?? 0) >= 30  && { icon: "🗓️", label: "30 Reading Days",  tier: "bronze"  as BadgeTier },
+    (stats?.total_days ?? 0) >= 100 && { icon: "📅", label: "100 Reading Days", tier: "silver"  as BadgeTier },
+    (stats?.total_days ?? 0) >= 365 && { icon: "🏛️", label: "365 Reading Days", tier: "gold"    as BadgeTier },
+    cycles.length >= 2     && { icon: "🔄", label: "Second Journey",  tier: "silver"  as BadgeTier },
+    completedCycles >= 1   && { icon: "✝️", label: "Bible Complete",  tier: "rainbow" as BadgeTier },
+    completedCycles >= 2   && { icon: "🎖️", label: "Twice Blessed",   tier: "rainbow" as BadgeTier },
   ].filter(Boolean) as { icon: string; label: string; tier: BadgeTier }[];
 
   const handleNewCycle = async () => {
     setCreating(true);
     try {
-      const res = await fetch("/api/cycles", {
-        method: "POST",
-        headers: authHeaders(),
-      });
+      const res = await fetch("/api/cycles", { method: "POST", headers: authHeaders() });
       if (res.status === 401) { onLogout(); return; }
       if (!res.ok) throw new Error("Failed to create cycle");
       invalidateCache('cycles', 'stats', 'books', 'activity')
@@ -282,35 +213,28 @@ export default function Profile({
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-slate-900 pb-20 md:pb-0">
-      <NavBar
-        theme={theme}
-        onToggleTheme={onToggleTheme}
-        onLogout={onLogout}
-        pictureUrl={user?.picture_url}
-        userName={user?.name}
-      />
+    <div className="flex flex-col min-h-screen pb-20 md:pb-0">
+      <NavBar theme={theme} onToggleTheme={onToggleTheme} onLogout={onLogout} pictureUrl={user?.picture_url} userName={user?.name} />
 
       <div className="flex flex-col gap-4 px-5 py-5 max-w-3xl mx-auto w-full">
+
         {/* User info */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex items-center gap-4 min-w-0">
+        <div className="p-5 flex items-center gap-4 min-w-0" style={glassCard}>
           {user?.picture_url ? (
-            <img
-              src={user.picture_url}
-              alt="avatar"
-              className="w-14 h-14 rounded-full shrink-0"
-              referrerPolicy="no-referrer"
-            />
+            <img src={user.picture_url} alt="avatar" className="w-14 h-14 rounded-full shrink-0" referrerPolicy="no-referrer" style={{ boxShadow: isDark ? '0 0 0 2px rgba(150,175,255,0.2)' : '0 0 0 2px rgba(13,21,51,0.12)' }} />
           ) : (
-            <div className="w-14 h-14 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xl font-bold text-indigo-600 dark:text-indigo-400 shrink-0">
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
+              style={{ background: isDark ? 'rgba(150,175,255,0.15)' : 'rgba(13,21,51,0.08)', color: isDark ? '#aabfff' : '#0d1533', fontFamily: "'Cinzel', serif" }}
+            >
               {user?.name?.[0] ?? "?"}
             </div>
           )}
           <div className="min-w-0">
-            <p className="text-lg font-semibold text-slate-900 dark:text-slate-100 truncate">
+            <p className="text-lg font-semibold truncate" style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.04em' }}>
               {user?.name ?? "—"}
             </p>
-            <p className="text-sm text-slate-400 dark:text-slate-500 truncate">
+            <p className="text-sm truncate" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
               {user?.email ?? "—"}
             </p>
           </div>
@@ -325,26 +249,18 @@ export default function Profile({
         </div>
 
         {projectionNote && (
-          <p className="text-xs text-slate-400 dark:text-slate-500 text-center -mt-1">
+          <p className="text-xs text-center -mt-1" style={{ color: dimText, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 13 }}>
             {projectionNote}
           </p>
         )}
 
         {/* Achievements */}
         {earnedBadges.length > 0 && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-5">
-              Achievements
-            </h2>
+          <div className="p-5" style={glassCard}>
+            <h2 className="mb-5" style={sectionHeadStyle}>Achievements</h2>
             <div className="flex flex-wrap gap-5">
               {earnedBadges.map((badge, i) => (
-                <AchievementBadge
-                  key={badge.label}
-                  icon={badge.icon}
-                  label={badge.label}
-                  tier={badge.tier}
-                  animDelay={i * 80}
-                />
+                <AchievementBadge key={badge.label} icon={badge.icon} label={badge.label} tier={badge.tier} animDelay={i * 80} />
               ))}
             </div>
           </div>
@@ -352,29 +268,30 @@ export default function Profile({
 
         {/* Current cycle */}
         {currentCycle && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
-              Current Cycle — #{currentCycle.cycle_number}
+          <div className="p-5" style={glassCard}>
+            <h2 className="mb-3" style={sectionHeadStyle}>
+              Current Cycle — <span style={{ color: isDark ? 'rgba(200,185,100,0.85)' : 'rgba(140,100,20,0.7)' }}>#{currentCycle.cycle_number}</span>
             </h2>
-            <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400 mb-1.5">
-              <span>Chapters</span>
-              <span className="font-medium text-slate-700 dark:text-slate-200">
+            <div className="flex justify-between text-sm mb-1.5">
+              <span style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Chapters</span>
+              <span className="font-medium" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>
                 {currentCycle.chapters_read} / {TOTAL_CHAPTERS}
               </span>
             </div>
-            <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden mb-3">
+            <div className="h-2 rounded-full overflow-hidden mb-3" style={{ background: trackBg }}>
               <div
-                className="h-full rounded-full bg-indigo-500 transition-all"
+                className="h-full rounded-full transition-all"
                 style={{
                   width: `${Math.round((currentCycle.chapters_read / TOTAL_CHAPTERS) * 100)}%`,
+                  background: isDark ? 'rgba(150,175,255,0.72)' : 'rgba(13,21,51,0.55)',
                 }}
               />
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-slate-500 dark:text-slate-400">
-              <span>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+              <span style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                 {Math.round((currentCycle.chapters_read / TOTAL_CHAPTERS) * 100)}% complete
               </span>
-              <span>
+              <span style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                 {currentCycle.books_complete} / {TOTAL_BOOKS} books
               </span>
             </div>
@@ -384,7 +301,16 @@ export default function Profile({
         {/* Start New Cycle */}
         <div>
           <button
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors"
+            className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+            style={{
+              background: isDark ? 'rgba(150,175,255,0.16)' : 'rgba(13,21,51,0.1)',
+              border: isDark ? '1px solid rgba(150,175,255,0.25)' : '1px solid rgba(13,21,51,0.18)',
+              color: primaryText,
+              fontFamily: "'Cinzel', serif",
+              letterSpacing: '0.06em',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+            }}
             onClick={() => dialogRef.current?.showModal()}
           >
             Start New Cycle
@@ -393,24 +319,17 @@ export default function Profile({
 
         {/* Past cycles */}
         {pastCycles.length > 0 && (
-          <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
-            <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
-              Cycle History
-            </h2>
+          <div className="p-5" style={glassCard}>
+            <h2 className="mb-3" style={sectionHeadStyle}>Cycle History</h2>
             <div className="flex flex-col gap-2">
               {pastCycles.map((cycle) => {
                 const pct = Math.round((cycle.chapters_read / TOTAL_CHAPTERS) * 100);
                 return (
-                  <div
-                    key={cycle.cycle_id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 py-2 border-b border-slate-100 dark:border-slate-700 last:border-0"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-sm font-medium text-slate-700 dark:text-slate-200 shrink-0">
-                        Cycle {cycle.cycle_number}
-                      </span>
-                    </div>
-                    <span className="text-sm text-slate-400 dark:text-slate-500 sm:text-right shrink-0">
+                  <div key={cycle.cycle_id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 py-2" style={{ borderBottom: isDark ? '1px solid rgba(150,175,255,0.06)' : '1px solid rgba(13,21,51,0.06)' }}>
+                    <span className="text-sm font-medium shrink-0" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>
+                      Cycle {cycle.cycle_number}
+                    </span>
+                    <span className="text-sm sm:text-right shrink-0" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                       {pct}% · {cycle.chapters_read} ch · {cycle.books_complete} bks
                     </span>
                   </div>
@@ -421,44 +340,33 @@ export default function Profile({
         )}
 
         {/* Favorite Books */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm p-5">
-          <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">
-            Favorite Books
-            <span className="text-xs font-normal text-slate-400 dark:text-slate-500 ml-1">
-              — most-read across all cycles
-            </span>
-          </h2>
+        <div className="p-5" style={glassCard}>
+          <h2 className="mb-1" style={sectionHeadStyle}>Favorite Books</h2>
+          <p className="text-xs mb-3" style={{ color: dimText, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>most-read across all cycles</p>
 
-          {favoritesLoading && (
-            <p className="text-sm text-slate-400 dark:text-slate-500">Loading…</p>
-          )}
-
-          {!favoritesLoading && favoritesError && (
-            <p className="text-sm text-red-400">Could not load favorites.</p>
-          )}
-
+          {favoritesLoading && <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Loading…</p>}
+          {!favoritesLoading && favoritesError && <p className="text-sm" style={{ color: 'rgba(240,100,100,0.7)', fontFamily: "'Raleway', sans-serif" }}>Could not load favorites.</p>}
           {!favoritesLoading && !favoritesError && favorites.length === 0 && (
-            <p className="text-sm text-slate-400 dark:text-slate-500">
-              Start reading to see your favorites here.
-            </p>
+            <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Start reading to see your favorites here.</p>
           )}
 
           {!favoritesLoading && !favoritesError && favorites.length > 0 && (() => {
             const maxCount = favorites[0].cycle_count;
             return (
               <div className="flex flex-col gap-3">
-                {favorites.map((book) => (
+                {favorites.map(book => (
                   <div key={book.book_id} className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-sm font-medium text-slate-700 dark:text-slate-200 truncate">
-                      {book.book_name}
-                    </span>
-                    <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden min-w-0">
+                    <span className="w-28 shrink-0 text-sm font-medium truncate" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>{book.book_name}</span>
+                    <div className="flex-1 h-2 rounded-full overflow-hidden min-w-0" style={{ background: trackBg }}>
                       <div
-                        className="h-full rounded-full bg-indigo-500"
-                        style={{ width: `${(book.cycle_count / maxCount) * 100}%` }}
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(book.cycle_count / maxCount) * 100}%`,
+                          background: isDark ? 'rgba(200,185,100,0.72)' : 'rgba(140,100,20,0.6)',
+                        }}
                       />
                     </div>
-                    <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0 w-14 text-right">
+                    <span className="text-xs shrink-0 w-14 text-right" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                       {book.cycle_count} {book.cycle_count === 1 ? "cycle" : "cycles"}
                     </span>
                   </div>
@@ -471,23 +379,38 @@ export default function Profile({
 
       {/* Confirmation dialog */}
       <dialog ref={dialogRef} className="modal">
-        <div className="modal-box rounded-2xl dark:bg-slate-800">
-          <h3 className="font-bold text-lg text-slate-900 dark:text-slate-100">
+        <div
+          className="modal-box rounded-2xl"
+          style={{
+            background: isDark ? 'rgba(10,18,50,0.97)' : 'rgba(255,255,255,0.97)',
+            backdropFilter: 'blur(32px)',
+            WebkitBackdropFilter: 'blur(32px)',
+            border: isDark ? '1px solid rgba(150,175,255,0.22)' : '1px solid rgba(100,130,255,0.18)',
+          }}
+        >
+          <h3 className="font-bold text-lg" style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.05em' }}>
             Start a new cycle?
           </h3>
-          <p className="py-4 text-sm text-slate-600 dark:text-slate-300">
-            Starting a new cycle resets your reading progress. Your current
-            cycle's progress is saved in history.
+          <p className="py-4 text-sm" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>
+            Starting a new cycle resets your reading progress. Your current cycle's progress is saved in history.
           </p>
           <div className="modal-action">
             <button
-              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              className="px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              style={{ border: isDark ? '1px solid rgba(150,175,255,0.14)' : '1px solid rgba(13,21,51,0.12)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
               onClick={() => dialogRef.current?.close()}
             >
               Cancel
             </button>
             <button
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-colors disabled:opacity-40"
+              className="px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40"
+              style={{
+                background: isDark ? 'rgba(150,175,255,0.2)' : 'rgba(13,21,51,0.1)',
+                border: isDark ? '1px solid rgba(150,175,255,0.28)' : '1px solid rgba(13,21,51,0.2)',
+                color: primaryText,
+                fontFamily: "'Cinzel', serif",
+                letterSpacing: '0.05em',
+              }}
               onClick={handleNewCycle}
               disabled={creating}
             >
@@ -495,9 +418,7 @@ export default function Profile({
             </button>
           </div>
         </div>
-        <form method="dialog" className="modal-backdrop">
-          <button>close</button>
-        </form>
+        <form method="dialog" className="modal-backdrop"><button>close</button></form>
       </dialog>
     </div>
   );

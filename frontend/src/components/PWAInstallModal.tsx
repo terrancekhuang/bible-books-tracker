@@ -147,6 +147,14 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
             </>
           ) : (
             <>
+              <p style={{
+                margin: '0 0 0.1rem',
+                fontFamily: "'Raleway', sans-serif",
+                fontWeight: 400,
+                fontSize: '0.75rem',
+                color: 'rgba(150,175,255,0.5)',
+                lineHeight: 1.5,
+              }}>Works best in <strong style={{ color: 'rgba(150,175,255,0.75)' }}>Google Chrome</strong></p>
               <Step n={1} text={<>Tap the <MenuIcon /> <strong style={{ color: '#dde6ff' }}>menu</strong> in your browser</>} />
               <Step n={2} text={<>Tap <strong style={{ color: '#dde6ff' }}>"Add to Home Screen"</strong> or <strong style={{ color: '#dde6ff' }}>"Install App"</strong></>} />
               <Step n={3} text={<>Tap <strong style={{ color: '#dde6ff' }}>"Install"</strong> to confirm</>} />

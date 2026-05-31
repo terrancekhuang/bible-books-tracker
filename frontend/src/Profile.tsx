@@ -421,7 +421,7 @@ export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: 
         <form method="dialog" className="modal-backdrop"><button>close</button></form>
       </dialog>
 
-      <footer className="hidden md:block text-center text-sm py-3" style={{ color: dimText }}>
+      <footer className="text-center text-sm py-3" style={{ color: dimText }}>
         Made by Terrance Huang
       </footer>
     </div>

@@ -387,6 +387,19 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           text-transform: uppercase;
           color: rgba(150,175,255,0.42);
         }
+        .cosmos-footer {
+          position: absolute;
+          bottom: 1.25rem;
+          left: 0;
+          right: 0;
+          text-align: center;
+          font-family: 'Raleway', sans-serif;
+          font-size: 0.75rem;
+          color: rgba(150, 175, 255, 0.38);
+          z-index: 10;
+          opacity: 0;
+          animation: cosmicFadeUp 1s ease 1.5s forwards;
+        }
       `}</style>
 
       <div className="cosmos-wrap">
@@ -439,6 +452,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             </div>
           </div>
         </div>
+
+        <footer className="cosmos-footer">Made by Terrance Huang</footer>
       </div>
     </>
   )

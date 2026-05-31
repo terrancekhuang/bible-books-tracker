@@ -79,20 +79,6 @@ const fadeUp = (delay: number): CSSProperties => ({
   animationDelay: `${delay}ms`,
 })
 
-// Shared glass section heading style
-const sectionLabel: CSSProperties = {
-  fontFamily: "'Raleway', sans-serif",
-  fontSize: 10,
-  fontWeight: 600,
-  letterSpacing: '0.3em',
-  textTransform: 'uppercase',
-  color: 'rgba(150,175,255,0.65)',
-}
-
-const sectionLabelLight: CSSProperties = {
-  ...sectionLabel,
-  color: 'rgba(13,21,51,0.5)',
-}
 
 export default function Dashboard({
   onLogout,
@@ -219,8 +205,15 @@ export default function Dashboard({
   const primaryText = isDark ? '#dde6ff' : '#0d1533'
   const dimText = isDark ? 'rgba(195,210,255,0.72)' : 'rgba(13,21,51,0.55)'
   const bodyText = isDark ? 'rgba(195,210,255,0.9)' : 'rgba(13,21,51,0.78)'
-  const secLabel = isDark ? sectionLabel : sectionLabelLight
   const trackBg = isDark ? 'rgba(150,175,255,0.12)' : 'rgba(13,21,51,0.1)'
+  const secLabel: CSSProperties = {
+    fontFamily: "'Raleway', sans-serif",
+    fontSize: 10,
+    fontWeight: 600,
+    letterSpacing: '0.3em',
+    textTransform: 'uppercase',
+    color: isDark ? 'rgba(150,175,255,0.65)' : 'rgba(13,21,51,0.5)',
+  }
 
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0">
@@ -385,7 +378,7 @@ export default function Dashboard({
                         border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(100,130,255,0.12)',
                       }}
                       onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.12)' : 'rgba(13,21,51,0.08)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.06)' : 'rgba(13,21,51,0.04)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.06)' : 'rgba(100,130,255,0.06)')}
                     >
                       <div className="shrink-0" style={{ color: isDark ? 'rgba(170,195,255,0.65)' : 'rgba(13,21,51,0.45)' }}>
                         <CategoryIcon category={book.category} size={18} />

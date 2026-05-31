@@ -468,6 +468,10 @@ export default function Dashboard({
           <ActivityHeatmap activity={activity} />
         </div>
       </div>
+
+      <footer className="hidden md:block text-center text-sm py-3" style={{ color: dimText, ...fadeUp(410) }}>
+        Made by Terrance Huang
+      </footer>
     </div>
   )
 }

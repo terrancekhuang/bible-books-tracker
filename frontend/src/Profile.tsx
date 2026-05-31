@@ -249,7 +249,7 @@ export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: 
         </div>
 
         {projectionNote && (
-          <p className="text-xs text-center -mt-1" style={{ color: dimText, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 13 }}>
+          <p className="text-center -mt-1" style={{ color: isDark ? 'rgba(170,195,255,0.65)' : 'rgba(13,21,51,0.55)', fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 15 }}>
             {projectionNote}
           </p>
         )}

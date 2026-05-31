@@ -827,7 +827,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                 <div className="flex flex-col items-center justify-center h-full py-12 gap-3">
                   <span style={{ color: dimText }}><BookOpenIcon size={40} /></span>
                   <p className="text-sm text-center" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Select a book to view details</p>
-                  <p className="text-xs" style={{ color: isDark ? 'rgba(150,175,255,0.3)' : 'rgba(13,21,51,0.25)', fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic' }}>
+                  <p className="text-sm text-center" style={{ color: isDark ? 'rgba(170,195,255,0.55)' : 'rgba(13,21,51,0.45)', fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 15 }}>
                     "Your word is a lamp to my feet" — Ps 119:105
                   </p>
                 </div>

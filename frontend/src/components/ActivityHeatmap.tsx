@@ -5,15 +5,6 @@ export interface ActivityDay {
   chapters: number
 }
 
-function intensityStyle(chapters: number, isFuture: boolean): CSSProperties {
-  if (isFuture) return {}
-  if (chapters === 0) return { background: 'rgba(150,175,255,0.07)' }
-  if (chapters <= 2) return { background: 'rgba(120,155,255,0.28)' }
-  if (chapters <= 5) return { background: 'rgba(130,170,255,0.52)' }
-  if (chapters <= 10) return { background: 'rgba(160,195,255,0.72)' }
-  return { background: 'rgba(210,185,100,0.8)' }
-}
-
 const LEGEND_STYLES: CSSProperties[] = [
   { background: 'rgba(150,175,255,0.07)' },
   { background: 'rgba(120,155,255,0.28)' },
@@ -21,6 +12,15 @@ const LEGEND_STYLES: CSSProperties[] = [
   { background: 'rgba(160,195,255,0.72)' },
   { background: 'rgba(210,185,100,0.8)' },
 ]
+
+function intensityStyle(chapters: number, isFuture: boolean): CSSProperties {
+  if (isFuture) return {}
+  if (chapters === 0) return LEGEND_STYLES[0]
+  if (chapters <= 2) return LEGEND_STYLES[1]
+  if (chapters <= 5) return LEGEND_STYLES[2]
+  if (chapters <= 10) return LEGEND_STYLES[3]
+  return LEGEND_STYLES[4]
+}
 
 export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
   const chaptersByDate = new Map<string, number>()

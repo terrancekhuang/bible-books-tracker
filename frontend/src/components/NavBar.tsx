@@ -20,24 +20,17 @@ const MOBILE_TABS = [
   { to: '/tracker', label: 'Tracker', Icon: BookOpenIcon },
 ]
 
-const navStyle = {
-  background: 'rgba(255,255,255,0.82)',
-  backdropFilter: 'blur(28px)',
-  WebkitBackdropFilter: 'blur(28px)',
-  borderBottom: '1px solid rgba(100,130,255,0.12)',
-}
+const BLUR = { backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' }
 
-const navStyleDark = {
-  background: 'rgba(6,12,30,0.65)',
-  backdropFilter: 'blur(28px)',
-  WebkitBackdropFilter: 'blur(28px)',
-  borderBottom: '1px solid rgba(150,175,255,0.08)',
-}
+const navStyleLight = { ...BLUR, background: 'rgba(255,255,255,0.82)', borderBottom: '1px solid rgba(100,130,255,0.12)' }
+const navStyleDark  = { ...BLUR, background: 'rgba(6,12,30,0.65)',      borderBottom: '1px solid rgba(150,175,255,0.08)' }
+const mobileNavLight = { ...BLUR, background: 'rgba(255,255,255,0.88)', borderTop: '1px solid rgba(100,130,255,0.1)' }
+const mobileNavDark  = { ...BLUR, background: 'rgba(6,12,30,0.8)',      borderTop: '1px solid rgba(150,175,255,0.08)' }
 
 export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, userName }: NavBarProps) {
   const { pathname } = useLocation()
   const isDark = theme === 'dark'
-  const style = isDark ? navStyleDark : navStyle
+  const style = isDark ? navStyleDark : navStyleLight
 
   const secondaryText = isDark ? 'rgba(195,210,255,0.6)' : 'rgba(13,21,51,0.5)'
   const activeText = isDark ? '#dde6ff' : '#0d1533'
@@ -98,12 +91,7 @@ export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, use
 
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50"
-        style={{
-          background: isDark ? 'rgba(6,12,30,0.8)' : 'rgba(255,255,255,0.88)',
-          backdropFilter: 'blur(28px)',
-          WebkitBackdropFilter: 'blur(28px)',
-          borderTop: isDark ? '1px solid rgba(150,175,255,0.08)' : '1px solid rgba(100,130,255,0.1)',
-        }}
+        style={isDark ? mobileNavDark : mobileNavLight}
       >
         <div className="flex" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           {MOBILE_TABS.map(({ to, label, Icon }) => {

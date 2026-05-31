@@ -120,13 +120,12 @@ function StarCanvas({ theme }: { theme: 'light' | 'dark' }) {
         const trail = 90
         const ex = ss.x - (ss.vx / spd) * trail
         const ey = ss.y - (ss.vy / spd) * trail
-        const isLight2 = themeRef.current === 'light'
-        const headColor = isLight2 ? `rgba(100,120,255,${a * 0.8})` : `rgba(255,255,255,${a})`
-        const midColor = isLight2 ? `rgba(140,160,255,${a * 0.4})` : `rgba(170,210,255,${a * 0.5})`
+        const headColor = isLight ? `rgba(100,120,255,${a * 0.8})` : `rgba(255,255,255,${a})`
+        const midColor = isLight ? `rgba(140,160,255,${a * 0.4})` : `rgba(170,210,255,${a * 0.5})`
         const g = ctx.createLinearGradient(ss.x, ss.y, ex, ey)
         g.addColorStop(0, headColor)
         g.addColorStop(0.35, midColor)
-        g.addColorStop(1, isLight2 ? 'rgba(140,160,255,0)' : 'rgba(170,210,255,0)')
+        g.addColorStop(1, isLight ? 'rgba(140,160,255,0)' : 'rgba(170,210,255,0)')
         ctx.beginPath()
         ctx.moveTo(ss.x, ss.y)
         ctx.lineTo(ex, ey)
@@ -139,15 +138,26 @@ function StarCanvas({ theme }: { theme: 'light' | 'dark' }) {
         ctx.fill()
       }
 
-      rafId = requestAnimationFrame(tick)
+      if (!document.hidden) rafId = requestAnimationFrame(tick)
     }
+
+    const onVisibilityChange = () => {
+      if (document.hidden) cancelAnimationFrame(rafId)
+      else tick()
+    }
+
+    let resizeTimer: ReturnType<typeof setTimeout>
+    const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(init, 150) }
 
     init()
     tick()
-    window.addEventListener('resize', init)
+    window.addEventListener('resize', onResize)
+    document.addEventListener('visibilitychange', onVisibilityChange)
     return () => {
       cancelAnimationFrame(rafId)
-      window.removeEventListener('resize', init)
+      clearTimeout(resizeTimer)
+      window.removeEventListener('resize', onResize)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('mousemove', onMouseMove)
     }
   }, [])
@@ -161,13 +171,13 @@ function StarCanvas({ theme }: { theme: 'light' | 'dark' }) {
 }
 
 const BLOB = { position: 'absolute' as const, borderRadius: '50%', pointerEvents: 'none' as const }
+const WRAP: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden' }
 
 export default function CelestialBackground({ theme }: { theme: 'light' | 'dark' }) {
-  const wrap: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden' }
 
   if (theme === 'light') {
     return (
-      <div style={wrap}>
+      <div style={WRAP}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 60% 15%, #f0f4ff 0%, #e8eeff 45%, #dde6ff 100%)' }} />
         <div style={{ ...BLOB, width: 800, height: 800, background: 'radial-gradient(circle, rgba(100,130,255,0.09) 0%, transparent 70%)', filter: 'blur(120px)', top: '-20%', right: '-12%', animation: 'nebulaDrift1 38s ease-in-out infinite' }} />
         <div style={{ ...BLOB, width: 640, height: 640, background: 'radial-gradient(circle, rgba(120,80,200,0.07) 0%, transparent 70%)', filter: 'blur(100px)', bottom: '-14%', left: '-14%', animation: 'nebulaDrift2 44s ease-in-out infinite' }} />
@@ -178,7 +188,7 @@ export default function CelestialBackground({ theme }: { theme: 'light' | 'dark'
   }
 
   return (
-    <div style={wrap}>
+    <div style={WRAP}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 35% 25%, #0d1533 0%, #060c1e 55%, #030810 100%)' }} />
       <div style={{ ...BLOB, width: 820, height: 820, background: 'radial-gradient(circle, rgba(52,16,160,0.28) 0%, transparent 70%)', filter: 'blur(90px)', top: '-22%', left: '-18%', animation: 'nebulaDrift1 30s ease-in-out infinite' }} />
       <div style={{ ...BLOB, width: 680, height: 680, background: 'radial-gradient(circle, rgba(8,42,170,0.22) 0%, transparent 70%)', filter: 'blur(95px)', bottom: '-18%', right: '-12%', animation: 'nebulaDrift2 36s ease-in-out infinite' }} />

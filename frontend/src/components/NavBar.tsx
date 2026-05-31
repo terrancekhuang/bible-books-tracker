@@ -39,10 +39,10 @@ export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, use
   return (
     <>
       <header className="sticky top-0 z-40" style={style}>
-        <div className="grid grid-cols-3 items-center px-5 py-3 max-w-7xl mx-auto w-full">
+        <div className="flex md:grid md:grid-cols-3 items-center px-5 py-3 max-w-7xl mx-auto w-full">
           <Link
             to="/"
-            className="text-xl font-semibold tracking-widest shrink-0 justify-self-start"
+            className="text-base md:text-xl font-semibold tracking-widest shrink-0 whitespace-nowrap md:justify-self-start"
             style={{ fontFamily: "'Cinzel', serif", color: isDark ? '#dde6ff' : '#0d1533' }}
           >
             Bible Books Tracker
@@ -69,7 +69,7 @@ export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, use
             })}
           </nav>
 
-          <div className="flex items-center gap-3 justify-self-end">
+          <div className="flex items-center gap-3 ml-auto md:ml-0 md:justify-self-end">
             <button
               onClick={onToggleTheme}
               className="p-1.5 rounded-lg transition-colors"

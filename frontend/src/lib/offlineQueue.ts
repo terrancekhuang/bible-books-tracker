@@ -85,10 +85,11 @@ export async function flushQueue(onLogout: () => void): Promise<void> {
 
       if (response.ok) {
         const db2 = await openDB();
-        await new Promise<void>((resolve) => {
+        await new Promise<void>((resolve, reject) => {
           const tx = db2.transaction(STORE, 'readwrite');
           tx.objectStore(STORE).delete(item.id!);
           tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
         });
         db2.close();
       } else {

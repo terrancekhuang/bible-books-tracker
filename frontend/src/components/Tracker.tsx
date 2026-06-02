@@ -359,8 +359,12 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       if (data.newly_logged > 0) fetchStats();
     } catch (e) {
       if (!navigator.onLine || e instanceof TypeError) {
-        await enqueueWrite("/api/progress", "POST", headers, body);
-        setPendingCount(c => c + 1);
+        try {
+          await enqueueWrite("/api/progress", "POST", headers, body);
+          setPendingCount(c => c + 1);
+        } catch {
+          console.error("Failed to queue write; change will be lost if page is closed");
+        }
       } else {
         setBooks(prev => prev.map(b => b.name === book.name ? book : b));
         setSelectedBook(book);

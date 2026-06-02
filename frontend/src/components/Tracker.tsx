@@ -142,7 +142,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   useEffect(() => {
     const cached = getCache<Book[]>('books')
     if (cached) setBooks(cached)
-    fetch("/api/books", { headers: authHeaders() })
+    const fetchBooks = () => fetch("/api/books", { headers: authHeaders() })
       .then((res) => {
         if (res.status === 401) { onLogout(); return null }
         return res.json()
@@ -162,7 +162,12 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         setBooks(transformedBooks)
         setCache('books', transformedBooks)
       })
-  }, []);
+    if (navigator.onLine) {
+      flushQueue(onLogout).then(fetchBooks)
+    } else {
+      fetchBooks()
+    }
+  }, [onLogout]);
 
   useEffect(() => {
     const cached = getCache<UserInfo>('user')

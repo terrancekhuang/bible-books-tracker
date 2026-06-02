@@ -83,7 +83,8 @@ export async function flushQueue(onLogout: () => void): Promise<void> {
         return;
       }
 
-      if (response.ok) {
+      if (response.ok || (response.status >= 400 && response.status < 500)) {
+        // ok: successfully replayed; 4xx: permanently invalid write — discard either way
         const db2 = await openDB();
         await new Promise<void>((resolve, reject) => {
           const tx = db2.transaction(STORE, 'readwrite');
@@ -93,7 +94,7 @@ export async function flushQueue(onLogout: () => void): Promise<void> {
         });
         db2.close();
       } else {
-        break; // server error — stop replaying, retry on next reconnect
+        break; // transient 5xx — stop replaying, retry on next reconnect
       }
     }
   } finally {

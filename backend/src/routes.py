@@ -207,10 +207,11 @@ def update_progress():
             return jsonify({'success': False, 'error': 'No valid chapter numbers provided'}), 400
 
         execute_values(cur,
-            "INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number) VALUES %s ON CONFLICT DO NOTHING",
-            [(user_id, cycle_id, book_id, ch) for ch in chapter_numbers]
+            "INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number) VALUES %s ON CONFLICT DO NOTHING RETURNING chapter_number",
+            [(user_id, cycle_id, book_id, ch) for ch in chapter_numbers],
+            fetch=True,
         )
-        newly_inserted = cur.rowcount
+        newly_inserted = len(cur.fetchall())
 
         cur.execute("""
             SELECT COUNT(*) AS chapters_read,

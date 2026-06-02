@@ -404,6 +404,7 @@ def create_cycle():
 def get_activity():
     user_id = int(get_jwt_identity())
     tz_offset = int(request.args.get('tz_offset', 0))  # minutes: -getTimezoneOffset()
+    cutoff_utc = datetime.now(timezone.utc) - timedelta(days=365)
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
@@ -411,10 +412,10 @@ def get_activity():
             SELECT (logged_at + INTERVAL '1 minute' * %s)::date AS local_date, COUNT(*) AS chapters
             FROM chapter_progress
             WHERE user_id = %s
-              AND logged_at >= NOW() - INTERVAL '365 days'
+              AND logged_at >= %s
             GROUP BY (logged_at + INTERVAL '1 minute' * %s)::date
             ORDER BY local_date
-        """, (tz_offset, user_id, tz_offset))
+        """, (tz_offset, user_id, cutoff_utc, tz_offset))
         rows = cur.fetchall()
         return jsonify([{'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']} for r in rows])
     finally:

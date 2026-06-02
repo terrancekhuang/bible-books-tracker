@@ -6,6 +6,7 @@ from flask_jwt_extended import (
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import psycopg2
+import psycopg2.pool
 import os
 from psycopg2.extras import RealDictCursor, execute_values
 from datetime import date, datetime, timezone, timedelta
@@ -18,9 +19,23 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 jwt = JWTManager(app)
 
 
+_db_pool = None
+
+def _get_pool():
+    global _db_pool
+    if _db_pool is None or _db_pool.closed:
+        _db_pool = psycopg2.pool.ThreadedConnectionPool(1, 5, Config.DATABASE_URL)
+    return _db_pool
+
 def get_db_connection():
-    conn = psycopg2.connect(Config.DATABASE_URL)
-    return conn
+    return _get_pool().getconn()
+
+def release_db_connection(conn):
+    pool = _get_pool()
+    if pool and not pool.closed:
+        pool.putconn(conn)
+    else:
+        conn.close()
 
 
 def initialize_database():
@@ -78,7 +93,7 @@ def auth_google():
         conn.commit()
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
 
     access_token = create_access_token(identity=str(user_id))
     return jsonify({'access_token': access_token, 'user_id': user_id})
@@ -90,10 +105,12 @@ def auth_me():
     user_id = int(get_jwt_identity())
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
-    cur.execute("SELECT user_id, email, name, picture_url FROM users WHERE user_id = %s", (user_id,))
-    user = cur.fetchone()
-    cur.close()
-    conn.close()
+    try:
+        cur.execute("SELECT user_id, email, name, picture_url FROM users WHERE user_id = %s", (user_id,))
+        user = cur.fetchone()
+    finally:
+        cur.close()
+        release_db_connection(conn)
     if not user:
         return jsonify({'error': 'User not found'}), 404
     return jsonify({
@@ -203,9 +220,6 @@ def update_progress():
         result = cur.fetchone()
 
         conn.commit()
-        cur.close()
-        conn.close()
-
         return jsonify({
             'success': True,
             'chapters_read': result['chapters_read'],
@@ -214,11 +228,12 @@ def update_progress():
         })
     except Exception as e:
         conn.rollback()
-        cur.close()
-        conn.close()
         return jsonify({
             'success': False, 'error': str(e)
         }), 500
+    finally:
+        cur.close()
+        release_db_connection(conn)
 
 
 @app.route('/api/progress/undo', methods=['POST'])
@@ -280,7 +295,7 @@ def undo_progress():
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
 
 
 @app.route('/api/progress/reset', methods=['POST'])
@@ -322,7 +337,7 @@ def reset_progress():
         return jsonify({'success': False, 'error': str(e)}), 500
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
 
 
 @app.route('/api/cycles', methods=['GET'])
@@ -355,7 +370,7 @@ def get_cycles():
         cycles = cur.fetchall()
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
     return jsonify([dict(c) for c in cycles])
 
 
@@ -376,7 +391,7 @@ def create_cycle():
         conn.commit()
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
     return jsonify({'cycle_id': cycle['cycle_id'], 'cycle_number': cycle['cycle_number']})
 
 
@@ -400,7 +415,7 @@ def get_activity():
         return jsonify([{'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']} for r in rows])
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
 
 
 @app.route('/api/stats', methods=['GET'])
@@ -479,7 +494,7 @@ def get_stats():
         })
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
 
 
 @app.route('/api/favorites', methods=['GET'])
@@ -509,7 +524,7 @@ def get_favorites():
         } for r in rows])
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
 
 
 @app.route('/api/settings', methods=['GET'])
@@ -523,7 +538,7 @@ def get_settings():
         row = cur.fetchone()
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
     return jsonify({'weekly_goal': row['weekly_goal'] if row else 7})
 
 
@@ -544,7 +559,7 @@ def update_settings():
         conn.commit()
     finally:
         cur.close()
-        conn.close()
+        release_db_connection(conn)
     return jsonify({'weekly_goal': weekly_goal})
 
 

@@ -41,11 +41,15 @@ def release_db_connection(conn):
 def initialize_database():
     conn = get_db_connection()
     cur = conn.cursor()
-    schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
-    with open(schema_path, 'r') as f:
-        schema_sql = f.read()
-    cur.execute(schema_sql)
-    conn.commit()
+    try:
+        schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
+        with open(schema_path, 'r') as f:
+            schema_sql = f.read()
+        cur.execute(schema_sql)
+        conn.commit()
+    finally:
+        cur.close()
+        release_db_connection(conn)
 
 
 @app.route('/auth/google', methods=['POST'])

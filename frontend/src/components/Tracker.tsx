@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
-import { getCache, setCache } from '../lib/cache'
+import { getCache, setCache, invalidateCache } from '../lib/cache'
 import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
@@ -403,6 +403,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         setChaptersInput('');
         const cachedBooks = getCache<Book[]>('books')
         if (cachedBooks) setCache('books', cachedBooks.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b))
+        invalidateCache('activity')
         fetchStats();
       }
     } catch (e) { console.error("Error undoing progress:", e); }
@@ -421,6 +422,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         setChaptersInput(''); setResetConfirm(false);
         const cachedBooks = getCache<Book[]>('books')
         if (cachedBooks) setCache('books', cachedBooks.map(b => b.name === selectedBook.name ? { ...b, chapters_read: 0, chapters_read_list: [] } : b))
+        invalidateCache('activity')
         fetchStats();
       }
     } catch (e) { console.error("Error resetting progress:", e); }

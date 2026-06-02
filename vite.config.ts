@@ -35,7 +35,7 @@ export default defineConfig({
             handler: "NetworkFirst",
             options: {
               cacheName: "api-cache",
-              networkTimeoutSeconds: 5,
+              networkTimeoutSeconds: 12,
               expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 },
               cacheableResponse: { statuses: [0, 200] },
             },

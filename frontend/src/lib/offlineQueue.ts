@@ -86,6 +86,8 @@ export async function flushQueue(onLogout: () => void): Promise<void> {
         tx.oncomplete = () => resolve();
       });
       db2.close();
+    } else {
+      break; // server error — stop replaying, retry on next reconnect
     }
   }
 }

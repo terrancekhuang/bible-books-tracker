@@ -51,43 +51,51 @@ export async function getPendingCount(): Promise<number> {
   return count;
 }
 
+let flushing = false;
+
 export async function flushQueue(onLogout: () => void): Promise<void> {
-  const db = await openDB();
-  const items = await new Promise<PendingWrite[]>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result as PendingWrite[]);
-    req.onerror = () => reject(req.error);
-  });
-  db.close();
+  if (flushing) return;
+  flushing = true;
+  try {
+    const db = await openDB();
+    const items = await new Promise<PendingWrite[]>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => resolve(req.result as PendingWrite[]);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
 
-  for (const item of items) {
-    let response: Response;
-    try {
-      response = await fetch(item.url, {
-        method: item.method,
-        headers: item.headers,
-        body: item.body,
-      });
-    } catch {
-      break; // still offline
-    }
+    for (const item of items) {
+      let response: Response;
+      try {
+        response = await fetch(item.url, {
+          method: item.method,
+          headers: item.headers,
+          body: item.body,
+        });
+      } catch {
+        break; // still offline
+      }
 
-    if (response.status === 401) {
-      onLogout();
-      return;
-    }
+      if (response.status === 401) {
+        onLogout();
+        return;
+      }
 
-    if (response.ok) {
-      const db2 = await openDB();
-      await new Promise<void>((resolve) => {
-        const tx = db2.transaction(STORE, 'readwrite');
-        tx.objectStore(STORE).delete(item.id!);
-        tx.oncomplete = () => resolve();
-      });
-      db2.close();
-    } else {
-      break; // server error — stop replaying, retry on next reconnect
+      if (response.ok) {
+        const db2 = await openDB();
+        await new Promise<void>((resolve) => {
+          const tx = db2.transaction(STORE, 'readwrite');
+          tx.objectStore(STORE).delete(item.id!);
+          tx.oncomplete = () => resolve();
+        });
+        db2.close();
+      } else {
+        break; // server error — stop replaying, retry on next reconnect
+      }
     }
+  } finally {
+    flushing = false;
   }
 }

@@ -156,9 +156,12 @@ def get_books():
     GROUP BY b.book_id, b.name, b.testament, b.category, b.num_chapters
     ORDER BY b.book_id ASC
     """
-    cur.execute(query, (user_id, user_id))
-    raw_data = cur.fetchall()
-    conn.close()
+    try:
+        cur.execute(query, (user_id, user_id))
+        raw_data = cur.fetchall()
+    finally:
+        cur.close()
+        release_db_connection(conn)
 
     books = [{
         "book_id": item[0],

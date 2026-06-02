@@ -1,4 +1,11 @@
-const TTL_MS = 24 * 60 * 60 * 1000
+const TTL_SHORT_MS = 5 * 60 * 1000        // 5 min — real-time data (stats, activity)
+const TTL_LONG_MS  = 24 * 60 * 60 * 1000  // 24 h  — stable data (books, user)
+
+const SHORT_TTL_KEYS = new Set(['stats', 'activity'])
+
+function ttlFor(key: string): number {
+  return SHORT_TTL_KEYS.has(key) ? TTL_SHORT_MS : TTL_LONG_MS
+}
 
 export function setCache(key: string, data: unknown): void {
   try {
@@ -11,7 +18,7 @@ export function getCache<T>(key: string): T | null {
     const raw = localStorage.getItem(`cache:${key}`)
     if (!raw) return null
     const { data, cachedAt } = JSON.parse(raw)
-    if (Date.now() - cachedAt > TTL_MS) return null
+    if (Date.now() - cachedAt > ttlFor(key)) return null
     return data as T
   } catch {
     return null

@@ -1,5 +1,6 @@
 import { useLayoutEffect, useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { registerSW } from 'virtual:pwa-register'
 import { TOKEN_KEY, getToken } from './lib/auth'
 import Login from './Login'
 import Profile from './Profile'
@@ -11,6 +12,8 @@ import CelestialBackground from './components/CelestialBackground'
 export default function App() {
   const [jwt, setJwt] = useState<string | null>(getToken)
   const [showPwaPrompt, setShowPwaPrompt] = useState(false)
+  const [showUpdateBanner, setShowUpdateBanner] = useState(false)
+  const updateSwRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null)
   const navigate = useNavigate()
 
   const [showHelp, setShowHelp] = useState(false);
@@ -23,6 +26,18 @@ export default function App() {
     if (saved === 'light' || saved === 'dark') return saved
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
   })
+
+  useEffect(() => {
+    const updateSW = registerSW({
+      onNeedRefresh() {
+        updateSwRef.current = updateSW;
+        setShowUpdateBanner(true);
+      },
+      onOfflineReady() {
+        console.log('App ready to work offline');
+      },
+    });
+  }, []);
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -108,6 +123,30 @@ export default function App() {
         />
       </Routes>
       {showPwaPrompt && <PWAInstallModal onDismiss={() => setShowPwaPrompt(false)} />}
+
+      {showUpdateBanner && (
+        <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-between gap-4 px-4 py-3 text-sm"
+          style={{ background: 'rgba(10,18,50,0.97)', borderTop: '1px solid rgba(150,175,255,0.2)', color: 'rgba(195,210,255,0.9)' }}
+        >
+          <span>A new version is available.</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { updateSwRef.current?.(true); }}
+              className="px-3 py-1 rounded font-medium text-xs"
+              style={{ background: 'rgba(99,102,241,0.8)', color: '#fff' }}
+            >
+              Reload
+            </button>
+            <button
+              onClick={() => setShowUpdateBanner(false)}
+              className="px-3 py-1 rounded text-xs"
+              style={{ background: 'rgba(150,175,255,0.1)', color: 'rgba(195,210,255,0.7)' }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {jwt && !isMobile && (
         <button

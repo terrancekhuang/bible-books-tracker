@@ -437,13 +437,20 @@ def get_stats():
         week_start_utc  = datetime(week_start_date.year, week_start_date.month, week_start_date.day,
                                    tzinfo=timezone.utc) - timedelta(minutes=tz_offset)
 
+        # Queries 1, 3, 4 merged: one scan over chapter_progress
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
         cur.execute("""
-            SELECT COUNT(*) AS total_chapters,
-                   COUNT(DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date) AS total_days
+            SELECT
+                COUNT(*) AS total_chapters,
+                COUNT(DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date) AS total_days,
+                COUNT(CASE WHEN logged_at >= %s AND logged_at < %s THEN 1 END) AS chapters_today,
+                COUNT(CASE WHEN logged_at >= %s THEN 1 END) AS chapters_this_week,
+                COUNT(CASE WHEN logged_at >= %s THEN 1 END) AS chapters_last_7_days
             FROM chapter_progress WHERE user_id = %s
-        """, (tz_offset, user_id))
-        totals = cur.fetchone()
+        """, (tz_offset, today_start_utc, today_end_utc, week_start_utc, seven_days_ago, user_id))
+        agg = cur.fetchone()
 
+        # Query 2: streak CTE (window functions prevent merging into the aggregate above)
         cur.execute("""
             WITH local_dates AS (
                 SELECT DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date AS read_date
@@ -467,30 +474,14 @@ def get_stats():
         """, (tz_offset, user_id, local_today))
         streak_row = cur.fetchone()
 
-        cur.execute("""
-            SELECT
-                COALESCE(COUNT(CASE WHEN logged_at >= %s AND logged_at < %s THEN 1 END), 0) AS chapters_today,
-                COALESCE(COUNT(CASE WHEN logged_at >= %s THEN 1 END), 0) AS chapters_this_week
-            FROM chapter_progress WHERE user_id = %s
-        """, (today_start_utc, today_end_utc, week_start_utc, user_id))
-        period_row = cur.fetchone()
-
-        cur.execute("""
-            SELECT COUNT(*) AS chapters_last_7_days
-            FROM chapter_progress
-            WHERE user_id = %s
-              AND logged_at >= NOW() - INTERVAL '7 days'
-        """, (user_id,))
-        seven_day_row = cur.fetchone()
-
         return jsonify({
-            'total_chapters': int(totals['total_chapters']),
-            'total_days': int(totals['total_days']),
+            'total_chapters': int(agg['total_chapters']),
+            'total_days': int(agg['total_days']),
             'best_streak': int(streak_row['best_streak'] or 0),
             'current_streak': int(streak_row['current_streak'] or 0),
-            'chapters_today': int(period_row['chapters_today']),
-            'chapters_this_week': int(period_row['chapters_this_week']),
-            'chapters_last_7_days': int(seven_day_row['chapters_last_7_days']),
+            'chapters_today': int(agg['chapters_today']),
+            'chapters_this_week': int(agg['chapters_this_week']),
+            'chapters_last_7_days': int(agg['chapters_last_7_days']),
         })
     finally:
         cur.close()

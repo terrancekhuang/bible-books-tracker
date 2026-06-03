@@ -1,9 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Root package.json has all deps (react-router-dom, @react-oauth/google, etc.)
 COPY package*.json ./
 RUN npm ci
+
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
 # Copy everything vite needs to build
 COPY vite.config.ts index.html ./

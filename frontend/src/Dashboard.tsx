@@ -465,7 +465,7 @@ export default function Dashboard({
         {/* Activity heatmap */}
         <div className="glass-card p-5" style={fadeUp(360)}>
           <span style={secLabel} className="block mb-4">Reading Activity</span>
-          <ActivityHeatmap activity={activity} />
+          <ActivityHeatmap activity={activity} theme={theme} />
         </div>
       </div>
 

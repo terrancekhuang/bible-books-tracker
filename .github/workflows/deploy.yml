@@ -18,22 +18,25 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to server
+      - name: Sync code to server
         run: |
-          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} '
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='frontend/node_modules' \
+            --exclude='venv' \
+            --exclude='dist' \
+            --exclude='infra/.terraform' \
+            --exclude='infra/terraform.tfstate*' \
+            --exclude='infra/deploy_key' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/root/app/
+
+      - name: Build and restart containers
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
             set -e
             cd /root/app
-
-            # Pull latest code
-            if [ ! -d .git ]; then
-              git clone https://github.com/${{ github.repository }} .
-            else
-              git pull origin master
-            fi
-
-            # Build and restart containers
             docker compose -f docker-compose.prod.yml up -d --build
-
-            # Reload nginx in case config changed
             nginx -t && systemctl reload nginx
-          '
+          EOF

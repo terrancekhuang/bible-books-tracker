@@ -1,0 +1,24 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages:
+  - curl
+  - git
+  - ufw
+  - nginx
+
+runcmd:
+  # Install Docker via the official convenience script
+  - curl -fsSL https://get.docker.com | sh
+  # Allow the ubuntu user to run docker without sudo
+  - usermod -aG docker ubuntu
+  - systemctl enable --now docker
+  # UFW firewall — allow SSH/HTTP/HTTPS, deny everything else inbound
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow OpenSSH
+  - ufw allow 'Nginx Full'
+  - ufw --force enable
+  # Create the app directory that GitHub Actions will deploy into
+  - mkdir -p /home/ubuntu/app
+  - chown ubuntu:ubuntu /home/ubuntu/app

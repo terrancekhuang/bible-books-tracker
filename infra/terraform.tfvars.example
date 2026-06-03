@@ -1,0 +1,16 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit it.
+#
+# How to get the API token:
+#   1. Log into console.hetzner.cloud
+#   2. Select your project (or create one)
+#   3. Security → API Tokens → Generate API Token (Read & Write)
+
+hcloud_token = "your-hetzner-api-token-here"
+
+# Datacenter location — "ash" (Ashburn, US) keeps latency low if you're in the US
+location    = "ash"
+server_type = "cpx11"   # Intel, 2 GB RAM — available in all locations
+
+# Your personal SSH public key — run: cat ~/.ssh/id_ed25519.pub
+admin_ssh_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... your@email.com"

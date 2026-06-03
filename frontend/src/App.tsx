@@ -172,7 +172,7 @@ export default function App() {
           onClick={() => setShowHelp(false)}
         >
           <div
-            className="rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4"
+            className="rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4"
             style={{
               background: 'rgba(10,18,50,0.96)',
               backdropFilter: 'blur(32px)',

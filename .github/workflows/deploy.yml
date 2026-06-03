@@ -22,6 +22,7 @@ jobs:
         run: |
           rsync -az --delete \
             --exclude='.git' \
+            --exclude='.env' \
             --exclude='node_modules' \
             --exclude='frontend/node_modules' \
             --exclude='venv' \

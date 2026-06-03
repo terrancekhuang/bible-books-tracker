@@ -34,3 +34,11 @@ __pycache__/
 
 # Claude Code local config
 .claude/
+
+# Terraform
+infra/terraform.tfvars
+infra/.terraform/
+infra/.terraform.lock.hcl
+infra/*.tfstate
+infra/*.tfstate.backup
+infra/deploy_key

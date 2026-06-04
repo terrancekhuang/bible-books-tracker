@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authHeaders } from './lib/auth'
-import { useAuth } from './lib/AuthContext'
 import { useTheme } from './lib/ThemeContext'
-import { flushQueue } from './lib/offlineQueue'
-import { getCache, setCache } from './lib/cache'
+import { useCachedFetch } from './lib/useCachedFetch'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
@@ -83,12 +81,7 @@ const fadeUp = (delay: number): CSSProperties => ({
 
 
 export default function Dashboard() {
-  const { logout } = useAuth()
   const { isDark, colors } = useTheme()
-  const [books, setBooks] = useState<Book[]>([])
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [activity, setActivity] = useState<ActivityDay[]>([])
-  const [user, setUser] = useState<UserInfo | null>(null)
   const [displayPct, setDisplayPct] = useState(0)
   const [weeklyGoal, setWeeklyGoal] = useState<number>(7)
   const [editingGoal, setEditingGoal] = useState(false)
@@ -96,47 +89,23 @@ export default function Dashboard() {
   const animFrameRef = useRef<number | null>(null)
   const navigate = useNavigate()
 
+  const tzOffset = useMemo(() => -new Date().getTimezoneOffset(), [])
+
+  const { data: rawBooks } = useCachedFetch<Book[]>('books', '/api/books', { flushOfflineQueue: true, refetchOnOnline: true })
+  const { data: stats } = useCachedFetch<Stats>('stats', `/api/stats?tz_offset=${tzOffset}`, { refetchOnOnline: true })
+  const { data: activity } = useCachedFetch<ActivityDay[]>('activity', `/api/activity?tz_offset=${tzOffset}`, { refetchOnOnline: true })
+  const { data: user } = useCachedFetch<UserInfo>('user', '/auth/me')
+
+  const books = useMemo(
+    () => rawBooks?.map(b => ({ ...b, chapters_read_list: b.chapters_read_list ?? [], last_read_at: b.last_read_at ?? null })) ?? [],
+    [rawBooks]
+  )
+
   useEffect(() => {
-    const cachedBooks = getCache<Book[]>('books')
-    if (cachedBooks) setBooks(cachedBooks.map(b => ({ ...b, chapters_read_list: b.chapters_read_list ?? [], last_read_at: b.last_read_at ?? null })))
-    const cachedStats = getCache<Stats>('stats')
-    if (cachedStats) setStats(cachedStats)
-    const cachedActivity = getCache<ActivityDay[]>('activity')
-    if (cachedActivity) setActivity(cachedActivity)
-    const cachedUser = getCache<UserInfo>('user')
-    if (cachedUser) setUser(cachedUser)
-
-    const fetchAll = () => {
-      const headers = authHeaders()
-      return Promise.all([
-        fetch('/api/books', { headers }).then(r => { if (r.status === 401) { logout(); return null } return r.json() }),
-        fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { logout(); return null } return r.ok ? r.json() : null }),
-        fetch(`/api/activity?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { logout(); return [] } return r.ok ? r.json() : [] }),
-        fetch('/auth/me', { headers }).then(r => { if (r.status === 401) { logout(); return null } return r.ok ? r.json() : null }),
-        fetch('/api/settings', { headers }).then(r => r.ok ? r.json() : null),
-      ]).then(([booksData, statsData, activityData, userData, settingsData]) => {
-        if (booksData) {
-          const mapped = booksData.map((b: Book) => ({
-            ...b,
-            chapters_read_list: b.chapters_read_list ?? [],
-            last_read_at: b.last_read_at ?? null,
-          }))
-          setBooks(mapped)
-          setCache('books', mapped)
-        }
-        if (statsData) { setStats(statsData); setCache('stats', statsData) }
-        if (activityData) { setActivity(activityData); setCache('activity', activityData) }
-        if (userData) { setUser(userData); setCache('user', userData) }
-        if (settingsData?.weekly_goal) setWeeklyGoal(settingsData.weekly_goal)
-      })
-    }
-
-    const run = () => navigator.onLine ? flushQueue(logout).then(fetchAll) : fetchAll()
-    run()
-
-    window.addEventListener('online', run)
-    return () => window.removeEventListener('online', run)
-  }, [logout])
+    fetch('/api/settings', { headers: authHeaders() })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.weekly_goal) setWeeklyGoal(data.weekly_goal) })
+  }, [])
 
   const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
   const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
@@ -457,7 +426,7 @@ export default function Dashboard() {
         {/* Activity heatmap */}
         <div className="glass-card p-5" style={fadeUp(360)}>
           <span style={secLabel} className="block mb-4">Reading Activity</span>
-          <ActivityHeatmap activity={activity} />
+          <ActivityHeatmap activity={activity ?? []} />
         </div>
       </div>
 

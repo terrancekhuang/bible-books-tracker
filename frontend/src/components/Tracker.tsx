@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
 import { useAuth } from '../lib/AuthContext'
 import { useTheme } from '../lib/ThemeContext'
+import { useCachedFetch } from '../lib/useCachedFetch'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
 import { getCache, setCache, invalidateCache } from '../lib/cache'
 import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
@@ -67,7 +68,7 @@ export default function Tracker() {
   const { logout } = useAuth()
   const { isDark, colors } = useTheme()
   const [books, setBooks] = useState<Book[]>([]);
-  const [user, setUser] = useState<UserInfo | null>(null);
+  const { data: user } = useCachedFetch<UserInfo>('user', '/auth/me');
   const [stats, setStats] = useState<Stats | null>(null);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [chaptersInput, setChaptersInput] = useState('');
@@ -169,13 +170,6 @@ export default function Tracker() {
     }
   }, [logout]);
 
-  useEffect(() => {
-    const cached = getCache<UserInfo>('user')
-    if (cached) setUser(cached)
-    fetch("/auth/me", { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) { setUser(data); setCache('user', data) } })
-  }, []);
 
   const fetchStats = () => {
     fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers: authHeaders() })

@@ -1,9 +1,7 @@
 import { useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
-
-interface LoginProps {
-  onLoginSuccess: (token: string) => void
-}
+import { useAuth } from './lib/AuthContext'
 
 interface Star {
   x: number
@@ -175,7 +173,10 @@ const FEATURES = [
   'Earn achievements as you complete milestones',
 ]
 
-export default function Login({ onLoginSuccess }: LoginProps) {
+export default function Login() {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+
   const handleSuccess = async (credentialResponse: { credential?: string }) => {
     const googleToken = credentialResponse.credential
     if (!googleToken) return
@@ -186,7 +187,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     })
     if (!res.ok) { console.error('Auth failed:', await res.text()); return }
     const data = await res.json()
-    onLoginSuccess(data.access_token)
+    login(data.access_token)
+    navigate('/')
   }
 
   return (

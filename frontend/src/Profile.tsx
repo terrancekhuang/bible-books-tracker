@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authHeaders } from "./lib/auth";
+import { useAuth } from "./lib/AuthContext";
+import { useTheme } from "./lib/ThemeContext";
 import { getCache, setCache, invalidateCache } from "./lib/cache";
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
@@ -109,7 +111,9 @@ function AchievementBadge({ icon, label, tier, animDelay = 0 }: { icon: string; 
   );
 }
 
-export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: () => void; theme: "light" | "dark"; onToggleTheme: () => void }) {
+export default function Profile() {
+  const { logout } = useAuth()
+  const { isDark, colors } = useTheme()
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -120,11 +124,7 @@ export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: 
   const [favoritesError, setFavoritesError] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  const isDark = theme === 'dark'
-  const primaryText = isDark ? '#dde6ff' : '#0d1533'
-  const dimText = isDark ? 'rgba(195,210,255,0.72)' : 'rgba(13,21,51,0.55)'
-  const bodyText = isDark ? 'rgba(195,210,255,0.9)' : 'rgba(13,21,51,0.78)'
-  const trackBg = isDark ? 'rgba(150,175,255,0.12)' : 'rgba(13,21,51,0.1)'
+  const { primaryText, dimText, bodyText, trackBg } = colors
 
   const sectionHeadStyle = {
     fontFamily: "'Cinzel', serif",
@@ -153,10 +153,10 @@ export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: 
     if (cachedFavorites) { setFavorites(cachedFavorites); setFavoritesLoading(false) }
     const headers = authHeaders();
     Promise.all([
-      fetch("/auth/me", { headers }).then(r => { if (r.status === 401) { onLogout(); return null; } return r.json(); }),
-      fetch("/api/cycles", { headers }).then(r => { if (r.status === 401) { onLogout(); return null; } return r.json(); }),
+      fetch("/auth/me", { headers }).then(r => { if (r.status === 401) { logout(); return null; } return r.json(); }),
+      fetch("/api/cycles", { headers }).then(r => { if (r.status === 401) { logout(); return null; } return r.json(); }),
       fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => r.ok ? r.json() : null),
-      fetch("/api/favorites", { headers }).then(r => { if (r.status === 401) { onLogout(); return null; } return r.ok ? r.json() : null; }),
+      fetch("/api/favorites", { headers }).then(r => { if (r.status === 401) { logout(); return null; } return r.ok ? r.json() : null; }),
     ]).then(([userData, cyclesData, statsData, favoritesData]) => {
       if (userData) { setUser(userData); setCache('user', userData) }
       if (cyclesData) { setCycles(cyclesData); setCache('cycles', cyclesData) }
@@ -200,7 +200,7 @@ export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: 
     setCreating(true);
     try {
       const res = await fetch("/api/cycles", { method: "POST", headers: authHeaders() });
-      if (res.status === 401) { onLogout(); return; }
+      if (res.status === 401) { logout(); return; }
       if (!res.ok) throw new Error("Failed to create cycle");
       invalidateCache('cycles', 'stats', 'books', 'activity')
       dialogRef.current?.close();
@@ -214,7 +214,7 @@ export default function Profile({ onLogout, theme, onToggleTheme }: { onLogout: 
 
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0">
-      <NavBar theme={theme} onToggleTheme={onToggleTheme} onLogout={onLogout} pictureUrl={user?.picture_url} userName={user?.name} />
+      <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
 
       <div className="flex flex-col gap-4 px-5 py-5 max-w-3xl mx-auto w-full">
 

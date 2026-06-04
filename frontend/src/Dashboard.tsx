@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authHeaders } from './lib/auth'
+import { useAuth } from './lib/AuthContext'
+import { useTheme } from './lib/ThemeContext'
 import { flushQueue } from './lib/offlineQueue'
 import { getCache, setCache } from './lib/cache'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
@@ -80,15 +82,9 @@ const fadeUp = (delay: number): CSSProperties => ({
 })
 
 
-export default function Dashboard({
-  onLogout,
-  theme,
-  onToggleTheme,
-}: {
-  onLogout: () => void
-  theme: 'light' | 'dark'
-  onToggleTheme: () => void
-}) {
+export default function Dashboard() {
+  const { logout } = useAuth()
+  const { isDark, colors } = useTheme()
   const [books, setBooks] = useState<Book[]>([])
   const [stats, setStats] = useState<Stats | null>(null)
   const [activity, setActivity] = useState<ActivityDay[]>([])
@@ -99,7 +95,6 @@ export default function Dashboard({
   const [goalInput, setGoalInput] = useState('')
   const animFrameRef = useRef<number | null>(null)
   const navigate = useNavigate()
-  const isDark = theme === 'dark'
 
   useEffect(() => {
     const cachedBooks = getCache<Book[]>('books')
@@ -114,10 +109,10 @@ export default function Dashboard({
     const fetchAll = () => {
       const headers = authHeaders()
       return Promise.all([
-        fetch('/api/books', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.json() }),
-        fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
-        fetch(`/api/activity?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { onLogout(); return [] } return r.ok ? r.json() : [] }),
-        fetch('/auth/me', { headers }).then(r => { if (r.status === 401) { onLogout(); return null } return r.ok ? r.json() : null }),
+        fetch('/api/books', { headers }).then(r => { if (r.status === 401) { logout(); return null } return r.json() }),
+        fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { logout(); return null } return r.ok ? r.json() : null }),
+        fetch(`/api/activity?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => { if (r.status === 401) { logout(); return [] } return r.ok ? r.json() : [] }),
+        fetch('/auth/me', { headers }).then(r => { if (r.status === 401) { logout(); return null } return r.ok ? r.json() : null }),
         fetch('/api/settings', { headers }).then(r => r.ok ? r.json() : null),
       ]).then(([booksData, statsData, activityData, userData, settingsData]) => {
         if (booksData) {
@@ -136,12 +131,12 @@ export default function Dashboard({
       })
     }
 
-    const run = () => navigator.onLine ? flushQueue(onLogout).then(fetchAll) : fetchAll()
+    const run = () => navigator.onLine ? flushQueue(logout).then(fetchAll) : fetchAll()
     run()
 
     window.addEventListener('online', run)
     return () => window.removeEventListener('online', run)
-  }, [onLogout])
+  }, [logout])
 
   const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
   const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
@@ -202,10 +197,7 @@ export default function Dashboard({
 
   const firstName = user?.name?.split(' ')[0] ?? 'friend'
 
-  const primaryText = isDark ? '#dde6ff' : '#0d1533'
-  const dimText = isDark ? 'rgba(195,210,255,0.72)' : 'rgba(13,21,51,0.55)'
-  const bodyText = isDark ? 'rgba(195,210,255,0.9)' : 'rgba(13,21,51,0.78)'
-  const trackBg = isDark ? 'rgba(150,175,255,0.12)' : 'rgba(13,21,51,0.1)'
+  const { primaryText, dimText, bodyText, trackBg } = colors
   const secLabel: CSSProperties = {
     fontFamily: "'Raleway', sans-serif",
     fontSize: 10,
@@ -217,7 +209,7 @@ export default function Dashboard({
 
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0">
-      <NavBar theme={theme} onToggleTheme={onToggleTheme} onLogout={onLogout} pictureUrl={user?.picture_url} userName={user?.name} />
+      <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
 
       {/* Hero */}
       <div className="px-5 py-10 md:py-14">
@@ -465,7 +457,7 @@ export default function Dashboard({
         {/* Activity heatmap */}
         <div className="glass-card p-5" style={fadeUp(360)}>
           <span style={secLabel} className="block mb-4">Reading Activity</span>
-          <ActivityHeatmap activity={activity} theme={theme} />
+          <ActivityHeatmap activity={activity} />
         </div>
       </div>
 

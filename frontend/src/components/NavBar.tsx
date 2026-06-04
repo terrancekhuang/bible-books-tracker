@@ -1,11 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
 import { MoonIcon, SunIcon, HomeIcon, BookOpenIcon } from './Icons'
+import { useTheme } from '../lib/ThemeContext'
 import UserMenu from './UserMenu'
 
 interface NavBarProps {
-  theme: 'light' | 'dark'
-  onToggleTheme: () => void
-  onLogout: () => void
   pictureUrl?: string | null
   userName?: string | null
 }
@@ -27,9 +25,9 @@ const navStyleDark  = { ...BLUR, background: 'rgba(6,12,30,0.65)',      borderBo
 const mobileNavLight = { ...BLUR, background: 'rgba(255,255,255,0.88)', borderTop: '1px solid rgba(100,130,255,0.1)' }
 const mobileNavDark  = { ...BLUR, background: 'rgba(6,12,30,0.8)',      borderTop: '1px solid rgba(150,175,255,0.08)' }
 
-export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, userName }: NavBarProps) {
+export default function NavBar({ pictureUrl, userName }: NavBarProps) {
   const { pathname } = useLocation()
-  const isDark = theme === 'dark'
+  const { theme, isDark, toggle } = useTheme()
   const style = isDark ? navStyleDark : navStyleLight
 
   const secondaryText = isDark ? 'rgba(195,210,255,0.6)' : 'rgba(13,21,51,0.5)'
@@ -71,7 +69,7 @@ export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, use
 
           <div className="flex items-center gap-3 ml-auto md:ml-0 md:justify-self-end">
             <button
-              onClick={onToggleTheme}
+              onClick={toggle}
               className="p-1.5 rounded-lg transition-colors"
               style={{ color: secondaryText }}
               title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
@@ -81,9 +79,7 @@ export default function NavBar({ theme, onToggleTheme, onLogout, pictureUrl, use
             <UserMenu
               pictureUrl={pictureUrl}
               userName={userName}
-              onLogout={onLogout}
               showProfileLink={pathname !== '/profile'}
-              theme={theme}
             />
           </div>
         </div>

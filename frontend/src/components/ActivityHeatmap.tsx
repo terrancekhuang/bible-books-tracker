@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { useTheme } from '../lib/ThemeContext'
 
 export interface ActivityDay {
   logged_at: string
@@ -30,8 +31,8 @@ function intensityStyle(chapters: number, isFuture: boolean, styles: CSSProperti
   return styles[4]
 }
 
-export default function ActivityHeatmap({ activity, theme }: { activity: ActivityDay[]; theme?: 'light' | 'dark' }) {
-  const isDark = theme !== 'light'
+export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
+  const { isDark } = useTheme()
   const legendStyles = isDark ? LEGEND_STYLES_DARK : LEGEND_STYLES_LIGHT
   const labelColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(60,90,180,0.45)'
 

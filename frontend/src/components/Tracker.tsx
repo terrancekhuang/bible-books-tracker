@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { authHeaders } from '../lib/auth'
+import { useAuth } from '../lib/AuthContext'
+import { useTheme } from '../lib/ThemeContext'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
 import { getCache, setCache, invalidateCache } from '../lib/cache'
 import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
@@ -61,7 +63,9 @@ interface UserInfo {
   picture_url: string | null
 }
 
-export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: () => void; theme: 'light' | 'dark'; onToggleTheme: () => void }) {
+export default function Tracker() {
+  const { logout } = useAuth()
+  const { isDark, colors } = useTheme()
   const [books, setBooks] = useState<Book[]>([]);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -87,11 +91,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isDark = theme === 'dark'
-  const primaryText = isDark ? '#dde6ff' : '#0d1533'
-  const dimText = isDark ? 'rgba(195,210,255,0.72)' : 'rgba(13,21,51,0.55)'
-  const bodyText = isDark ? 'rgba(195,210,255,0.9)' : 'rgba(13,21,51,0.78)'
-  const trackBg = isDark ? 'rgba(150,175,255,0.12)' : 'rgba(13,21,51,0.1)'
+  const { primaryText, dimText, bodyText, trackBg } = colors
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -104,7 +104,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
     const handleOnline = () => {
       setIsOnline(true);
-      flushQueue(onLogout).then(() =>
+      flushQueue(logout).then(() =>
         getPendingCount().then(n => {
           setPendingCount(n);
           if (n === 0) {
@@ -137,14 +137,14 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [onLogout]);
+  }, [logout]);
 
   useEffect(() => {
     const cached = getCache<Book[]>('books')
     if (cached) setBooks(cached)
     const fetchBooks = () => fetch("/api/books", { headers: authHeaders() })
       .then((res) => {
-        if (res.status === 401) { onLogout(); return null }
+        if (res.status === 401) { logout(); return null }
         return res.json()
       })
       .then((rawData) => {
@@ -163,11 +163,11 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         setCache('books', transformedBooks)
       })
     if (navigator.onLine) {
-      flushQueue(onLogout).then(fetchBooks)
+      flushQueue(logout).then(fetchBooks)
     } else {
       fetchBooks()
     }
-  }, [onLogout]);
+  }, [logout]);
 
   useEffect(() => {
     const cached = getCache<UserInfo>('user')
@@ -358,7 +358,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
     const headers = authHeaders() as Record<string, string>;
     try {
       const response = await fetch("/api/progress", { method: "POST", headers, body });
-      if (response.status === 401) { onLogout(); return; }
+      if (response.status === 401) { logout(); return; }
       const data = await response.json();
       if (!response.ok || !data.success) throw new Error(data.error || "Failed");
       setBooks(prev => prev.map(b => b.name === book.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now } : b));
@@ -402,7 +402,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
     if (!selectedBook) return;
     try {
       const response = await fetch("/api/progress/undo", { method: "POST", headers: authHeaders(), body: JSON.stringify({ book_name: selectedBook.name }) });
-      if (response.status === 401) { onLogout(); return; }
+      if (response.status === 401) { logout(); return; }
       const data = await response.json();
       if (data.success) {
         setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list } : b));
@@ -421,7 +421,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
     if (!resetConfirm) { setResetConfirm(true); return; }
     try {
       const response = await fetch("/api/progress/reset", { method: "POST", headers: authHeaders(), body: JSON.stringify({ book_name: selectedBook.name }) });
-      if (response.status === 401) { onLogout(); return; }
+      if (response.status === 401) { logout(); return; }
       const data = await response.json();
       if (data.success) {
         setBooks(books.map(b => b.name === selectedBook.name ? { ...b, chapters_read: 0, chapters_read_list: [] } : b));
@@ -487,7 +487,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
         </div>
       )}
 
-      <NavBar theme={theme} onToggleTheme={onToggleTheme} onLogout={onLogout} pictureUrl={user?.picture_url} userName={user?.name} />
+      <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
 
       {/* Progress strip */}
       <div
@@ -562,9 +562,9 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
 
             {/* Filters */}
             <div className="flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap" style={{ borderBottom: isDark ? '1px solid rgba(150,175,255,0.04)' : '1px solid rgba(13,21,51,0.04)' }}>
-              <FilterSelect value={filterTestament} onChange={v => { setFilterTestament(v); if (v && filterCategory) { const valid = new Set(books.filter(b => b.testament === v).map(b => b.category)); if (!valid.has(filterCategory)) setFilterCategory(''); } }} placeholder="Testament" options={availableTestamentOptions} theme={theme} />
-              <FilterSelect value={filterCategory} onChange={v => { setFilterCategory(v); if (v && filterTestament) { const valid = new Set(books.filter(b => b.category === v).map(b => b.testament)); if (!valid.has(filterTestament)) setFilterTestament(''); } }} placeholder="Category" options={availableCategoryOptions} theme={theme} />
-              <FilterSelect value={filterStatus} onChange={setFilterStatus} placeholder="Status" options={[{ value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'complete', label: 'Complete' }]} theme={theme} />
+              <FilterSelect value={filterTestament} onChange={v => { setFilterTestament(v); if (v && filterCategory) { const valid = new Set(books.filter(b => b.testament === v).map(b => b.category)); if (!valid.has(filterCategory)) setFilterCategory(''); } }} placeholder="Testament" options={availableTestamentOptions} />
+              <FilterSelect value={filterCategory} onChange={v => { setFilterCategory(v); if (v && filterTestament) { const valid = new Set(books.filter(b => b.category === v).map(b => b.testament)); if (!valid.has(filterTestament)) setFilterTestament(''); } }} placeholder="Category" options={availableCategoryOptions} />
+              <FilterSelect value={filterStatus} onChange={setFilterStatus} placeholder="Status" options={[{ value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'complete', label: 'Complete' }]} />
               {anyFilterActive && (
                 <button onClick={clearFilters} className="text-xs px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap" style={{ color: 'rgba(240,100,100,0.7)', fontFamily: "'Raleway', sans-serif" }}>
                   Clear filters
@@ -656,7 +656,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                       </div>
                     ) : (
                       <>
-                        <SegmentedProgressBar total={book.num_chapters} readChapters={book.chapters_read_list} theme={theme} />
+                        <SegmentedProgressBar total={book.num_chapters} readChapters={book.chapters_read_list} />
                         <p className="text-xs" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                           {book.chapters_read || 0} / {book.num_chapters}
                         </p>
@@ -713,7 +713,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                         {selectedBook.chapters_read || 0} / {selectedBook.num_chapters} chapters
                       </span>
                     </div>
-                    <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} theme={theme} />
+                    <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} />
                     <p className="text-xs mt-1" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                       {calculateProgress(selectedBook)}% complete
                     </p>

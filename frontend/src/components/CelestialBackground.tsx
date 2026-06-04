@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useTheme } from '../lib/ThemeContext'
 
 interface Star {
   x: number; y: number; r: number
@@ -10,7 +11,8 @@ interface ShootingStar {
   life: number; maxLife: number; active: boolean
 }
 
-function StarCanvas({ theme }: { theme: 'light' | 'dark' }) {
+function StarCanvas() {
+  const { theme } = useTheme()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mouseRef = useRef({ x: -1, y: -1 })
   const themeRef = useRef(theme)
@@ -173,7 +175,8 @@ function StarCanvas({ theme }: { theme: 'light' | 'dark' }) {
 const BLOB = { position: 'absolute' as const, borderRadius: '50%', pointerEvents: 'none' as const }
 const WRAP: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden' }
 
-export default function CelestialBackground({ theme }: { theme: 'light' | 'dark' }) {
+export default function CelestialBackground() {
+  const { theme } = useTheme()
 
   if (theme === 'light') {
     return (
@@ -182,7 +185,7 @@ export default function CelestialBackground({ theme }: { theme: 'light' | 'dark'
         <div style={{ ...BLOB, width: 800, height: 800, background: 'radial-gradient(circle, rgba(100,130,255,0.09) 0%, transparent 70%)', filter: 'blur(120px)', top: '-20%', right: '-12%', animation: 'nebulaDrift1 38s ease-in-out infinite' }} />
         <div style={{ ...BLOB, width: 640, height: 640, background: 'radial-gradient(circle, rgba(120,80,200,0.07) 0%, transparent 70%)', filter: 'blur(100px)', bottom: '-14%', left: '-14%', animation: 'nebulaDrift2 44s ease-in-out infinite' }} />
         <div style={{ ...BLOB, width: 500, height: 500, background: 'radial-gradient(circle, rgba(60,100,220,0.06) 0%, transparent 70%)', filter: 'blur(85px)', top: '40%', left: '50%', animation: 'nebulaDrift3 30s ease-in-out infinite' }} />
-        <StarCanvas theme={theme} />
+        <StarCanvas />
       </div>
     )
   }
@@ -194,7 +197,7 @@ export default function CelestialBackground({ theme }: { theme: 'light' | 'dark'
       <div style={{ ...BLOB, width: 680, height: 680, background: 'radial-gradient(circle, rgba(8,42,170,0.22) 0%, transparent 70%)', filter: 'blur(95px)', bottom: '-18%', right: '-12%', animation: 'nebulaDrift2 36s ease-in-out infinite' }} />
       <div style={{ ...BLOB, width: 520, height: 520, background: 'radial-gradient(circle, rgba(105,12,105,0.15) 0%, transparent 70%)', filter: 'blur(75px)', top: '38%', right: '12%', animation: 'nebulaDrift3 24s ease-in-out infinite' }} />
       <div style={{ ...BLOB, width: 460, height: 460, background: 'radial-gradient(circle, rgba(12,65,135,0.18) 0%, transparent 70%)', filter: 'blur(70px)', bottom: '18%', left: '6%', animation: 'nebulaDrift1 28s ease-in-out infinite reverse' }} />
-      <StarCanvas theme={theme} />
+      <StarCanvas />
     </div>
   )
 }

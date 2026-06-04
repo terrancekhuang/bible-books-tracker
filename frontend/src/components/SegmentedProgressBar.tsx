@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTheme } from '../lib/ThemeContext'
 
-export default function SegmentedProgressBar({ total, readChapters, theme }: { total: number; readChapters: number[]; theme?: 'light' | 'dark' }) {
+export default function SegmentedProgressBar({ total, readChapters }: { total: number; readChapters: number[] }) {
+  const { isDark } = useTheme()
   const readSet = new Set(readChapters);
   const barRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ chapter: number; x: number; y: number } | null>(null);
-  const isDark = theme === 'dark'
 
   const runs: { start: number; end: number; read: boolean }[] = [];
   for (let i = 1; i <= total; i++) {

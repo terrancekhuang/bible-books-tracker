@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authHeaders } from "./lib/auth";
 import { useAuth } from "./lib/AuthContext";
 import { useTheme } from "./lib/ThemeContext";
-import { getCache, setCache, invalidateCache } from "./lib/cache";
+import { useCachedFetch } from "./lib/useCachedFetch";
+import { invalidateCache } from "./lib/cache";
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
 import NavBar from "./components/NavBar";
@@ -116,12 +117,6 @@ export default function Profile() {
   const { isDark, colors } = useTheme()
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [user, setUser] = useState<UserInfo | null>(null);
-  const [cycles, setCycles] = useState<Cycle[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [favorites, setFavorites] = useState<FavoriteBook[]>([]);
-  const [favoritesLoading, setFavoritesLoading] = useState(true);
-  const [favoritesError, setFavoritesError] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const { primaryText, dimText, bodyText, trackBg } = colors
@@ -142,31 +137,14 @@ export default function Profile() {
     borderRadius: '1rem',
   }
 
-  useEffect(() => {
-    const cachedUser = getCache<UserInfo>('user')
-    if (cachedUser) setUser(cachedUser)
-    const cachedCycles = getCache<Cycle[]>('cycles')
-    if (cachedCycles) setCycles(cachedCycles)
-    const cachedStats = getCache<Stats>('stats')
-    if (cachedStats) setStats(cachedStats)
-    const cachedFavorites = getCache<FavoriteBook[]>('favorites')
-    if (cachedFavorites) { setFavorites(cachedFavorites); setFavoritesLoading(false) }
-    const headers = authHeaders();
-    Promise.all([
-      fetch("/auth/me", { headers }).then(r => { if (r.status === 401) { logout(); return null; } return r.json(); }),
-      fetch("/api/cycles", { headers }).then(r => { if (r.status === 401) { logout(); return null; } return r.json(); }),
-      fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers }).then(r => r.ok ? r.json() : null),
-      fetch("/api/favorites", { headers }).then(r => { if (r.status === 401) { logout(); return null; } return r.ok ? r.json() : null; }),
-    ]).then(([userData, cyclesData, statsData, favoritesData]) => {
-      if (userData) { setUser(userData); setCache('user', userData) }
-      if (cyclesData) { setCycles(cyclesData); setCache('cycles', cyclesData) }
-      if (statsData) { setStats(statsData); setCache('stats', statsData) }
-      if (favoritesData != null) { setFavorites(favoritesData); setCache('favorites', favoritesData) }
-      else setFavoritesError(true);
-      setFavoritesLoading(false);
-    });
-  }, []);
+  const tzOffset = useMemo(() => -new Date().getTimezoneOffset(), [])
 
+  const { data: user } = useCachedFetch<UserInfo>('user', '/auth/me')
+  const { data: rawCycles } = useCachedFetch<Cycle[]>('cycles', '/api/cycles')
+  const { data: stats } = useCachedFetch<Stats>('stats', `/api/stats?tz_offset=${tzOffset}`)
+  const { data: favorites, loading: favoritesLoading, error: favoritesError } = useCachedFetch<FavoriteBook[]>('favorites', '/api/favorites')
+
+  const cycles = rawCycles ?? []
   const currentCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null;
   const pastCycles = cycles.slice(0, -1);
 
@@ -346,15 +324,15 @@ export default function Profile() {
 
           {favoritesLoading && <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Loading…</p>}
           {!favoritesLoading && favoritesError && <p className="text-sm" style={{ color: 'rgba(240,100,100,0.7)', fontFamily: "'Raleway', sans-serif" }}>Could not load favorites.</p>}
-          {!favoritesLoading && !favoritesError && favorites.length === 0 && (
+          {!favoritesLoading && !favoritesError && (favorites ?? []).length === 0 && (
             <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Start reading to see your favorites here.</p>
           )}
 
-          {!favoritesLoading && !favoritesError && favorites.length > 0 && (() => {
-            const maxCount = favorites[0].cycle_count;
+          {!favoritesLoading && !favoritesError && (favorites ?? []).length > 0 && (() => {
+            const maxCount = favorites![0].cycle_count;
             return (
               <div className="flex flex-col gap-3">
-                {favorites.map(book => (
+                {favorites!.map(book => (
                   <div key={book.book_id} className="flex items-center gap-3">
                     <span className="w-28 shrink-0 text-sm font-medium truncate" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>{book.book_name}</span>
                     <div className="flex-1 h-2 rounded-full overflow-hidden min-w-0" style={{ background: trackBg }}>

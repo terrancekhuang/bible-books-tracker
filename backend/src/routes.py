@@ -38,6 +38,22 @@ def release_db_connection(conn):
         conn.close()
 
 
+_book_cache: dict | None = None
+
+def get_book_by_name(name: str) -> dict | None:
+    global _book_cache
+    if _book_cache is None:
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        try:
+            cur.execute("SELECT book_id, name, num_chapters FROM bible_books")
+            _book_cache = {row['name']: dict(row) for row in cur.fetchall()}
+        finally:
+            cur.close()
+            release_db_connection(conn)
+    return _book_cache.get(name)
+
+
 def initialize_database():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -198,9 +214,7 @@ def update_progress():
             return jsonify({'success': False, 'error': 'No active reading cycle found'}), 404
         cycle_id = cycle['cycle_id']
 
-        cur.execute(
-            "SELECT book_id, num_chapters FROM bible_books WHERE name = %s", (book_name,))
-        book = cur.fetchone()
+        book = get_book_by_name(book_name)
         if not book:
             return jsonify({'success': False, 'error': f'Book "{book_name}" not found'}), 404
         book_id = book['book_id']
@@ -262,8 +276,7 @@ def undo_progress():
             return jsonify({'success': False, 'error': 'No active cycle'}), 404
         cycle_id = cycle['cycle_id']
 
-        cur.execute("SELECT book_id FROM bible_books WHERE name = %s", (book_name,))
-        book = cur.fetchone()
+        book = get_book_by_name(book_name)
         if not book:
             return jsonify({'success': False, 'error': 'Book not found'}), 404
         book_id = book['book_id']
@@ -324,8 +337,7 @@ def reset_progress():
             return jsonify({'success': False, 'error': 'No active cycle'}), 404
         cycle_id = cycle['cycle_id']
 
-        cur.execute("SELECT book_id FROM bible_books WHERE name = %s", (book_name,))
-        book = cur.fetchone()
+        book = get_book_by_name(book_name)
         if not book:
             return jsonify({'success': False, 'error': 'Book not found'}), 404
         book_id = book['book_id']

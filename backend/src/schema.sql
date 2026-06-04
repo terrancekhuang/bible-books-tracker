@@ -120,6 +120,9 @@ END $$;
 CREATE INDEX IF NOT EXISTS idx_chapter_progress_user_cycle_book
   ON chapter_progress(user_id, cycle_id, book_id);
 
+CREATE INDEX IF NOT EXISTS idx_chapter_progress_user_logged_at
+  ON chapter_progress(user_id, logged_at);
+
 -- Drop tables superseded by chapter_progress
 DROP TABLE IF EXISTS reading_log;
 DROP TABLE IF EXISTS progress;

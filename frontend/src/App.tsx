@@ -1,7 +1,7 @@
-import { useLayoutEffect, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
-import { TOKEN_KEY, getToken } from './lib/auth'
+import { useAuth } from './lib/AuthContext'
 import Login from './Login'
 import Profile from './Profile'
 import Tracker from './components/Tracker'
@@ -10,7 +10,7 @@ import PWAInstallModal, { shouldShowPWAPrompt } from './components/PWAInstallMod
 import CelestialBackground from './components/CelestialBackground'
 
 export default function App() {
-  const [jwt, setJwt] = useState<string | null>(getToken)
+  const { jwt } = useAuth()
   const [showPwaPrompt, setShowPwaPrompt] = useState(false)
   const [showUpdateBanner, setShowUpdateBanner] = useState(false)
   const updateSwRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null)
@@ -20,12 +20,6 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const gKeyRef = useRef<string | null>(null);
   const gKeyTimeoutRef = useRef<number | null>(null);
-
-  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('theme')
-    if (saved === 'light' || saved === 'dark') return saved
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  })
 
   useEffect(() => {
     const updateSW = registerSW({
@@ -44,6 +38,13 @@ export default function App() {
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
+
+  // Show PWA prompt on first login (not on page refresh)
+  const prevJwtRef = useRef<string | null>(jwt)
+  useEffect(() => {
+    if (jwt && !prevJwtRef.current && shouldShowPWAPrompt()) setShowPwaPrompt(true)
+    prevJwtRef.current = jwt
+  }, [jwt])
 
   useEffect(() => {
     if (!jwt) return;
@@ -81,45 +82,25 @@ export default function App() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [jwt, showHelp, navigate]);
 
-  useLayoutEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark')
-    localStorage.setItem('theme', theme)
-  }, [theme])
-
-  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light')
-
-  const handleLoginSuccess = (token: string) => {
-    localStorage.setItem(TOKEN_KEY, token)
-    setJwt(token)
-    if (shouldShowPWAPrompt()) setShowPwaPrompt(true)
-    navigate('/')
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem(TOKEN_KEY)
-    setJwt(null)
-    navigate('/login')
-  }
-
   return (
     <>
-      {jwt && <CelestialBackground theme={theme} />}
+      {jwt && <CelestialBackground />}
       <Routes>
         <Route
           path="/login"
-          element={jwt ? <Navigate to="/" replace /> : <Login onLoginSuccess={handleLoginSuccess} />}
+          element={jwt ? <Navigate to="/" replace /> : <Login />}
         />
         <Route
           path="/"
-          element={jwt ? <Dashboard onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
+          element={jwt ? <Dashboard /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/tracker"
-          element={jwt ? <Tracker onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
+          element={jwt ? <Tracker /> : <Navigate to="/login" replace />}
         />
         <Route
           path="/profile"
-          element={jwt ? <Profile onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} /> : <Navigate to="/login" replace />}
+          element={jwt ? <Profile /> : <Navigate to="/login" replace />}
         />
       </Routes>
       {showPwaPrompt && <PWAInstallModal onDismiss={() => setShowPwaPrompt(false)} />}

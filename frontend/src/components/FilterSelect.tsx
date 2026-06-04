@@ -1,14 +1,15 @@
+import { useTheme } from '../lib/ThemeContext'
+
 export default function FilterSelect({
-  value, onChange, placeholder, options, theme,
+  value, onChange, placeholder, options,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   options: string[] | { value: string; label: string }[];
-  theme?: 'light' | 'dark';
 }) {
+  const { isDark } = useTheme()
   const active = value !== '';
-  const isDark = theme === 'dark'
 
   return (
     <select

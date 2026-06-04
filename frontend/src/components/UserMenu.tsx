@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../lib/AuthContext'
+import { useTheme } from '../lib/ThemeContext'
 
 interface UserMenuProps {
   pictureUrl?: string | null
   userName?: string | null
-  onLogout: () => void
   showProfileLink?: boolean
-  theme?: 'light' | 'dark'
 }
 
-export default function UserMenu({ pictureUrl, userName, onLogout, showProfileLink = true, theme }: UserMenuProps) {
+export default function UserMenu({ pictureUrl, userName, showProfileLink = true }: UserMenuProps) {
+  const { logout } = useAuth()
+  const { isDark } = useTheme()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const ref = useRef<HTMLDivElement>(null)
-  const isDark = theme === 'dark'
 
   useEffect(() => {
     if (!open) return
@@ -85,7 +86,7 @@ export default function UserMenu({ pictureUrl, userName, onLogout, showProfileLi
             }}
             onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.05)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            onClick={() => { setOpen(false); onLogout() }}
+            onClick={() => { setOpen(false); logout() }}
           >
             Sign out
           </button>

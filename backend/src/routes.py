@@ -131,33 +131,34 @@ def get_books():
     user_id = int(get_jwt_identity())
     conn = get_db_connection()
     cur = conn.cursor()
-    query = """
-    WITH latest_cycle AS (
-        SELECT cycle_id FROM reading_cycles
-        WHERE user_id = %s ORDER BY cycle_number DESC LIMIT 1
-    )
-    SELECT
-        b.book_id,
-        b.name,
-        b.testament,
-        b.category,
-        b.num_chapters,
-        COUNT(cp.chapter_number) AS chapters_read,
-        COALESCE(
-            ARRAY_AGG(cp.chapter_number ORDER BY cp.chapter_number)
-            FILTER (WHERE cp.chapter_number IS NOT NULL),
-            ARRAY[]::INTEGER[]
-        ) AS chapters_read_list,
-        MAX(cp.logged_at) AS last_read_at
-    FROM bible_books b
-    LEFT JOIN chapter_progress cp ON b.book_id = cp.book_id
-        AND cp.user_id = %s
-        AND cp.cycle_id = (SELECT cycle_id FROM latest_cycle)
-    GROUP BY b.book_id, b.name, b.testament, b.category, b.num_chapters
-    ORDER BY b.book_id ASC
-    """
     try:
-        cur.execute(query, (user_id, user_id))
+        cur.execute(
+            "SELECT cycle_id FROM reading_cycles WHERE user_id = %s ORDER BY cycle_number DESC LIMIT 1",
+            (user_id,))
+        cycle_row = cur.fetchone()
+        cycle_id = cycle_row[0] if cycle_row else None
+
+        cur.execute("""
+            SELECT
+                b.book_id,
+                b.name,
+                b.testament,
+                b.category,
+                b.num_chapters,
+                COUNT(cp.chapter_number) AS chapters_read,
+                COALESCE(
+                    ARRAY_AGG(cp.chapter_number ORDER BY cp.chapter_number)
+                    FILTER (WHERE cp.chapter_number IS NOT NULL),
+                    ARRAY[]::INTEGER[]
+                ) AS chapters_read_list,
+                MAX(cp.logged_at) AS last_read_at
+            FROM bible_books b
+            LEFT JOIN chapter_progress cp ON b.book_id = cp.book_id
+                AND cp.user_id = %s
+                AND cp.cycle_id = %s
+            GROUP BY b.book_id, b.name, b.testament, b.category, b.num_chapters
+            ORDER BY b.book_id ASC
+        """, (user_id, cycle_id))
         raw_data = cur.fetchall()
     finally:
         cur.close()

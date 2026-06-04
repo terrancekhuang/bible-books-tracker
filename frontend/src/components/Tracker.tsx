@@ -361,7 +361,10 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
       setSelectedBook(prev => prev ? { ...prev, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now } : null);
       const cachedBooks = getCache<Book[]>('books')
       if (cachedBooks) setCache('books', cachedBooks.map(b => b.name === book.name ? { ...b, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now } : b))
-      if (data.newly_logged > 0) fetchStats();
+      if (data.newly_logged > 0) {
+        invalidateCache('activity')
+        fetchStats()
+      }
     } catch (e) {
       if (!navigator.onLine || e instanceof TypeError) {
         try {

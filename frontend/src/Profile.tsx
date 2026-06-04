@@ -4,7 +4,7 @@ import { useAuth } from "./lib/AuthContext";
 import { api } from "./lib/api";
 import { useTheme } from "./lib/ThemeContext";
 import { useCachedFetch } from "./lib/useCachedFetch";
-import { invalidateCache } from "./lib/cache";
+import { invalidateCycle } from "./lib/cache";
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
 import NavBar from "./components/NavBar";
@@ -180,7 +180,7 @@ export default function Profile() {
       const res = await api.cycles.create();
       if (res.status === 401) { logout(); return; }
       if (!res.ok) throw new Error("Failed to create cycle");
-      invalidateCache('cycles', 'stats', 'books', 'activity')
+      invalidateCycle()
       dialogRef.current?.close();
       navigate("/tracker");
     } catch (e) {

@@ -67,7 +67,7 @@ export default function NavBar({ pictureUrl, userName }: NavBarProps) {
             })}
           </nav>
 
-          <div className="flex items-center gap-3 ml-auto md:ml-0 md:justify-self-end">
+          <div className="flex items-center gap-3 ml-auto md:ml-0 md:justify-self-end leading-[0]">
             <button
               onClick={toggle}
               className="p-1.5 rounded-lg transition-colors"

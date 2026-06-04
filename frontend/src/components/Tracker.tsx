@@ -745,6 +745,7 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
                         <input
                           ref={chaptersInputRef}
                           type="text"
+                          inputMode="numeric"
                           placeholder="e.g. 1-5, 7, 10-12"
                           value={chaptersInput}
                           onChange={e => setChaptersInput(e.target.value)}

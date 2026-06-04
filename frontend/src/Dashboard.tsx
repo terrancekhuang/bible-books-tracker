@@ -34,6 +34,13 @@ interface UserInfo {
   picture_url: string | null
 }
 
+interface DashboardData {
+  stats: Stats
+  activity: ActivityDay[]
+  weekly_goal: number
+  user: UserInfo
+}
+
 const TOTAL_CHAPTERS = 1189
 const TOTAL_BOOKS = 66
 const OT_CHAPTERS = 929
@@ -92,20 +99,20 @@ export default function Dashboard() {
   const tzOffset = useMemo(() => -new Date().getTimezoneOffset(), [])
 
   const { data: rawBooks } = useCachedFetch<Book[]>('books', '/api/books', { flushOfflineQueue: true, refetchOnOnline: true })
-  const { data: stats } = useCachedFetch<Stats>('stats', `/api/stats?tz_offset=${tzOffset}`, { refetchOnOnline: true })
-  const { data: activity } = useCachedFetch<ActivityDay[]>('activity', `/api/activity?tz_offset=${tzOffset}`, { refetchOnOnline: true })
-  const { data: user } = useCachedFetch<UserInfo>('user', '/auth/me')
+  const { data: dashboard } = useCachedFetch<DashboardData>('dashboard', `/api/dashboard?tz_offset=${tzOffset}`, { refetchOnOnline: true })
 
   const books = useMemo(
     () => rawBooks?.map(b => ({ ...b, chapters_read_list: b.chapters_read_list ?? [], last_read_at: b.last_read_at ?? null })) ?? [],
     [rawBooks]
   )
 
+  const stats = dashboard?.stats ?? null
+  const activity = dashboard?.activity ?? null
+  const user = dashboard?.user ?? null
+
   useEffect(() => {
-    fetch('/api/settings', { headers: authHeaders() })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.weekly_goal) setWeeklyGoal(data.weekly_goal) })
-  }, [])
+    if (dashboard?.weekly_goal) setWeeklyGoal(dashboard.weekly_goal)
+  }, [dashboard?.weekly_goal])
 
   const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
   const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)

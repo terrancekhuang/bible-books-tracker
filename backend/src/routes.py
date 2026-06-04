@@ -510,6 +510,93 @@ def get_stats():
         release_db_connection(conn)
 
 
+@app.route('/api/dashboard', methods=['GET'])
+@jwt_required()
+def get_dashboard():
+    user_id = int(get_jwt_identity())
+    tz_offset = int(request.args.get('tz_offset', 0))
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        local_now = datetime.now(timezone.utc) + timedelta(minutes=tz_offset)
+        local_today = local_now.date()
+        today_start_utc = datetime(local_today.year, local_today.month, local_today.day,
+                                   tzinfo=timezone.utc) - timedelta(minutes=tz_offset)
+        today_end_utc = today_start_utc + timedelta(days=1)
+        week_start_date = local_today - timedelta(days=local_today.weekday())
+        week_start_utc = datetime(week_start_date.year, week_start_date.month, week_start_date.day,
+                                  tzinfo=timezone.utc) - timedelta(minutes=tz_offset)
+        seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+        cutoff_utc = datetime.now(timezone.utc) - timedelta(days=365)
+
+        cur.execute("""
+            SELECT
+                COUNT(*) AS total_chapters,
+                COUNT(DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date) AS total_days,
+                COUNT(CASE WHEN logged_at >= %s AND logged_at < %s THEN 1 END) AS chapters_today,
+                COUNT(CASE WHEN logged_at >= %s THEN 1 END) AS chapters_this_week,
+                COUNT(CASE WHEN logged_at >= %s THEN 1 END) AS chapters_last_7_days
+            FROM chapter_progress WHERE user_id = %s
+        """, (tz_offset, today_start_utc, today_end_utc, week_start_utc, seven_days_ago, user_id))
+        agg = cur.fetchone()
+
+        cur.execute("""
+            WITH local_dates AS (
+                SELECT DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date AS read_date
+                FROM chapter_progress WHERE user_id = %s
+            ),
+            dates AS (
+                SELECT read_date,
+                       (read_date - (ROW_NUMBER() OVER (ORDER BY read_date) || ' days')::interval)::date AS grp
+                FROM local_dates
+            ),
+            streaks AS (
+                SELECT COUNT(*) AS length, MAX(read_date) AS last_day
+                FROM dates GROUP BY grp
+            )
+            SELECT
+                MAX(length) AS best_streak,
+                (SELECT length FROM streaks
+                 WHERE last_day >= %s - INTERVAL '1 day'
+                 ORDER BY last_day DESC LIMIT 1) AS current_streak
+            FROM streaks
+        """, (tz_offset, user_id, local_today))
+        streak_row = cur.fetchone()
+
+        cur.execute("""
+            SELECT (logged_at + INTERVAL '1 minute' * %s)::date AS local_date, COUNT(*) AS chapters
+            FROM chapter_progress
+            WHERE user_id = %s AND logged_at >= %s
+            GROUP BY (logged_at + INTERVAL '1 minute' * %s)::date
+            ORDER BY local_date
+        """, (tz_offset, user_id, cutoff_utc, tz_offset))
+        activity_rows = cur.fetchall()
+
+        cur.execute("SELECT weekly_goal, name, picture_url FROM users WHERE user_id = %s", (user_id,))
+        user_row = cur.fetchone()
+
+        return jsonify({
+            'stats': {
+                'total_chapters': int(agg['total_chapters']),
+                'total_days': int(agg['total_days']),
+                'best_streak': int(streak_row['best_streak'] or 0),
+                'current_streak': int(streak_row['current_streak'] or 0),
+                'chapters_today': int(agg['chapters_today']),
+                'chapters_this_week': int(agg['chapters_this_week']),
+                'chapters_last_7_days': int(agg['chapters_last_7_days']),
+            },
+            'activity': [{'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']} for r in activity_rows],
+            'weekly_goal': user_row['weekly_goal'] if user_row else 7,
+            'user': {
+                'name': user_row['name'] if user_row else None,
+                'picture_url': user_row['picture_url'] if user_row else None,
+            },
+        })
+    finally:
+        cur.close()
+        release_db_connection(conn)
+
+
 @app.route('/api/favorites', methods=['GET'])
 @jwt_required()
 def get_favorites():

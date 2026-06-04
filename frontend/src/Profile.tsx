@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { authHeaders } from "./lib/auth";
 import { useAuth } from "./lib/AuthContext";
+import { api } from "./lib/api";
 import { useTheme } from "./lib/ThemeContext";
 import { useCachedFetch } from "./lib/useCachedFetch";
 import { invalidateCache } from "./lib/cache";
@@ -177,7 +177,7 @@ export default function Profile() {
   const handleNewCycle = async () => {
     setCreating(true);
     try {
-      const res = await fetch("/api/cycles", { method: "POST", headers: authHeaders() });
+      const res = await api.cycles.create();
       if (res.status === 401) { logout(); return; }
       if (!res.ok) throw new Error("Failed to create cycle");
       invalidateCache('cycles', 'stats', 'books', 'activity')

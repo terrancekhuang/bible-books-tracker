@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { authHeaders } from './auth'
 import { api } from './api'
 import { enqueueWrite, flushQueue, getPendingCount } from './offlineQueue'
-import { getCache, setCache, invalidateCache } from './cache'
+import { getCache, setCache, invalidateProgress } from './cache'
 import type { Book, Stats } from './trackerLogic'
 
 export interface SyncOps {
@@ -112,7 +112,7 @@ export function useProgressSync(logout: () => void): SyncOps {
       if (cached) setCache('books', cached.map(b => b.name === book.name ? confirmed : b))
 
       if (data.newly_logged > 0) {
-        invalidateCache('activity')
+        invalidateProgress()
         await refreshStats()
       }
     } catch (e) {
@@ -141,7 +141,7 @@ export function useProgressSync(logout: () => void): SyncOps {
       setBooks(prev => prev.map(b => b.name === book.name ? updated : b))
       const cached = getCache<Book[]>('books')
       if (cached) setCache('books', cached.map(b => b.name === book.name ? updated : b))
-      invalidateCache('activity')
+      invalidateProgress()
       await refreshStats()
     } catch (e) {
       console.error('Error undoing progress:', e)
@@ -158,7 +158,7 @@ export function useProgressSync(logout: () => void): SyncOps {
       setBooks(prev => prev.map(b => b.name === book.name ? updated : b))
       const cached = getCache<Book[]>('books')
       if (cached) setCache('books', cached.map(b => b.name === book.name ? updated : b))
-      invalidateCache('activity')
+      invalidateProgress()
       await refreshStats()
     } catch (e) {
       console.error('Error resetting progress:', e)

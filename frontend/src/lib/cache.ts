@@ -30,3 +30,14 @@ export function invalidateCache(...keys: string[]): void {
     try { localStorage.removeItem(`cache:${k}`) } catch {}
   }
 }
+
+// Named invalidation functions — callers use domain operations, not cache key strings.
+// Add any new dependent keys here; call sites stay unchanged.
+
+export function invalidateProgress(): void {
+  invalidateCache('activity', 'stats')
+}
+
+export function invalidateCycle(): void {
+  invalidateCache('cycles', 'stats', 'books', 'activity')
+}

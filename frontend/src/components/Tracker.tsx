@@ -347,9 +347,13 @@ export default function Tracker({ onLogout, theme, onToggleTheme }: { onLogout: 
     if (chapters.length === 0) return;
     const now = new Date().toISOString();
     const optimisticList = [...new Set([...book.chapters_read_list, ...chapters])].sort((a, b) => a - b);
+    const newlyLogged = optimisticList.length - book.chapters_read_list.length;
     const optimisticBook = { ...book, chapters_read: optimisticList.length, chapters_read_list: optimisticList, last_read_at: now };
     setBooks(prev => prev.map(b => b.name === book.name ? optimisticBook : b));
     setSelectedBook(optimisticBook);
+    if (newlyLogged > 0) {
+      setStats(prev => prev ? { ...prev, chapters_today: prev.chapters_today + newlyLogged, total_chapters: prev.total_chapters + newlyLogged } : prev)
+    }
     const body = JSON.stringify({ book_name: book.name, chapters });
     const headers = authHeaders() as Record<string, string>;
     try {

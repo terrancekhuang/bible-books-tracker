@@ -6,58 +6,11 @@ import { useTheme } from '../lib/ThemeContext'
 import { useCachedFetch } from '../lib/useCachedFetch'
 import { enqueueWrite, flushQueue, getPendingCount } from '../lib/offlineQueue'
 import { getCache, setCache, invalidateCache } from '../lib/cache'
+import { parseChapters, sortBooks, filterBooks, availableFilterOptions, calculateProgress, type Book, type Stats, type SortKey, type SortDir, TOTAL_CHAPTERS } from '../lib/trackerLogic'
 import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import NavBar from './NavBar'
-
-interface Book {
-  book_id: number;
-  name: string;
-  testament: string;
-  category: string;
-  num_chapters: number;
-  chapters_read: number;
-  chapters_read_list: number[];
-  last_read_at: string | null;
-}
-
-interface Stats {
-  chapters_today: number;
-  chapters_this_week: number;
-  current_streak: number;
-  best_streak: number;
-  total_chapters: number;
-  total_days: number;
-}
-
-type SortKey = "name" | "chapters_read" | "percent" | "status";
-type SortDir = "asc" | "desc";
-
-const TOTAL_CHAPTERS = 1189
-
-const statusRank = (book: Book) => {
-  if (book.chapters_read >= book.num_chapters) return 2;
-  if (book.chapters_read > 0) return 1;
-  return 0;
-};
-
-function parseChapters(input: string, max: number): number[] {
-  if (!input.trim()) return [];
-  const result = new Set<number>();
-  for (const part of input.split(',').map(s => s.trim()).filter(Boolean)) {
-    if (part.includes('-')) {
-      const [a, b] = part.split('-').map(s => parseInt(s.trim()));
-      if (isNaN(a) || isNaN(b) || a > b || a < 1 || b > max) return [];
-      for (let i = a; i <= b; i++) result.add(i);
-    } else {
-      const n = parseInt(part);
-      if (isNaN(n) || n < 1 || n > max) return [];
-      result.add(n);
-    }
-  }
-  return [...result].sort((a, b) => a - b);
-}
 
 interface UserInfo {
   name: string | null
@@ -197,11 +150,6 @@ export default function Tracker() {
     }
   }, [books, location.state]);
 
-  const calculateProgress = (book: Book) => {
-    if (!book.chapters_read) return 0;
-    return Math.round((book.chapters_read / book.num_chapters) * 100);
-  };
-
   const handleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir(sortDir === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }
@@ -209,50 +157,18 @@ export default function Tracker() {
 
   const resetSort = () => { setSortKey(null); setSortDir("asc"); };
 
-  const sortedBooks = sortKey === null
-    ? books
-    : [...books].sort((a, b) => {
-        let cmp = 0;
-        if (sortKey === "name") cmp = a.name.localeCompare(b.name);
-        else if (sortKey === "chapters_read") cmp = a.chapters_read - b.chapters_read;
-        else if (sortKey === "percent") cmp = calculateProgress(a) - calculateProgress(b);
-        else if (sortKey === "status") cmp = statusRank(a) - statusRank(b);
-        return sortDir === "asc" ? cmp : -cmp;
-      });
-
   const sortIndicator = (key: SortKey) => {
     if (sortKey !== key) return " ↕";
     return sortDir === "asc" ? " ↑" : " ↓";
   };
 
-  const filteredBooks = search
-    ? sortedBooks.filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
-    : sortedBooks;
-
-  const availableCategoryOptions = [...new Set(
-    books.filter(b => !filterTestament || b.testament === filterTestament).map(b => b.category)
-  )];
-  const availableTestamentOptions = [...new Set(
-    books.filter(b => !filterCategory || b.category === filterCategory).map(b => b.testament)
-  )];
+  const tabFilteredBooks = filterBooks(sortBooks(books, sortKey, sortDir), { search, filterTestament, filterCategory, filterStatus });
+  const { testaments: availableTestamentOptions, categories: availableCategoryOptions } = availableFilterOptions(books, { filterTestament, filterCategory });
   const anyFilterActive = filterTestament !== '' || filterCategory !== '' || filterStatus !== '';
   const clearFilters = () => { setFilterTestament(''); setFilterCategory(''); setFilterStatus(''); };
 
   const parsedChapters = selectedBook ? parseChapters(chaptersInput, selectedBook.num_chapters) : [];
   const inputIsInvalid = chaptersInput.trim() !== '' && parsedChapters.length === 0;
-
-  const tabFilteredBooks = filteredBooks.filter(b => {
-    if (filterTestament && b.testament !== filterTestament) return false;
-    if (filterCategory  && b.category  !== filterCategory)  return false;
-    if (filterStatus) {
-      const isComplete = b.chapters_read >= b.num_chapters;
-      const inProgress = b.chapters_read > 0 && !isComplete;
-      if (filterStatus === 'complete'    && !isComplete)         return false;
-      if (filterStatus === 'in_progress' && !inProgress)         return false;
-      if (filterStatus === 'not_started' && b.chapters_read > 0) return false;
-    }
-    return true;
-  });
 
   useEffect(() => {
     if (!selectedBook || isMobile) return;

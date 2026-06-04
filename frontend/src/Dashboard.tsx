@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { authHeaders } from './lib/auth'
 import { useTheme } from './lib/ThemeContext'
+import { api } from './lib/api'
 import { useCachedFetch } from './lib/useCachedFetch'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
@@ -160,11 +160,7 @@ export default function Dashboard() {
     if (!isNaN(n) && n > 0) {
       const prev = weeklyGoal
       setWeeklyGoal(n)
-      fetch('/api/settings', {
-        method: 'PUT',
-        headers: authHeaders(),
-        body: JSON.stringify({ weekly_goal: n }),
-      })
+      api.settings.update(n)
         .then(r => { if (!r.ok) setWeeklyGoal(prev) })
         .catch(() => setWeeklyGoal(prev))
     }

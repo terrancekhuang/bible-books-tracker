@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { authHeaders } from './auth'
+import { api } from './api'
 import { enqueueWrite, flushQueue, getPendingCount } from './offlineQueue'
 import { getCache, setCache, invalidateCache } from './cache'
 import type { Book, Stats } from './trackerLogic'
@@ -99,11 +100,8 @@ export function useProgressSync(logout: () => void): SyncOps {
       setStats(prev => prev ? { ...prev, chapters_today: prev.chapters_today + newlyLogged, total_chapters: prev.total_chapters + newlyLogged } : prev)
     }
 
-    const body = JSON.stringify({ book_name: book.name, chapters })
-    const headers = authHeaders() as Record<string, string>
-
     try {
-      const response = await fetch('/api/progress', { method: 'POST', headers, body })
+      const response = await api.progress.submit(book.name, chapters)
       if (response.status === 401) { logoutRef.current(); return }
       const data = await response.json()
       if (!response.ok || !data.success) throw new Error(data.error || 'Failed')
@@ -120,7 +118,7 @@ export function useProgressSync(logout: () => void): SyncOps {
     } catch (e) {
       if (!navigator.onLine || e instanceof TypeError) {
         try {
-          await enqueueWrite('/api/progress', 'POST', headers, body)
+          await enqueueWrite('/api/progress', 'POST', authHeaders() as Record<string, string>, JSON.stringify({ book_name: book.name, chapters }))
           setPendingCount(c => c + 1)
         } catch {
           console.error('Failed to queue write; change will be lost if page is closed')
@@ -135,11 +133,7 @@ export function useProgressSync(logout: () => void): SyncOps {
 
   const undo = useCallback(async (book: Book) => {
     try {
-      const response = await fetch('/api/progress/undo', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ book_name: book.name }),
-      })
+      const response = await api.progress.undo(book.name)
       if (response.status === 401) { logoutRef.current(); return }
       const data = await response.json()
       if (!data.success) return
@@ -156,11 +150,7 @@ export function useProgressSync(logout: () => void): SyncOps {
 
   const reset = useCallback(async (book: Book) => {
     try {
-      const response = await fetch('/api/progress/reset', {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ book_name: book.name }),
-      })
+      const response = await api.progress.reset(book.name)
       if (response.status === 401) { logoutRef.current(); return }
       const data = await response.json()
       if (!data.success) return

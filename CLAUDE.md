@@ -49,7 +49,7 @@ FRONTEND_URL=http://localhost:3000
 VITE_GOOGLE_CLIENT_ID=...   # same value as GOOGLE_CLIENT_ID, exposed to Vite at build time
 ```
 
-### Production — `/root/app/.env` on server:
+### Production — `/srv/apps/bible-books-tracker/.env` on server:
 ```
 GOOGLE_CLIENT_ID=...
 JWT_SECRET_KEY=...
@@ -64,14 +64,14 @@ VITE_GOOGLE_CLIENT_ID=...   # baked into frontend bundle at Docker build time �
 ## Deployment
 
 Pushing to `master` triggers `.github/workflows/deploy.yml`, which:
-1. rsyncs the repo to `/root/app/` on the server (excluding `.env`, `.git`, `node_modules`, Terraform state)
+1. rsyncs the repo to `/srv/apps/bible-books-tracker/` on the server (excluding `.env`, `.git`, `node_modules`, Terraform state)
 2. SSHs in and runs `docker compose -f docker-compose.prod.yml up -d --build`
 3. Reloads nginx
 
 **Manual deploy / debugging**:
 ```bash
 ssh -i infra/deploy_key root@91.98.21.147
-cd /root/app
+cd /srv/apps/bible-books-tracker
 docker compose -f docker-compose.prod.yml up -d --build
 docker logs app-backend-1 --tail 50
 ```

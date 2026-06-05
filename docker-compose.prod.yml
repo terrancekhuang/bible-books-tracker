@@ -1,3 +1,5 @@
+name: app
+
 services:
   db:
     image: postgres:17
@@ -39,3 +41,4 @@ services:
 
 volumes:
   postgres_data:
+    name: app_postgres_data

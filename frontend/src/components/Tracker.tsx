@@ -468,8 +468,8 @@ export default function Tracker() {
                         <p className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", letterSpacing: '0.02em', opacity: 0.9 }}>{book.category}</p>
                       </div>
                       <p
-                        className="text-xs font-semibold leading-snug line-clamp-2"
-                        style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.01em' }}
+                        className="font-semibold leading-snug"
+                        style={{ fontFamily: "'Cinzel', serif", color: primaryText, fontSize: 10, letterSpacing: 0 }}
                       >
                         {book.name}
                       </p>

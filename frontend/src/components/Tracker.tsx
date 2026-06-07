@@ -15,6 +15,76 @@ interface UserInfo {
   picture_url: string | null
 }
 
+// Per-category color palette — maps each Bible category to a distinct celestial accent
+const CATEGORY_PALETTE: Record<string, { color: string; glow: string; dim: string }> = {
+  'Law':              { color: 'rgba(220,172,60,1)',   glow: 'rgba(220,172,60,0.22)', dim: 'rgba(220,172,60,0.7)' },
+  'History':          { color: 'rgba(205,115,55,1)',   glow: 'rgba(205,115,55,0.22)', dim: 'rgba(205,115,55,0.7)' },
+  'Poetry':           { color: 'rgba(55,190,175,1)',   glow: 'rgba(55,190,175,0.22)', dim: 'rgba(55,190,175,0.7)' },
+  'Major Prophets':   { color: 'rgba(165,80,240,1)',   glow: 'rgba(165,80,240,0.22)', dim: 'rgba(165,80,240,0.7)' },
+  'Minor Prophets':   { color: 'rgba(185,140,255,1)',  glow: 'rgba(185,140,255,0.22)', dim: 'rgba(185,140,255,0.7)' },
+  'Gospels':          { color: 'rgba(55,150,255,1)',   glow: 'rgba(55,150,255,0.22)', dim: 'rgba(55,150,255,0.7)' },
+  'Paul':             { color: 'rgba(220,110,155,1)',  glow: 'rgba(220,110,155,0.22)', dim: 'rgba(220,110,155,0.7)' },
+  'General Epistles': { color: 'rgba(230,130,100,1)',  glow: 'rgba(230,130,100,0.22)', dim: 'rgba(230,130,100,0.7)' },
+  'Church History':   { color: 'rgba(75,205,130,1)',   glow: 'rgba(75,205,130,0.22)', dim: 'rgba(75,205,130,0.7)' },
+}
+
+const DEFAULT_PALETTE = { color: 'rgba(150,175,255,1)', glow: 'rgba(150,175,255,0.22)', dim: 'rgba(150,175,255,0.7)' }
+
+function getCategoryPalette(category: string) {
+  return CATEGORY_PALETTE[category] ?? DEFAULT_PALETTE
+}
+
+// SVG arc progress ring — used in book cards and detail panel
+function ArcProgress({
+  total, read, size, strokeWidth, isDark,
+}: {
+  total: number; read: number; size: number; strokeWidth: number; isDark: boolean;
+}) {
+  const palette = getCategoryPalette('')  // unused here, color passed per-card
+  const pct = total > 0 ? read / total : 0
+  const r = (size - strokeWidth) / 2
+  const circ = 2 * Math.PI * r
+  const dash = pct * circ
+  const isComplete = read >= total
+  const isSmall = size < 52
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.09)'}
+          strokeWidth={strokeWidth}
+        />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
+          stroke="currentColor" strokeWidth={strokeWidth}
+          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 0.6s ease' }}
+        />
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        fontFamily: "'Raleway', sans-serif",
+        color: isDark ? 'rgba(220,230,255,0.85)' : 'rgba(13,21,51,0.75)',
+        textAlign: 'center', lineHeight: 1.1,
+        pointerEvents: 'none',
+      }}>
+        {isComplete ? (
+          <span style={{ fontSize: isSmall ? 13 : 22, fontWeight: 600 }}>✓</span>
+        ) : pct === 0 ? (
+          <span style={{ fontSize: isSmall ? 8 : 11, opacity: 0.4 }}>{total}</span>
+        ) : (
+          <>
+            <span style={{ fontSize: isSmall ? 9 : 14, fontWeight: 700 }}>{read}</span>
+            <span style={{ fontSize: isSmall ? 7 : 10, opacity: 0.5 }}>/{total}</span>
+          </>
+        )}
+      </div>
+    </div>
+  )
+  void palette
+}
+
 export default function Tracker() {
   const { logout } = useAuth()
   const { isDark, colors } = useTheme()
@@ -22,7 +92,6 @@ export default function Tracker() {
 
   const { books, stats, pendingCount, isOnline, submit, undo, reset } = useProgressSync(logout)
 
-  // selectedBook is derived — no stale-state bugs when books update optimistically
   const [selectedBookName, setSelectedBookName] = useState<string | null>(null)
   const selectedBook = books.find(b => b.name === selectedBookName) ?? null
 
@@ -204,12 +273,13 @@ export default function Tracker() {
   const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;
 
-  const glassPanel = {
-    background: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.88)',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-    border: isDark ? '1px solid rgba(150,175,255,0.22)' : '1px solid rgba(100,130,255,0.14)',
-    borderRadius: '1rem',
+  // Glass panel used only for the book grid
+  const gridPanelStyle = {
+    background: isDark ? 'rgba(6,10,28,0.62)' : 'rgba(255,255,255,0.82)',
+    backdropFilter: 'blur(28px)',
+    WebkitBackdropFilter: 'blur(28px)',
+    border: isDark ? '1px solid rgba(150,175,255,0.14)' : '1px solid rgba(100,130,255,0.12)',
+    borderRadius: '1.25rem',
   }
 
   const inputStyle = {
@@ -291,9 +361,9 @@ export default function Tracker() {
 
       <div className="flex flex-col md:flex-row gap-4 flex-1 md:overflow-hidden px-4 md:px-5 py-4">
 
-        {/* Book Grid Panel */}
+        {/* ── Book Grid Panel ── */}
         {showGrid && (
-          <div className="flex flex-col flex-1 overflow-hidden md:overflow-y-auto rounded-2xl" style={glassPanel}>
+          <div className="flex flex-col flex-1 overflow-hidden md:overflow-y-auto rounded-2xl" style={gridPanelStyle}>
             {/* Search */}
             <div className="flex items-center gap-2 p-3" style={{ borderBottom: isDark ? '1px solid rgba(150,175,255,0.07)' : '1px solid rgba(13,21,51,0.07)' }}>
               <input
@@ -348,86 +418,75 @@ export default function Tracker() {
               </div>
             </div>
 
-            {/* Card grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 p-3">
+            {/* ── Card grid ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3">
               {tabFilteredBooks.map((book) => {
                 const isComplete = book.chapters_read >= book.num_chapters;
                 const inProgress = book.chapters_read > 0 && !isComplete;
                 const isSelected = selectedBook?.name === book.name;
+                const cat = getCategoryPalette(book.category);
 
-                let cardStyle = {}
-                if (isSelected && isComplete) {
-                  cardStyle = {
-                    background: isDark ? 'rgba(60,200,140,0.2)' : 'rgba(40,170,110,0.18)',
-                    border: isDark ? '2px solid rgba(80,215,155,0.6)' : '2px solid rgba(40,170,110,0.55)',
-                    boxShadow: isDark ? '0 0 20px rgba(60,200,140,0.18)' : '0 0 16px rgba(40,170,110,0.12)',
-                  }
-                } else if (isSelected && inProgress) {
-                  cardStyle = {
-                    background: isDark ? 'rgba(215,185,90,0.2)' : 'rgba(200,160,40,0.18)',
-                    border: isDark ? '2px solid rgba(230,200,110,0.6)' : '2px solid rgba(180,140,30,0.5)',
-                    boxShadow: isDark ? '0 0 20px rgba(215,185,90,0.15)' : '0 0 16px rgba(200,160,40,0.1)',
-                  }
-                } else if (isSelected) {
-                  cardStyle = {
-                    background: isDark ? 'rgba(100,130,255,0.22)' : 'rgba(100,130,255,0.18)',
-                    border: isDark ? '2px solid rgba(170,195,255,0.6)' : '2px solid rgba(100,130,255,0.5)',
-                    boxShadow: isDark ? '0 0 20px rgba(150,175,255,0.18)' : '0 0 16px rgba(100,130,255,0.12)',
-                  }
-                } else if (isComplete) {
-                  cardStyle = {
-                    background: isDark ? 'rgba(60,200,140,0.1)' : 'rgba(40,170,110,0.1)',
-                    border: '1px solid ' + (isDark ? 'rgba(60,200,140,0.24)' : 'rgba(40,170,110,0.24)'),
-                  }
-                } else if (inProgress) {
-                  cardStyle = {
-                    background: isDark ? 'rgba(215,185,90,0.1)' : 'rgba(200,160,40,0.1)',
-                    border: '1px solid ' + (isDark ? 'rgba(225,195,100,0.24)' : 'rgba(180,140,30,0.22)'),
-                  }
-                } else {
-                  cardStyle = {
-                    background: isDark ? 'rgba(100,130,255,0.09)' : 'rgba(215,225,255,0.72)',
-                    border: '1px solid ' + (isDark ? 'rgba(130,160,255,0.16)' : 'rgba(130,160,255,0.22)'),
-                  }
-                }
+                const cardBg = isDark
+                  ? `radial-gradient(ellipse at 90% 5%, ${cat.glow} 0%, transparent 62%), rgba(8,13,34,0.72)`
+                  : `radial-gradient(ellipse at 90% 5%, ${cat.glow} 0%, transparent 62%), rgba(245,248,255,0.82)`;
 
-                const iconColor = isComplete
-                  ? (isDark ? 'rgba(80,200,140,0.9)' : 'rgba(40,160,100,0.8)')
-                  : inProgress
-                    ? (isDark ? 'rgba(225,195,100,0.9)' : 'rgba(160,120,20,0.75)')
-                    : isSelected
-                      ? (isDark ? 'rgba(200,215,255,0.9)' : 'rgba(60,90,200,0.8)')
-                      : dimText
+                const cardBorder = isSelected
+                  ? `2px solid ${cat.color.replace(',1)', ',0.8)')}`
+                  : isComplete
+                    ? `1px solid ${cat.color.replace(',1)', ',0.35)')}`
+                    : inProgress
+                      ? `1px solid ${cat.color.replace(',1)', ',0.22)')}`
+                      : isDark
+                        ? '1px solid rgba(150,175,255,0.12)'
+                        : '1px solid rgba(100,130,255,0.15)';
+
+                const cardShadow = isSelected
+                  ? `0 0 0 1px ${cat.color.replace(',1)', ',0.18)')}, 0 8px 32px ${cat.glow}`
+                  : isComplete
+                    ? `0 4px 20px ${cat.color.replace(',1)', ',0.12)')}`
+                    : 'none';
 
                 return (
                   <div
                     key={book.name}
                     data-book={book.name}
                     onClick={() => { if (selectedBook?.name !== book.name) setChaptersInput(''); setOpenedFromNav(false); setSelectedBookName(book.name); }}
-                    className="rounded-xl p-3.5 cursor-pointer flex flex-col gap-1 transition-all duration-150"
-                    style={{ ...cardStyle, backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
-                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)' }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = '' }}
+                    className={`relative rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-150${isComplete ? ' book-card-complete-shimmer' : ''}`}
+                    style={{
+                      background: cardBg,
+                      border: cardBorder,
+                      boxShadow: cardShadow,
+                      backdropFilter: 'blur(14px)',
+                      WebkitBackdropFilter: 'blur(14px)',
+                      padding: '0.9rem 0.85rem',
+                    }}
+                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; }}
                   >
-                    <div className="flex items-center gap-1.5" style={{ color: iconColor }}>
-                      <CategoryIcon category={book.category} size={14} />
-                      <p className="text-xs font-medium truncate" style={{ fontFamily: "'Raleway', sans-serif" }}>{book.category}</p>
-                    </div>
-                    <p className="text-sm font-semibold leading-tight" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>{book.name}</p>
-                    {isComplete ? (
-                      <div className="mt-1 flex items-center gap-1">
-                        <span className="text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: 'rgba(60,200,140,0.15)', color: 'rgba(80,200,140,0.9)', fontFamily: "'Raleway', sans-serif" }}>
-                          ✓ Complete
-                        </span>
+                    {/* Left: category + book name */}
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                      <div className="flex items-center gap-1" style={{ color: cat.dim }}>
+                        <CategoryIcon category={book.category} size={11} />
+                        <p className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", letterSpacing: '0.02em', opacity: 0.9 }}>{book.category}</p>
                       </div>
-                    ) : (
-                      <>
-                        <SegmentedProgressBar total={book.num_chapters} readChapters={book.chapters_read_list} />
-                        <p className="text-xs" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-                          {book.chapters_read || 0} / {book.num_chapters}
-                        </p>
-                      </>
-                    )}
+                      <p
+                        className="text-sm font-semibold leading-snug"
+                        style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.02em' }}
+                      >
+                        {book.name}
+                      </p>
+                    </div>
+
+                    {/* Right: arc progress ring */}
+                    <div style={{ color: isComplete ? cat.color : inProgress ? cat.color : (isDark ? 'rgba(150,175,255,0.4)' : 'rgba(100,130,255,0.4)') }}>
+                      <ArcProgress
+                        total={book.num_chapters}
+                        read={book.chapters_read}
+                        size={44}
+                        strokeWidth={3}
+                        isDark={isDark}
+                      />
+                    </div>
                   </div>
                 );
               })}
@@ -435,10 +494,24 @@ export default function Tracker() {
           </div>
         )}
 
-        {/* Detail Panel */}
+        {/* ── Detail Panel — floats on the starfield ── */}
         {showDetail && (
-          <div className="flex flex-col w-full md:w-96 md:overflow-y-auto shrink-0">
-            <div className="p-6 flex flex-col gap-4 flex-1" style={glassPanel}>
+          <div
+            className="flex flex-col w-full md:w-[26rem] shrink-0"
+            style={isMobile ? {
+              // Mobile: full-screen with background since it replaces the grid
+              background: isDark ? 'rgba(6,10,28,0.88)' : 'rgba(245,248,255,0.94)',
+              backdropFilter: 'blur(28px)',
+              WebkitBackdropFilter: 'blur(28px)',
+              borderRadius: '1.25rem',
+            } : {
+              // Desktop: no box — content floats on the starfield
+              // subtle left separator only
+              paddingLeft: '0.25rem',
+              borderLeft: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(100,130,255,0.1)',
+            }}
+          >
+            <div className={`p-6 flex flex-col gap-5 flex-1${!isMobile ? ' md:overflow-y-auto' : ''}`}>
               {selectedBook ? (
                 <>
                   {isMobile && (
@@ -451,170 +524,247 @@ export default function Tracker() {
                     </button>
                   )}
 
-                  <div>
-                    <div className="flex items-center gap-2 mb-1.5" style={{ color: dimText }}>
-                      <CategoryIcon category={selectedBook.category} size={18} />
-                      <span className="text-sm font-medium" style={{ fontFamily: "'Raleway', sans-serif" }}>{selectedBook.category}</span>
-                    </div>
-                    <h2 className="text-2xl font-bold" style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.03em' }}>
-                      {selectedBook.name}
-                    </h2>
-                    <span
-                      className="inline-block mt-2 text-xs font-medium px-2.5 py-1 rounded-full"
-                      style={{
-                        background: isDark ? 'rgba(150,175,255,0.1)' : 'rgba(13,21,51,0.06)',
-                        color: isDark ? 'rgba(195,210,255,0.7)' : 'rgba(13,21,51,0.55)',
-                        fontFamily: "'Raleway', sans-serif",
-                        letterSpacing: '0.04em',
-                      }}
-                    >
-                      {selectedBook.testament}
-                    </span>
-                  </div>
+                  {/* Book header — dramatic, full-bleed typography */}
+                  {(() => {
+                    const cat = getCategoryPalette(selectedBook.category);
+                    const isComplete = selectedBook.chapters_read >= selectedBook.num_chapters;
+                    const inProgress = selectedBook.chapters_read > 0 && !isComplete;
+                    const arcColor = isComplete || inProgress ? cat.color : (isDark ? 'rgba(150,175,255,0.45)' : 'rgba(100,130,255,0.45)');
+                    const pct = Math.round(calculateProgress(selectedBook));
 
-                  <div>
-                    <div className="flex justify-between text-sm mb-1.5">
-                      <span style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Progress</span>
-                      <span className="font-medium" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>
-                        {selectedBook.chapters_read || 0} / {selectedBook.num_chapters} chapters
-                      </span>
-                    </div>
-                    <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} />
-                    <p className="text-xs mt-1" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-                      {calculateProgress(selectedBook)}% complete
-                    </p>
-                  </div>
+                    return (
+                      <>
+                        {/* Category row */}
+                        <div className="flex items-center gap-2" style={{ color: cat.dim }}>
+                          <CategoryIcon category={selectedBook.category} size={16} />
+                          <span className="text-sm font-medium" style={{ fontFamily: "'Raleway', sans-serif", letterSpacing: '0.04em' }}>
+                            {selectedBook.category}
+                          </span>
+                          <span
+                            className="ml-auto text-xs px-2.5 py-0.5 rounded-full"
+                            style={{
+                              background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.05)',
+                              color: isDark ? 'rgba(195,210,255,0.6)' : 'rgba(13,21,51,0.5)',
+                              fontFamily: "'Raleway', sans-serif",
+                              letterSpacing: '0.05em',
+                              border: isDark ? '1px solid rgba(150,175,255,0.14)' : '1px solid rgba(13,21,51,0.1)',
+                            }}
+                          >
+                            {selectedBook.testament}
+                          </span>
+                        </div>
 
-                  {selectedBook.chapters_read >= selectedBook.num_chapters ? (
-                    <div
-                      className="rounded-xl p-4 text-center flex flex-col gap-2"
-                      style={{ background: 'rgba(60,200,140,0.08)', border: '1px solid rgba(60,200,140,0.2)' }}
-                    >
-                      <p className="font-semibold" style={{ color: 'rgba(80,200,140,0.9)', fontFamily: "'Raleway', sans-serif" }}>All chapters read! ✓</p>
-                      <button
-                        onClick={handleReset}
-                        className="w-full py-2 rounded-xl text-sm font-medium transition-colors"
-                        style={resetConfirm
-                          ? { background: 'rgba(220,60,60,0.2)', border: '1px solid rgba(220,60,60,0.4)', color: 'rgba(240,100,100,0.9)', fontFamily: "'Raleway', sans-serif" }
-                          : { background: 'transparent', border: '1px solid rgba(60,200,140,0.25)', color: 'rgba(80,200,140,0.7)', fontFamily: "'Raleway', sans-serif" }
-                        }
-                      >
-                        {resetConfirm ? 'Confirm reset?' : 'Reset progress'}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      <div>
-                        <label className="text-sm font-medium block mb-1.5" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>
-                          Chapters read
-                        </label>
-                        <input
-                          ref={chaptersInputRef}
-                          type="text"
-                          inputMode="numeric"
-                          placeholder="e.g. 1-5, 7, 10-12"
-                          value={chaptersInput}
-                          onChange={e => setChaptersInput(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
-                          className="w-full px-3 py-2"
-                          style={{
-                            ...inputStyle,
-                            borderColor: inputIsInvalid ? 'rgba(220,80,80,0.4)' : undefined,
-                          }}
-                          onFocus={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.6)' : (isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)'))}
-                          onBlur={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.4)' : (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)'))}
-                        />
-                        <p className="text-xs mt-1 min-h-[1rem]" style={{ color: inputIsInvalid ? 'rgba(240,100,100,0.75)' : dimText, fontFamily: "'Raleway', sans-serif" }}>
-                          {inputIsInvalid
-                            ? 'Invalid format — try "1-5" or "3, 7, 12"'
-                            : parsedChapters.length > 0
-                              ? `Will log: ${parsedChapters.length} chapter${parsedChapters.length !== 1 ? 's' : ''} (${parsedChapters.slice(0, 8).join(', ')}${parsedChapters.length > 8 ? '…' : ''})`
-                              : ''}
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleSubmit}
-                        disabled={parsedChapters.length === 0}
-                        className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                        style={{
-                          background: parsedChapters.length > 0
-                            ? (isDark ? 'rgba(150,175,255,0.22)' : 'rgba(13,21,51,0.12)')
-                            : 'transparent',
-                          border: isDark ? '1px solid rgba(150,175,255,0.28)' : '1px solid rgba(13,21,51,0.18)',
-                          color: primaryText,
-                          fontFamily: "'Raleway', sans-serif",
-                          letterSpacing: '0.05em',
-                        }}
-                      >
-                        Submit
-                      </button>
+                        {/* Book name — LARGE Cinzel with category glow */}
+                        <div>
+                          <h2
+                            style={{
+                              fontFamily: "'Cinzel', serif",
+                              fontSize: 'clamp(1.6rem, 4vw, 2.4rem)',
+                              fontWeight: 700,
+                              color: primaryText,
+                              letterSpacing: '0.04em',
+                              lineHeight: 1.2,
+                              textShadow: `0 0 32px ${cat.glow}, 0 0 64px ${cat.color.replace(',1)', ',0.08)')}`,
+                            }}
+                          >
+                            {selectedBook.name}
+                          </h2>
+                        </div>
 
-                      <div className="flex items-center gap-2 pt-1">
-                        <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
-                        <span className="text-xs select-none" style={{ color: isDark ? 'rgba(150,175,255,0.25)' : 'rgba(13,21,51,0.22)', fontFamily: "'Raleway', sans-serif" }}>other actions</span>
-                        <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
-                      </div>
+                        {/* Arc ring + progress stats */}
+                        <div className="flex items-center gap-5">
+                          <div style={{ color: arcColor }}>
+                            <ArcProgress
+                              total={selectedBook.num_chapters}
+                              read={selectedBook.chapters_read}
+                              size={88}
+                              strokeWidth={5}
+                              isDark={isDark}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1.5">
+                            <div>
+                              <span
+                                className="text-3xl font-bold tabular-nums"
+                                style={{ fontFamily: "'Cinzel', serif", color: arcColor, letterSpacing: '-0.01em' }}
+                              >
+                                {pct}%
+                              </span>
+                            </div>
+                            <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                              {selectedBook.chapters_read} of {selectedBook.num_chapters} chapters
+                            </p>
+                            {isComplete && (
+                              <span
+                                className="text-xs px-2 py-0.5 rounded-full w-fit"
+                                style={{ background: `${cat.glow}`, color: cat.color, fontFamily: "'Raleway', sans-serif", border: `1px solid ${cat.color.replace(',1)', ',0.3)')}` }}
+                              >
+                                Complete
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-                      {selectedBook.chapters_read > 0 && (
-                        <div className="flex gap-2">
-                          {[
-                            { label: 'Undo', onClick: handleUndo, disabled: !isOnline, confirm: false },
-                            { label: resetConfirm ? 'Confirm reset?' : 'Reset', onClick: handleReset, disabled: false, confirm: resetConfirm },
-                          ].map(({ label, onClick, disabled, confirm }) => (
+                        {/* Segmented progress bar (chapter-level detail) */}
+                        {!isComplete && (
+                          <div>
+                            <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} />
+                          </div>
+                        )}
+
+                        {/* Divider */}
+                        <div style={{ height: 1, background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.07)' }} />
+
+                        {/* Actions */}
+                        {selectedBook.chapters_read >= selectedBook.num_chapters ? (
+                          <div className="flex flex-col gap-3">
+                            <p className="text-sm font-semibold text-center" style={{ color: cat.color, fontFamily: "'Raleway', sans-serif" }}>
+                              All {selectedBook.num_chapters} chapters read ✓
+                            </p>
                             <button
-                              key={label}
-                              onClick={onClick}
-                              disabled={disabled}
-                              className="flex-1 py-2 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              onClick={handleReset}
+                              className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors"
+                              style={resetConfirm
+                                ? { background: 'rgba(220,60,60,0.18)', border: '1px solid rgba(220,60,60,0.35)', color: 'rgba(240,100,100,0.9)', fontFamily: "'Raleway', sans-serif" }
+                                : { background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(13,21,51,0.12)', color: dimText, fontFamily: "'Raleway', sans-serif" }
+                              }
+                            >
+                              {resetConfirm ? 'Confirm reset?' : 'Reset progress'}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-3">
+                            <div>
+                              <label className="text-sm font-medium block mb-1.5" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>
+                                Chapters read
+                              </label>
+                              <input
+                                ref={chaptersInputRef}
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="e.g. 1-5, 7, 10-12"
+                                value={chaptersInput}
+                                onChange={e => setChaptersInput(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
+                                className="w-full px-3 py-2"
+                                style={{
+                                  ...inputStyle,
+                                  borderColor: inputIsInvalid ? 'rgba(220,80,80,0.4)' : undefined,
+                                }}
+                                onFocus={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.6)' : (isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)'))}
+                                onBlur={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.4)' : (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)'))}
+                              />
+                              <p className="text-xs mt-1 min-h-[1rem]" style={{ color: inputIsInvalid ? 'rgba(240,100,100,0.75)' : dimText, fontFamily: "'Raleway', sans-serif" }}>
+                                {inputIsInvalid
+                                  ? 'Invalid format — try "1-5" or "3, 7, 12"'
+                                  : parsedChapters.length > 0
+                                    ? `Will log: ${parsedChapters.length} chapter${parsedChapters.length !== 1 ? 's' : ''} (${parsedChapters.slice(0, 8).join(', ')}${parsedChapters.length > 8 ? '…' : ''})`
+                                    : ''}
+                              </p>
+                            </div>
+                            <button
+                              onClick={handleSubmit}
+                              disabled={parsedChapters.length === 0}
+                              className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               style={{
-                                background: confirm ? 'rgba(220,60,60,0.18)' : 'transparent',
-                                border: confirm ? '1px solid rgba(220,60,60,0.35)' : isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)',
-                                color: confirm ? 'rgba(240,100,100,0.9)' : dimText,
+                                background: parsedChapters.length > 0
+                                  ? (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.1)')
+                                  : 'transparent',
+                                border: isDark ? '1px solid rgba(150,175,255,0.24)' : '1px solid rgba(13,21,51,0.16)',
+                                color: primaryText,
                                 fontFamily: "'Raleway', sans-serif",
+                                letterSpacing: '0.06em',
                               }}
                             >
-                              {label}
+                              Submit
                             </button>
-                          ))}
-                        </div>
-                      )}
 
-                      {confirmMarkAll ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleMarkAllRead}
-                            className="flex-1 py-2 rounded-xl font-semibold text-sm transition-colors"
-                            style={{ background: 'rgba(60,200,140,0.2)', border: '1px solid rgba(60,200,140,0.3)', color: 'rgba(80,200,140,0.9)', fontFamily: "'Raleway', sans-serif" }}
-                          >
-                            Confirm — all {selectedBook.num_chapters} chapters
-                          </button>
-                          <button
-                            onClick={() => setConfirmMarkAll(false)}
-                            className="px-3.5 py-2 rounded-xl text-sm transition-colors"
-                            style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setConfirmMarkAll(true)}
-                          className="w-full py-2 rounded-xl text-sm transition-colors"
-                          style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
-                        >
-                          Mark all as read
-                        </button>
-                      )}
-                    </div>
-                  )}
+                            <div className="flex items-center gap-2 pt-1">
+                              <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
+                              <span className="text-xs select-none" style={{ color: isDark ? 'rgba(150,175,255,0.25)' : 'rgba(13,21,51,0.22)', fontFamily: "'Raleway', sans-serif" }}>other actions</span>
+                              <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
+                            </div>
+
+                            {selectedBook.chapters_read > 0 && (
+                              <div className="flex gap-2">
+                                {[
+                                  { label: 'Undo', onClick: handleUndo, disabled: !isOnline, confirm: false },
+                                  { label: resetConfirm ? 'Confirm reset?' : 'Reset', onClick: handleReset, disabled: false, confirm: resetConfirm },
+                                ].map(({ label, onClick, disabled, confirm }) => (
+                                  <button
+                                    key={label}
+                                    onClick={onClick}
+                                    disabled={disabled}
+                                    className="flex-1 py-2 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                                    style={{
+                                      background: confirm ? 'rgba(220,60,60,0.18)' : 'transparent',
+                                      border: confirm ? '1px solid rgba(220,60,60,0.35)' : isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)',
+                                      color: confirm ? 'rgba(240,100,100,0.9)' : dimText,
+                                      fontFamily: "'Raleway', sans-serif",
+                                    }}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+
+                            {confirmMarkAll ? (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleMarkAllRead}
+                                  className="flex-1 py-2 rounded-xl font-semibold text-sm transition-colors"
+                                  style={{ background: `${cat.glow}`, border: `1px solid ${cat.color.replace(',1)', ',0.3)')}`, color: cat.color, fontFamily: "'Raleway', sans-serif" }}
+                                >
+                                  Confirm — all {selectedBook.num_chapters} chapters
+                                </button>
+                                <button
+                                  onClick={() => setConfirmMarkAll(false)}
+                                  className="px-3.5 py-2 rounded-xl text-sm transition-colors"
+                                  style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmMarkAll(true)}
+                                className="w-full py-2 rounded-xl text-sm transition-colors"
+                                style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
+                              >
+                                Mark all as read
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full py-12 gap-3">
-                  <span style={{ color: dimText }}><BookOpenIcon size={40} /></span>
-                  <p className="text-sm text-center" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Select a book to view details</p>
-                  <p className="text-sm text-center" style={{ color: isDark ? 'rgba(170,195,255,0.55)' : 'rgba(13,21,51,0.45)', fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 15 }}>
-                    "Your word is a lamp to my feet" — Ps 119:105
-                  </p>
+                <div className="flex flex-col items-center justify-center h-full py-12 gap-4">
+                  <span style={{ color: isDark ? 'rgba(150,175,255,0.3)' : 'rgba(100,130,255,0.3)' }}>
+                    <BookOpenIcon size={48} />
+                  </span>
+                  <div className="text-center">
+                    <p className="text-sm mb-2" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                      Select a book to begin
+                    </p>
+                    <p
+                      style={{
+                        color: isDark ? 'rgba(170,195,255,0.45)' : 'rgba(13,21,51,0.4)',
+                        fontFamily: "'Cormorant Garamond', serif",
+                        fontStyle: 'italic',
+                        fontSize: 16,
+                        lineHeight: 1.5,
+                        maxWidth: '18rem',
+                      }}
+                    >
+                      "Your word is a lamp to my feet and a light to my path"
+                      <br />
+                      <span style={{ fontSize: 13, opacity: 0.7 }}>— Psalm 119:105</span>
+                    </p>
+                  </div>
                 </div>
               )}
             </div>

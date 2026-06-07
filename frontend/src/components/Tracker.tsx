@@ -463,13 +463,13 @@ export default function Tracker() {
                   >
                     {/* Left: category + book name */}
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                      <div className="flex items-center gap-1" style={{ color: cat.dim }}>
-                        <CategoryIcon category={book.category} size={11} />
-                        <p className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", letterSpacing: '0.02em', opacity: 0.9 }}>{book.category}</p>
+                      <div className="flex items-start gap-1" style={{ color: cat.dim }}>
+                        <span style={{ flexShrink: 0, marginTop: 1 }}><CategoryIcon category={book.category} size={9} /></span>
+                        <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: 8, opacity: 0.9, lineHeight: 1.3 }}>{book.category}</p>
                       </div>
                       <p
                         className="font-semibold leading-snug"
-                        style={{ fontFamily: "'Cinzel', serif", color: primaryText, fontSize: 10, letterSpacing: 0 }}
+                        style={{ fontFamily: "'Cinzel', serif", color: primaryText, fontSize: 11, letterSpacing: 0 }}
                       >
                         {book.name}
                       </p>

@@ -5,6 +5,7 @@ import { useTheme } from './lib/ThemeContext'
 import { api } from './lib/api'
 import { useCachedFetch } from './lib/useCachedFetch'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
+import BookCard from './components/BookCard'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
 import NavBar from './components/NavBar'
@@ -327,34 +328,14 @@ export default function Dashboard() {
           <div className="glass-card p-5" style={fadeUp(210)}>
             <span style={secLabel} className="block mb-3">Continue Reading</span>
             {continueBooks.length > 0 ? (
-              <div className="flex flex-col gap-2">
-                {continueBooks.map(book => {
-                  const pct = Math.round((book.chapters_read / book.num_chapters) * 100)
-                  return (
-                    <button
-                      key={book.name}
-                      onClick={() => navigate('/tracker', { state: { selectBook: book.name } })}
-                      className="w-full flex items-center gap-3 rounded-xl p-3 text-left transition-all group"
-                      style={{
-                        background: isDark ? 'rgba(150,175,255,0.06)' : 'rgba(100,130,255,0.06)',
-                        border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(100,130,255,0.12)',
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.12)' : 'rgba(13,21,51,0.08)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.06)' : 'rgba(100,130,255,0.06)')}
-                    >
-                      <div className="shrink-0" style={{ color: isDark ? 'rgba(170,195,255,0.65)' : 'rgba(13,21,51,0.45)' }}>
-                        <CategoryIcon category={book.category} size={18} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm truncate" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>{book.name}</p>
-                        <p className="text-xs mt-0.5" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-                          {book.chapters_read} / {book.num_chapters} ch · {pct}%
-                        </p>
-                      </div>
-                      <span className="transition-colors" style={{ color: dimText }}>→</span>
-                    </button>
-                  )
-                })}
+              <div className="grid grid-cols-3 gap-2">
+                {continueBooks.map(book => (
+                  <BookCard
+                    key={book.name}
+                    book={book}
+                    onClick={() => navigate('/tracker', { state: { selectBook: book.name } })}
+                  />
+                ))}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 gap-2">

@@ -9,80 +9,13 @@ import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import NavBar from './NavBar'
+import BookCard from './BookCard'
+import ArcProgress from './ArcProgress'
+import { getCategoryPalette } from '../lib/categoryColors'
 
 interface UserInfo {
   name: string | null
   picture_url: string | null
-}
-
-// Per-category color palette — maps each Bible category to a distinct celestial accent
-const CATEGORY_PALETTE: Record<string, { color: string; glow: string; dim: string }> = {
-  'Law':              { color: 'rgba(220,172,60,1)',   glow: 'rgba(220,172,60,0.22)', dim: 'rgba(220,172,60,0.7)' },
-  'History':          { color: 'rgba(205,115,55,1)',   glow: 'rgba(205,115,55,0.22)', dim: 'rgba(205,115,55,0.7)' },
-  'Poetry':           { color: 'rgba(55,190,175,1)',   glow: 'rgba(55,190,175,0.22)', dim: 'rgba(55,190,175,0.7)' },
-  'Major Prophets':   { color: 'rgba(165,80,240,1)',   glow: 'rgba(165,80,240,0.22)', dim: 'rgba(165,80,240,0.7)' },
-  'Minor Prophets':   { color: 'rgba(185,140,255,1)',  glow: 'rgba(185,140,255,0.22)', dim: 'rgba(185,140,255,0.7)' },
-  'Gospels':          { color: 'rgba(55,150,255,1)',   glow: 'rgba(55,150,255,0.22)', dim: 'rgba(55,150,255,0.7)' },
-  'Paul':             { color: 'rgba(220,110,155,1)',  glow: 'rgba(220,110,155,0.22)', dim: 'rgba(220,110,155,0.7)' },
-  'General Epistles': { color: 'rgba(230,130,100,1)',  glow: 'rgba(230,130,100,0.22)', dim: 'rgba(230,130,100,0.7)' },
-  'Church History':   { color: 'rgba(75,205,130,1)',   glow: 'rgba(75,205,130,0.22)', dim: 'rgba(75,205,130,0.7)' },
-}
-
-const DEFAULT_PALETTE = { color: 'rgba(150,175,255,1)', glow: 'rgba(150,175,255,0.22)', dim: 'rgba(150,175,255,0.7)' }
-
-function getCategoryPalette(category: string) {
-  return CATEGORY_PALETTE[category] ?? DEFAULT_PALETTE
-}
-
-// SVG arc progress ring — used in book cards and detail panel
-function ArcProgress({
-  total, read, size, strokeWidth, isDark,
-}: {
-  total: number; read: number; size: number; strokeWidth: number; isDark: boolean;
-}) {
-  const palette = getCategoryPalette('')  // unused here, color passed per-card
-  const pct = total > 0 ? read / total : 0
-  const r = (size - strokeWidth) / 2
-  const circ = 2 * Math.PI * r
-  const dash = pct * circ
-  const isComplete = read >= total
-  const isSmall = size < 52
-  return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-          stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.09)'}
-          strokeWidth={strokeWidth}
-        />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-          stroke="currentColor" strokeWidth={strokeWidth}
-          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-          style={{ transition: 'stroke-dasharray 0.6s ease' }}
-        />
-      </svg>
-      <div style={{
-        position: 'absolute', inset: 0,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        fontFamily: "'Raleway', sans-serif",
-        color: isDark ? 'rgba(220,230,255,0.85)' : 'rgba(13,21,51,0.75)',
-        textAlign: 'center', lineHeight: 1.1,
-        pointerEvents: 'none',
-      }}>
-        {isComplete ? (
-          <span style={{ fontSize: isSmall ? 13 : 22, fontWeight: 600 }}>✓</span>
-        ) : pct === 0 ? (
-          <span style={{ fontSize: isSmall ? 8 : 11, opacity: 0.4 }}>{total}</span>
-        ) : (
-          <>
-            <span style={{ fontSize: isSmall ? 9 : 14, fontWeight: 700 }}>{read}</span>
-            <span style={{ fontSize: isSmall ? 7 : 10, opacity: 0.5 }}>/{total}</span>
-          </>
-        )}
-      </div>
-    </div>
-  )
-  void palette
 }
 
 export default function Tracker() {
@@ -420,74 +353,18 @@ export default function Tracker() {
 
             {/* ── Card grid ── */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3">
-              {tabFilteredBooks.map((book) => {
-                const isComplete = book.chapters_read >= book.num_chapters;
-                const inProgress = book.chapters_read > 0 && !isComplete;
-                const isSelected = selectedBook?.name === book.name;
-                const cat = getCategoryPalette(book.category);
-
-                const cardBg = isDark
-                  ? `radial-gradient(ellipse at 90% 5%, ${cat.glow} 0%, transparent 62%), rgba(8,13,34,0.72)`
-                  : `radial-gradient(ellipse at 90% 5%, ${cat.glow} 0%, transparent 62%), rgba(245,248,255,0.82)`;
-
-                const cardBorder = isSelected
-                  ? `2px solid ${cat.color.replace(',1)', ',0.8)')}`
-                  : isComplete
-                    ? `1px solid ${cat.color.replace(',1)', ',0.35)')}`
-                    : inProgress
-                      ? `1px solid ${cat.color.replace(',1)', ',0.22)')}`
-                      : isDark
-                        ? '1px solid rgba(150,175,255,0.12)'
-                        : '1px solid rgba(100,130,255,0.15)';
-
-                const cardShadow = isSelected
-                  ? `0 0 0 1px ${cat.color.replace(',1)', ',0.18)')}, 0 8px 32px ${cat.glow}`
-                  : isComplete
-                    ? `0 4px 20px ${cat.color.replace(',1)', ',0.12)')}`
-                    : 'none';
-
-                return (
-                  <div
-                    key={book.name}
-                    data-book={book.name}
-                    onClick={() => { if (selectedBook?.name !== book.name) setChaptersInput(''); setOpenedFromNav(false); setSelectedBookName(book.name); }}
-                    className={`relative rounded-xl cursor-pointer flex items-center gap-2 transition-all duration-150${isComplete ? ' book-card-complete-shimmer' : ''}`}
-                    style={{
-                      background: cardBg,
-                      border: cardBorder,
-                      boxShadow: cardShadow,
-                      padding: '0.9rem 0.85rem',
-                    }}
-                    onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; }}
-                  >
-                    {/* Left: category + book name */}
-                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                      <div className="flex items-start gap-1" style={{ color: cat.dim }}>
-                        <span style={{ flexShrink: 0, marginTop: 1 }}><CategoryIcon category={book.category} size={9} /></span>
-                        <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: 8, opacity: 0.9, lineHeight: 1.3 }}>{book.category}</p>
-                      </div>
-                      <p
-                        className="font-semibold leading-snug"
-                        style={{ fontFamily: "'Cinzel', serif", color: primaryText, fontSize: 11, letterSpacing: 0 }}
-                      >
-                        {book.name}
-                      </p>
-                    </div>
-
-                    {/* Right: arc progress ring */}
-                    <div style={{ color: isComplete ? cat.color : inProgress ? cat.color : (isDark ? 'rgba(150,175,255,0.4)' : 'rgba(100,130,255,0.4)') }}>
-                      <ArcProgress
-                        total={book.num_chapters}
-                        read={book.chapters_read}
-                        size={40}
-                        strokeWidth={3}
-                        isDark={isDark}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+              {tabFilteredBooks.map((book) => (
+                <BookCard
+                  key={book.name}
+                  book={book}
+                  isSelected={selectedBook?.name === book.name}
+                  onClick={() => {
+                    if (selectedBook?.name !== book.name) setChaptersInput('')
+                    setOpenedFromNav(false)
+                    setSelectedBookName(book.name)
+                  }}
+                />
+              ))}
             </div>
           </div>
         )}

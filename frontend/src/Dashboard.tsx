@@ -328,11 +328,12 @@ export default function Dashboard() {
           <div className="glass-card p-5" style={fadeUp(210)}>
             <span style={secLabel} className="block mb-3">Continue Reading</span>
             {continueBooks.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col gap-2">
                 {continueBooks.map(book => (
                   <BookCard
                     key={book.name}
                     book={book}
+                    variant="row"
                     onClick={() => navigate('/tracker', { state: { selectBook: book.name } })}
                   />
                 ))}

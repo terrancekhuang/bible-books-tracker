@@ -57,11 +57,13 @@ export default function Tracker() {
     const state = location.state as { selectBook?: string } | null;
     if (!state?.selectBook || books.length === 0) return;
     const book = books.find(b => b.name === state.selectBook);
-    if (book) {
+    if (!book) return;
+    window.history.replaceState({}, '');
+    const t = setTimeout(() => {
       setSelectedBookName(book.name);
       setOpenedFromNav(true);
-      window.history.replaceState({}, '');
-    }
+    }, 0)
+    return () => clearTimeout(t)
   }, [books, location.state]);
 
   const handleSort = (key: SortKey) => {
@@ -86,6 +88,31 @@ export default function Tracker() {
 
   const parsedChapters = selectedBook ? parseChapters(chaptersInput, selectedBook.num_chapters) : [];
   const inputIsInvalid = chaptersInput.trim() !== '' && parsedChapters.length === 0;
+
+  const handleSubmit = async () => {
+    if (!selectedBook || parsedChapters.length === 0) return;
+    setChaptersInput('');
+    await submit(selectedBook, parsedChapters);
+  };
+
+  const handleMarkAllRead = async () => {
+    if (!selectedBook) return;
+    const allChapters = Array.from({ length: selectedBook.num_chapters }, (_, i) => i + 1);
+    setConfirmMarkAll(false);
+    await submit(selectedBook, allChapters);
+  };
+
+  const handleUndo = async () => {
+    if (!selectedBook || !isOnline) return;
+    await undo(selectedBook);
+  };
+
+  const handleReset = async () => {
+    if (!selectedBook) return;
+    if (!resetConfirm) { setResetConfirm(true); return; }
+    setResetConfirm(false);
+    await reset(selectedBook);
+  };
 
   useEffect(() => {
     if (!selectedBook || isMobile) return;
@@ -166,34 +193,13 @@ export default function Tracker() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBook, tabFilteredBooks, chaptersInput, resetConfirm, confirmMarkAll, isOnline]);
 
-  useEffect(() => { setConfirmMarkAll(false); setResetConfirm(false); }, [selectedBookName]);
-
-  const handleSubmit = async () => {
-    if (!selectedBook || parsedChapters.length === 0) return;
-    setChaptersInput('');
-    await submit(selectedBook, parsedChapters);
-  };
-
-  const handleMarkAllRead = async () => {
-    if (!selectedBook) return;
-    const allChapters = Array.from({ length: selectedBook.num_chapters }, (_, i) => i + 1);
-    setConfirmMarkAll(false);
-    await submit(selectedBook, allChapters);
-  };
-
-  const handleUndo = async () => {
-    if (!selectedBook || !isOnline) return;
-    await undo(selectedBook);
-  };
-
-  const handleReset = async () => {
-    if (!selectedBook) return;
-    if (!resetConfirm) { setResetConfirm(true); return; }
-    setResetConfirm(false);
-    await reset(selectedBook);
-  };
+  useEffect(() => {
+    const t = setTimeout(() => { setConfirmMarkAll(false); setResetConfirm(false); }, 0)
+    return () => clearTimeout(t)
+  }, [selectedBookName]);
 
   const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;

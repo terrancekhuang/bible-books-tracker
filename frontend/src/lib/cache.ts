@@ -10,7 +10,7 @@ function ttlFor(key: string): number {
 export function setCache(key: string, data: unknown): void {
   try {
     localStorage.setItem(`cache:${key}`, JSON.stringify({ data, cachedAt: Date.now() }))
-  } catch {}
+  } catch { /* ignore */ }
 }
 
 export function getCache<T>(key: string): T | null {
@@ -27,7 +27,7 @@ export function getCache<T>(key: string): T | null {
 
 export function invalidateCache(...keys: string[]): void {
   for (const k of keys) {
-    try { localStorage.removeItem(`cache:${k}`) } catch {}
+    try { localStorage.removeItem(`cache:${k}`) } catch { /* ignore */ }
   }
 }
 

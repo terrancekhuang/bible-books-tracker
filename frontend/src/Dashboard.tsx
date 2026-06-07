@@ -90,7 +90,7 @@ const fadeUp = (delay: number): CSSProperties => ({
 export default function Dashboard() {
   const { isDark, colors } = useTheme()
   const [displayPct, setDisplayPct] = useState(0)
-  const [weeklyGoal, setWeeklyGoal] = useState<number>(7)
+  const [localGoal, setLocalGoal] = useState<number | null>(null)
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
   const animFrameRef = useRef<number | null>(null)
@@ -110,9 +110,7 @@ export default function Dashboard() {
   const activity = dashboard?.activity ?? null
   const user = dashboard?.user ?? null
 
-  useEffect(() => {
-    if (dashboard?.weekly_goal) setWeeklyGoal(dashboard.weekly_goal)
-  }, [dashboard?.weekly_goal])
+  const weeklyGoal = localGoal ?? dashboard?.weekly_goal ?? 7
 
   const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
   const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
@@ -159,10 +157,10 @@ export default function Dashboard() {
     const n = parseInt(val, 10)
     if (!isNaN(n) && n > 0) {
       const prev = weeklyGoal
-      setWeeklyGoal(n)
+      setLocalGoal(n)
       api.settings.update(n)
-        .then(r => { if (!r.ok) setWeeklyGoal(prev) })
-        .catch(() => setWeeklyGoal(prev))
+        .then(r => { if (!r.ok) setLocalGoal(prev) })
+        .catch(() => setLocalGoal(prev))
     }
     setEditingGoal(false)
   }

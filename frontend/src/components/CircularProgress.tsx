@@ -1,20 +1,9 @@
-import { useEffect, useState } from 'react'
-
 export default function CircularProgress({ value, max, size = 128, pulseKey = 0, trackClassName, arcClassName }: { value: number; max: number; size?: number; pulseKey?: number; trackClassName?: string; arcClassName?: string }) {
   const strokeWidth = 10
   const r = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * r
   const pct = max > 0 ? Math.min(value / max, 1) : 0
   const dashOffset = circumference * (1 - pct)
-
-  const [isPulsing, setIsPulsing] = useState(false)
-
-  useEffect(() => {
-    if (pulseKey === 0) return
-    setIsPulsing(true)
-    const t = setTimeout(() => setIsPulsing(false), 900)
-    return () => clearTimeout(t)
-  }, [pulseKey])
 
   return (
     <svg
@@ -42,9 +31,10 @@ export default function CircularProgress({ value, max, size = 128, pulseKey = 0,
         stroke="currentColor"
         className={arcClassName ?? "text-indigo-500 transition-all duration-700 ease-out"}
       />
-      {/* Ripple on update */}
-      {isPulsing && (
+      {/* Ripple on update — key remounts the element to restart the CSS animation */}
+      {pulseKey > 0 && (
         <circle
+          key={pulseKey}
           cx={size / 2} cy={size / 2} r={r}
           fill="none"
           strokeWidth={strokeWidth}

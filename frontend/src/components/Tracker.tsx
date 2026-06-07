@@ -451,13 +451,11 @@ export default function Tracker() {
                     key={book.name}
                     data-book={book.name}
                     onClick={() => { if (selectedBook?.name !== book.name) setChaptersInput(''); setOpenedFromNav(false); setSelectedBookName(book.name); }}
-                    className={`relative rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-150${isComplete ? ' book-card-complete-shimmer' : ''}`}
+                    className={`relative rounded-xl cursor-pointer flex items-center gap-2 transition-all duration-150${isComplete ? ' book-card-complete-shimmer' : ''}`}
                     style={{
                       background: cardBg,
                       border: cardBorder,
                       boxShadow: cardShadow,
-                      backdropFilter: 'blur(14px)',
-                      WebkitBackdropFilter: 'blur(14px)',
                       padding: '0.9rem 0.85rem',
                     }}
                     onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
@@ -470,8 +468,8 @@ export default function Tracker() {
                         <p className="text-xs truncate" style={{ fontFamily: "'Raleway', sans-serif", letterSpacing: '0.02em', opacity: 0.9 }}>{book.category}</p>
                       </div>
                       <p
-                        className="text-sm font-semibold leading-snug"
-                        style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.02em' }}
+                        className="text-xs font-semibold leading-snug line-clamp-2"
+                        style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.01em' }}
                       >
                         {book.name}
                       </p>
@@ -482,7 +480,7 @@ export default function Tracker() {
                       <ArcProgress
                         total={book.num_chapters}
                         read={book.chapters_read}
-                        size={44}
+                        size={40}
                         strokeWidth={3}
                         isDark={isDark}
                       />

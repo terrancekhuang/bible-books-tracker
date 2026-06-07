@@ -1,39 +1,20 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { detectPlatform } from '../lib/pwa'
 
 interface PWAInstallModalProps {
   onDismiss: () => void
 }
 
-type Platform = 'ios' | 'android'
-
-function detectPlatform(): Platform | null {
-  const ua = navigator.userAgent
-  if (/iPhone|iPad|iPod/.test(ua)) return 'ios'
-  if (/Android/.test(ua)) return 'android'
-  return null
-}
-
-function isStandalone(): boolean {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  )
-}
-
-export function shouldShowPWAPrompt(): boolean {
-  if (isStandalone()) return false
-  if (detectPlatform() === null) return false
-  return localStorage.getItem('pwa_install_seen') !== 'true'
-}
-
 export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
   const platform = detectPlatform()
   const deferredPromptRef = useRef<Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> } | null>(null)
+  const [hasInstallPrompt, setHasInstallPrompt] = useState(false)
 
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault()
       deferredPromptRef.current = e as Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> }
+      setHasInstallPrompt(true)
     }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
@@ -163,7 +144,7 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
         </div>
 
         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.25rem' }}>
-          {platform === 'android' && deferredPromptRef.current && (
+          {platform === 'android' && hasInstallPrompt && (
             <button
               onClick={handleInstall}
               style={{
@@ -186,7 +167,7 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
           <button
             onClick={dismiss}
             style={{
-              flex: platform === 'android' && deferredPromptRef.current ? '0 0 auto' : 1,
+              flex: platform === 'android' && hasInstallPrompt ? '0 0 auto' : 1,
               padding: '0.7rem 1.2rem',
               borderRadius: 10,
               border: '1px solid rgba(150,175,255,0.1)',

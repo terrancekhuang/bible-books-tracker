@@ -6,7 +6,8 @@ import Login from './Login'
 import Profile from './Profile'
 import Tracker from './components/Tracker'
 import Dashboard from './Dashboard'
-import PWAInstallModal, { shouldShowPWAPrompt } from './components/PWAInstallModal'
+import PWAInstallModal from './components/PWAInstallModal'
+import { shouldShowPWAPrompt } from './lib/pwa'
 import CelestialBackground from './components/CelestialBackground'
 
 export default function App() {
@@ -42,8 +43,11 @@ export default function App() {
   // Show PWA prompt on first login (not on page refresh)
   const prevJwtRef = useRef<string | null>(jwt)
   useEffect(() => {
-    if (jwt && !prevJwtRef.current && shouldShowPWAPrompt()) setShowPwaPrompt(true)
+    const prev = prevJwtRef.current
     prevJwtRef.current = jwt
+    if (!jwt || prev || !shouldShowPWAPrompt()) return
+    const t = setTimeout(() => setShowPwaPrompt(true), 0)
+    return () => clearTimeout(t)
   }, [jwt])
 
   useEffect(() => {

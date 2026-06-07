@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { MoonIcon, SunIcon, HomeIcon, BookOpenIcon } from './Icons'
 import { useTheme } from '../lib/ThemeContext'
 import UserMenu from './UserMenu'
+import SyncIndicator from './SyncIndicator'
 
 interface NavBarProps {
   pictureUrl?: string | null
@@ -68,6 +69,7 @@ export default function NavBar({ pictureUrl, userName }: NavBarProps) {
           </nav>
 
           <div className="flex items-center gap-3 ml-auto md:ml-0 md:justify-self-end leading-[0]">
+            <SyncIndicator secondaryText={secondaryText} />
             <button
               onClick={toggle}
               className="p-1.5 rounded-lg transition-colors"

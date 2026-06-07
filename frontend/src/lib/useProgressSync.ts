@@ -5,6 +5,10 @@ import { enqueueWrite, flushQueue, getPendingCount } from './offlineQueue'
 import { getCache, setCache, invalidateProgress } from './cache'
 import type { Book, Stats } from './trackerLogic'
 
+function dispatchPendingCount(n: number) {
+  window.dispatchEvent(new CustomEvent('pending-count-changed', { detail: n }))
+}
+
 export interface SyncOps {
   books: Book[]
   stats: Stats | null
@@ -57,7 +61,7 @@ export function useProgressSync(logout: () => void): SyncOps {
 
   // Initial load: check pending count, flush queue, fetch books
   useEffect(() => {
-    getPendingCount().then(setPendingCount)
+    getPendingCount().then(n => { setPendingCount(n); dispatchPendingCount(n) })
     const load = async () => {
       if (navigator.onLine) await flushQueue(logoutRef.current)
       await refreshBooks()
@@ -77,14 +81,18 @@ export function useProgressSync(logout: () => void): SyncOps {
       await flushQueue(logoutRef.current)
       const n = await getPendingCount()
       setPendingCount(n)
+      dispatchPendingCount(n)
       if (n === 0) await refreshBooks()
     }
     const handleOffline = () => setIsOnline(false)
+    const handleBooksInvalidated = () => refreshBooks()
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
+    window.addEventListener('books-invalidated', handleBooksInvalidated)
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('books-invalidated', handleBooksInvalidated)
     }
   }, [refreshBooks])
 
@@ -119,7 +127,9 @@ export function useProgressSync(logout: () => void): SyncOps {
       if (!navigator.onLine || e instanceof TypeError) {
         try {
           await enqueueWrite('/api/progress', 'POST', authHeaders() as Record<string, string>, JSON.stringify({ book_name: book.name, chapters }))
-          setPendingCount(c => c + 1)
+          const n = await getPendingCount()
+          setPendingCount(n)
+          dispatchPendingCount(n)
         } catch {
           console.error('Failed to queue write; change will be lost if page is closed')
         }

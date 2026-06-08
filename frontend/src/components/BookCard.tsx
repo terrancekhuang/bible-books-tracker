@@ -58,7 +58,7 @@ export default function BookCard({ book, isSelected = false, onClick, variant = 
     <div
       data-book={book.name}
       onClick={onClick}
-      className={`relative rounded-xl cursor-pointer flex items-center transition-all duration-150${isComplete ? ' book-card-complete-shimmer' : ''}`}
+      className="relative rounded-xl cursor-pointer flex items-center transition-all duration-150"
       style={{
         background: cardBg,
         border: cardBorder,

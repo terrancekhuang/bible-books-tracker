@@ -21,3 +21,9 @@ variable "admin_ssh_key" {
   type        = string
   default     = ""
 }
+
+variable "env_file" {
+  description = "Path to the production .env file — uploaded to /srv/apps/bible-books-tracker/.env on the server"
+  type        = string
+  default     = "../.env.production"
+}

@@ -1,6 +1,10 @@
 # Environment variables
 .env
+.env.production
 backend/.env
+
+# Database backups
+db_backup.sql
 
 # Logs
 logs

@@ -11,9 +11,9 @@ variable "location" {
 }
 
 variable "server_type" {
-  description = "Hetzner server type. EU: cx22 (x86), cax11 (ARM). US (ash/hil): cpx11 = 2 vCPU / 2 GB (x86), cax11 = 2 vCPU / 4 GB (ARM, recommended)."
+  description = "Hetzner server type. EU: cx22/cpx22 (x86), cax11 (ARM). US (ash/hil): cpx11 = 2 vCPU / 2 GB (x86)."
   type        = string
-  default     = "cpx22"
+  default     = "cpx11"
 }
 
 variable "admin_ssh_key" {

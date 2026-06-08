@@ -75,28 +75,25 @@ export default function BookCard({ book, isSelected = false, onClick, variant = 
           <span style={{ flexShrink: 0, marginTop: variant === 'row' ? 2 : 1 }}>
             <CategoryIcon category={book.category} size={variant === 'row' ? 11 : 9} />
           </span>
-          <p style={{
-            fontFamily: "'Raleway', sans-serif",
-            fontSize: variant === 'row' ? 10 : 8,
-            opacity: 0.9,
-            lineHeight: 1.3,
-          }}>
+          <p
+            className={variant === 'grid' ? 'text-[8px] sm:text-[10px]' : 'text-[10px] sm:text-[11px]'}
+            style={{ fontFamily: "'Raleway', sans-serif", opacity: 0.9, lineHeight: 1.3 }}
+          >
             {book.category}
           </p>
         </div>
         <p
-          className="font-semibold leading-snug"
+          className={`font-semibold leading-snug ${variant === 'grid' ? 'text-[11px] sm:text-[13px]' : 'text-[15px] sm:text-[17px]'}`}
           style={{
             fontFamily: "'Cinzel', serif",
             color: primaryText,
-            fontSize: variant === 'row' ? 15 : 11,
             letterSpacing: variant === 'row' ? '0.02em' : 0,
           }}
         >
           {book.name}
         </p>
         {variant === 'row' && (
-          <p style={{ fontFamily: "'Raleway', sans-serif", fontSize: 11, color: dimText, marginTop: 2 }}>
+          <p className="text-[11px] sm:text-xs" style={{ fontFamily: "'Raleway', sans-serif", color: dimText, marginTop: 2 }}>
             {book.chapters_read} of {book.num_chapters} chapters · {pct}%
           </p>
         )}

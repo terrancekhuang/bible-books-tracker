@@ -23,7 +23,6 @@ resource "hcloud_server" "app" {
   image        = "ubuntu-22.04"
   location     = var.location
   firewall_ids = [hcloud_firewall.app.id]
-  user_data    = file("${path.module}/cloud-init.yaml")
 
   ssh_keys = var.admin_ssh_key != "" ? [
     hcloud_ssh_key.deploy.id,
@@ -34,5 +33,31 @@ resource "hcloud_server" "app" {
     ipv4_enabled = true
     ipv4         = hcloud_primary_ip.main.id
     ipv6_enabled = true
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "root"
+    private_key = tls_private_key.deploy.private_key_openssh
+    host        = hcloud_primary_ip.main.ip_address
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "apt-get update -q && apt-get install -y -q curl git ufw nginx",
+      "curl -fsSL https://get.docker.com | sh",
+      "systemctl enable --now docker",
+      "ufw default deny incoming",
+      "ufw default allow outgoing",
+      "ufw allow OpenSSH",
+      "ufw allow 'Nginx Full'",
+      "ufw --force enable",
+      "mkdir -p /srv/apps/bible-books-tracker",
+    ]
+  }
+
+  provisioner "file" {
+    source      = var.env_file
+    destination = "/srv/apps/bible-books-tracker/.env"
   }
 }

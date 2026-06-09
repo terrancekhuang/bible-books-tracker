@@ -1,23 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useAuth } from './AuthContext'
 import { authHeaders } from './auth'
 import { api } from './api'
-import { enqueueWrite, flushQueue, getPendingCount } from './offlineQueue'
+import { useSyncContext } from './SyncContext'
 import { getCache, setCache, invalidateProgress } from './cache'
 import type { Book, Stats } from './trackerLogic'
-
-function dispatchPendingCount(n: number) {
-  window.dispatchEvent(new CustomEvent('pending-count-changed', { detail: n }))
-}
-
-export interface SyncOps {
-  books: Book[]
-  stats: Stats | null
-  pendingCount: number
-  isOnline: boolean
-  submit: (book: Book, chapters: number[]) => Promise<void>
-  undo: (book: Book) => Promise<void>
-  reset: (book: Book) => Promise<void>
-}
 
 function normalizeBook(item: Book): Book {
   return {
@@ -32,13 +19,23 @@ function normalizeBook(item: Book): Book {
   }
 }
 
-export function useProgressSync(logout: () => void): SyncOps {
+export interface SyncOps {
+  books: Book[]
+  stats: Stats | null
+  pendingCount: number
+  isOnline: boolean
+  submit: (book: Book, chapters: number[]) => Promise<void>
+  undo: (book: Book) => Promise<void>
+  reset: (book: Book) => Promise<void>
+}
+
+export function useProgressSync(): SyncOps {
+  const { logout } = useAuth()
+  const { isOnline, pendingCount, enqueue } = useSyncContext()
+
   const [books, setBooks] = useState<Book[]>(() => getCache<Book[]>('books') ?? [])
   const [stats, setStats] = useState<Stats | null>(() => getCache<Stats>('stats'))
-  const [pendingCount, setPendingCount] = useState(0)
-  const [isOnline, setIsOnline] = useState(() => navigator.onLine)
 
-  // Stable ref so effects/callbacks don't re-run when logout identity changes
   const logoutRef = useRef(logout)
   logoutRef.current = logout
 
@@ -59,14 +56,9 @@ export function useProgressSync(logout: () => void): SyncOps {
     setCache('books', data)
   }, [])
 
-  // Initial load: check pending count, flush queue, fetch books
+  // Initial load
   useEffect(() => {
-    getPendingCount().then(n => { setPendingCount(n); dispatchPendingCount(n) })
-    const load = async () => {
-      if (navigator.onLine) await flushQueue(logoutRef.current)
-      await refreshBooks()
-    }
-    load()
+    refreshBooks()
   }, [refreshBooks])
 
   // Initial stats load
@@ -74,26 +66,11 @@ export function useProgressSync(logout: () => void): SyncOps {
     refreshStats()
   }, [refreshStats])
 
-  // Online / offline listeners
+  // Re-fetch books after SyncContext flushes pending writes
   useEffect(() => {
-    const handleOnline = async () => {
-      setIsOnline(true)
-      await flushQueue(logoutRef.current)
-      const n = await getPendingCount()
-      setPendingCount(n)
-      dispatchPendingCount(n)
-      if (n === 0) await refreshBooks()
-    }
-    const handleOffline = () => setIsOnline(false)
-    const handleBooksInvalidated = () => refreshBooks()
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    window.addEventListener('books-invalidated', handleBooksInvalidated)
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-      window.removeEventListener('books-invalidated', handleBooksInvalidated)
-    }
+    const handle = () => refreshBooks()
+    window.addEventListener('books-invalidated', handle)
+    return () => window.removeEventListener('books-invalidated', handle)
   }, [refreshBooks])
 
   const submit = useCallback(async (book: Book, chapters: number[]) => {
@@ -126,20 +103,16 @@ export function useProgressSync(logout: () => void): SyncOps {
     } catch (e) {
       if (!navigator.onLine || e instanceof TypeError) {
         try {
-          await enqueueWrite('/api/progress', 'POST', authHeaders() as Record<string, string>, JSON.stringify({ book_name: book.name, chapters }))
-          const n = await getPendingCount()
-          setPendingCount(n)
-          dispatchPendingCount(n)
+          await enqueue('/api/progress', 'POST', authHeaders() as Record<string, string>, JSON.stringify({ book_name: book.name, chapters }))
         } catch {
           console.error('Failed to queue write; change will be lost if page is closed')
         }
       } else {
-        // Rollback optimistic update
         setBooks(prev => prev.map(b => b.name === book.name ? book : b))
         console.error('Error updating progress:', e)
       }
     }
-  }, [refreshStats])
+  }, [refreshStats, enqueue])
 
   const undo = useCallback(async (book: Book) => {
     try {

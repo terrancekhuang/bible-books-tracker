@@ -1,0 +1,78 @@
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
+import { useAuth } from './AuthContext'
+import { enqueueWrite, flushQueue, getPendingCount } from './offlineQueue'
+import { invalidateCycle } from './cache'
+
+interface SyncContextValue {
+  isOnline: boolean
+  pendingCount: number
+  enqueue: (url: string, method: string, headers: Record<string, string>, body: string) => Promise<void>
+  syncNow: () => Promise<void>
+}
+
+const SyncContext = createContext<SyncContextValue | null>(null)
+
+export function SyncProvider({ children }: { children: ReactNode }) {
+  const { logout } = useAuth()
+  const logoutRef = useRef(logout)
+  logoutRef.current = logout
+
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine)
+  const [pendingCount, setPendingCount] = useState(0)
+
+  const doFlush = useCallback(async (): Promise<void> => {
+    await flushQueue(logoutRef.current)
+    const n = await getPendingCount()
+    setPendingCount(n)
+    if (n === 0) {
+      invalidateCycle()
+      window.dispatchEvent(new CustomEvent('books-invalidated'))
+    }
+  }, [])
+
+  // On mount: read queue depth; flush immediately if online and non-empty
+  useEffect(() => {
+    getPendingCount().then(n => {
+      setPendingCount(n)
+      if (navigator.onLine && n > 0) doFlush()
+    })
+  }, [doFlush])
+
+  // Reconnect / disconnect
+  useEffect(() => {
+    const handleOnline = () => { setIsOnline(true); doFlush() }
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [doFlush])
+
+  const enqueue = useCallback(async (
+    url: string, method: string, headers: Record<string, string>, body: string,
+  ): Promise<void> => {
+    await enqueueWrite(url, method, headers, body)
+    const n = await getPendingCount()
+    setPendingCount(n)
+  }, [])
+
+  const syncNow = useCallback(async (): Promise<void> => {
+    if (isOnline) await doFlush()
+  }, [isOnline, doFlush])
+
+  return (
+    <SyncContext.Provider value={{ isOnline, pendingCount, enqueue, syncNow }}>
+      {children}
+    </SyncContext.Provider>
+  )
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useSyncContext(): SyncContextValue {
+  const ctx = useContext(SyncContext)
+  if (!ctx) throw new Error('useSyncContext must be used inside SyncProvider')
+  return ctx
+}

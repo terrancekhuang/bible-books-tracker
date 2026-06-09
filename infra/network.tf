@@ -1,5 +1,5 @@
 resource "hcloud_firewall" "app" {
-  name = "bible-tracker-fw"
+  name = "bible-books-tracker-fw"
 
   rule {
     direction  = "in"

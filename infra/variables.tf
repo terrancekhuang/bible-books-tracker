@@ -27,3 +27,14 @@ variable "env_file" {
   type        = string
   default     = "../.env.production"
 }
+
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token — create one at dash.cloudflare.com → My Profile → API Tokens with 'Cloudflare R2 Storage: Edit' permission"
+  type        = string
+  sensitive   = true
+}
+
+variable "cloudflare_account_id" {
+  description = "Cloudflare account ID — found at dash.cloudflare.com → right sidebar on any domain, or Workers & Pages overview"
+  type        = string
+}

@@ -42,6 +42,18 @@ resource "hcloud_server" "app" {
     host        = hcloud_primary_ip.main.ip_address
   }
 
+  # 1. Create app dir so the file provisioner below has a destination
+  provisioner "remote-exec" {
+    inline = ["mkdir -p /srv/apps/bible-books-tracker"]
+  }
+
+  # 2. Upload .env so backup setup can read credentials
+  provisioner "file" {
+    source      = var.env_file
+    destination = "/srv/apps/bible-books-tracker/.env"
+  }
+
+  # 3. Install packages, configure system, set up backup infrastructure
   provisioner "remote-exec" {
     inline = [
       "apt-get update -q && apt-get install -y -q curl git ufw nginx certbot python3-certbot-nginx",
@@ -52,12 +64,14 @@ resource "hcloud_server" "app" {
       "ufw allow OpenSSH",
       "ufw allow 'Nginx Full'",
       "ufw --force enable",
-      "mkdir -p /srv/apps/bible-books-tracker",
+      # Install rclone
+      "curl -fsSL https://rclone.org/install.sh | bash",
+      # Create backup dirs and log
+      "mkdir -p /srv/backups/bible-books-tracker && touch /var/log/bible-tracker-backup.log",
+      # Write rclone config from .env credentials
+      "python3 -c \"import os,re; env=dict(re.findall(r'^(BACKUP_S3_\\w+)=(.+)', open('/srv/apps/bible-books-tracker/.env').read(), re.M)); os.makedirs('/root/.config/rclone', exist_ok=True); open('/root/.config/rclone/rclone.conf','w').write('[remote]\\ntype = s3\\nprovider = Cloudflare\\naccess_key_id = {a}\\nsecret_access_key = {s}\\nendpoint = {e}\\nno_check_bucket = true\\n'.format(a=env.get('BACKUP_S3_ACCESS_KEY',''),s=env.get('BACKUP_S3_SECRET_KEY',''),e=env.get('BACKUP_S3_ENDPOINT',''))); os.chmod('/root/.config/rclone/rclone.conf',0o600)\"",
+      # Add daily 2 AM cron job
+      "(crontab -l 2>/dev/null || true; echo '0 2 * * * /srv/apps/bible-books-tracker/scripts/backup.sh >> /var/log/bible-tracker-backup.log 2>&1') | crontab -",
     ]
-  }
-
-  provisioner "file" {
-    source      = var.env_file
-    destination = "/srv/apps/bible-books-tracker/.env"
   }
 }

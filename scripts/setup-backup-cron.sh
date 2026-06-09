@@ -56,6 +56,7 @@ provider = Cloudflare
 access_key_id = ${BACKUP_S3_ACCESS_KEY}
 secret_access_key = ${BACKUP_S3_SECRET_KEY}
 endpoint = ${BACKUP_S3_ENDPOINT}
+no_check_bucket = true
 EOF
 chmod 600 "${RCLONE_CONFIG}"
 echo "Wrote rclone config → ${RCLONE_CONFIG}"

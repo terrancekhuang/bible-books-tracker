@@ -44,7 +44,7 @@ resource "hcloud_server" "app" {
 
   provisioner "remote-exec" {
     inline = [
-      "apt-get update -q && apt-get install -y -q curl git ufw nginx",
+      "apt-get update -q && apt-get install -y -q curl git ufw nginx certbot python3-certbot-nginx",
       "curl -fsSL https://get.docker.com | sh",
       "systemctl enable --now docker",
       "ufw default deny incoming",

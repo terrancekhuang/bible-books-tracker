@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../lib/AuthContext'
 import { useTheme } from '../lib/ThemeContext'
 import { useCachedFetch } from '../lib/useCachedFetch'
 import { useProgressSync } from '../lib/useProgressSync'
@@ -19,11 +18,10 @@ interface UserInfo {
 }
 
 export default function Tracker() {
-  const { logout } = useAuth()
   const { isDark, colors } = useTheme()
   const { data: user } = useCachedFetch<UserInfo>('user', '/auth/me');
 
-  const { books, stats, pendingCount, isOnline, submit, undo, reset } = useProgressSync(logout)
+  const { books, stats, pendingCount, isOnline, submit, undo, reset } = useProgressSync()
 
   const [selectedBookName, setSelectedBookName] = useState<string | null>(null)
   const selectedBook = books.find(b => b.name === selectedBookName) ?? null

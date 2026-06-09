@@ -99,7 +99,7 @@ export default function Dashboard() {
 
   const tzOffset = useMemo(() => -new Date().getTimezoneOffset(), [])
 
-  const { data: rawBooks } = useCachedFetch<Book[]>('books', '/api/books', { flushOfflineQueue: true, refetchOnOnline: true })
+  const { data: rawBooks } = useCachedFetch<Book[]>('books', '/api/books', { refetchOnOnline: true })
   const { data: dashboard } = useCachedFetch<DashboardData>('dashboard', `/api/dashboard?tz_offset=${tzOffset}`, { refetchOnOnline: true })
 
   const books = useMemo(

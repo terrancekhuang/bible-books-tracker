@@ -1,18 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import { authHeaders } from './auth'
 import { useAuth } from './AuthContext'
-import { flushQueue } from './offlineQueue'
 import { getCache, setCache } from './cache'
 
 interface Options {
-  flushOfflineQueue?: boolean
   refetchOnOnline?: boolean
 }
 
 export function useCachedFetch<T>(
   cacheKey: string,
   url: string,
-  { flushOfflineQueue = false, refetchOnOnline = false }: Options = {}
+  { refetchOnOnline = false }: Options = {}
 ): { data: T | null; loading: boolean; error: boolean; refetch: () => Promise<void> } {
   const { logout } = useAuth()
 
@@ -23,7 +21,6 @@ export function useCachedFetch<T>(
 
   const run = useCallback(async () => {
     try {
-      if (flushOfflineQueue && navigator.onLine) await flushQueue(logout)
       const res = await fetch(url, { headers: authHeaders() })
       if (res.status === 401) { logout(); return }
       if (!res.ok) { setError(true); return }
@@ -36,13 +33,17 @@ export function useCachedFetch<T>(
     } finally {
       setLoading(false)
     }
-  }, [cacheKey, url, logout, flushOfflineQueue])
+  }, [cacheKey, url, logout])
 
   useEffect(() => {
     run()
     if (refetchOnOnline) {
       window.addEventListener('online', run)
-      return () => window.removeEventListener('online', run)
+      window.addEventListener('books-invalidated', run)
+      return () => {
+        window.removeEventListener('online', run)
+        window.removeEventListener('books-invalidated', run)
+      }
     }
   }, [run, refetchOnOnline])
 

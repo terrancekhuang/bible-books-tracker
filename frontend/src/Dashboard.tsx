@@ -4,31 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import { useTheme } from './lib/ThemeContext'
 import { api } from './lib/api'
 import { useCachedFetch } from './lib/useCachedFetch'
+import { useBooksContext } from './lib/BooksContext'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
 import BookCard from './components/BookCard'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
 import NavBar from './components/NavBar'
-
-interface Book {
-  book_id: number
-  name: string
-  testament: string
-  category: string
-  num_chapters: number
-  chapters_read: number
-  chapters_read_list: number[]
-  last_read_at: string | null
-}
-
-interface Stats {
-  chapters_today: number
-  chapters_this_week: number
-  current_streak: number
-  best_streak: number
-  total_chapters: number
-  total_days: number
-}
+import type { Stats } from './lib/trackerLogic'
 
 interface UserInfo {
   name: string | null
@@ -99,13 +81,8 @@ export default function Dashboard() {
 
   const tzOffset = useMemo(() => -new Date().getTimezoneOffset(), [])
 
-  const { data: rawBooks } = useCachedFetch<Book[]>('books', '/api/books', { refetchOnOnline: true })
+  const { books } = useBooksContext()
   const { data: dashboard } = useCachedFetch<DashboardData>('dashboard', `/api/dashboard?tz_offset=${tzOffset}`, { refetchOnOnline: true })
-
-  const books = useMemo(
-    () => rawBooks?.map(b => ({ ...b, chapters_read_list: b.chapters_read_list ?? [], last_read_at: b.last_read_at ?? null })) ?? [],
-    [rawBooks]
-  )
 
   const stats = dashboard?.stats ?? null
   const activity = dashboard?.activity ?? null

@@ -54,6 +54,31 @@ def get_book_by_name(name: str) -> dict | None:
     return _book_cache.get(name)
 
 
+def get_active_cycle_id(cur, user_id: int) -> int | None:
+    cur.execute(
+        "SELECT cycle_id FROM reading_cycles WHERE user_id = %s ORDER BY cycle_number DESC LIMIT 1",
+        (user_id,))
+    row = cur.fetchone()
+    return row['cycle_id'] if row else None
+
+
+def get_book_chapters(cur, user_id: int, cycle_id: int, book_id: int) -> dict:
+    cur.execute("""
+        SELECT COUNT(*) AS chapters_read,
+            COALESCE(
+                ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
+                ARRAY[]::INTEGER[]
+            ) AS list
+        FROM chapter_progress
+        WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+    """, (user_id, cycle_id, book_id))
+    result = cur.fetchone()
+    return {
+        'chapters_read': result['chapters_read'],
+        'chapters_read_list': list(result['list'] or []),
+    }
+
+
 def initialize_database():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -146,13 +171,9 @@ def auth_me():
 def get_books():
     user_id = int(get_jwt_identity())
     conn = get_db_connection()
-    cur = conn.cursor()
+    cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute(
-            "SELECT cycle_id FROM reading_cycles WHERE user_id = %s ORDER BY cycle_number DESC LIMIT 1",
-            (user_id,))
-        cycle_row = cur.fetchone()
-        cycle_id = cycle_row[0] if cycle_row else None
+        cycle_id = get_active_cycle_id(cur, user_id)
 
         cur.execute("""
             SELECT
@@ -181,14 +202,14 @@ def get_books():
         release_db_connection(conn)
 
     books = [{
-        "book_id": item[0],
-        "name": item[1],
-        "testament": item[2],
-        "category": item[3],
-        "num_chapters": item[4],
-        "chapters_read": item[5],
-        "chapters_read_list": list(item[6]) if item[6] else [],
-        "last_read_at": item[7].isoformat() if item[7] else None,
+        "book_id": item['book_id'],
+        "name": item['name'],
+        "testament": item['testament'],
+        "category": item['category'],
+        "num_chapters": item['num_chapters'],
+        "chapters_read": item['chapters_read'],
+        "chapters_read_list": list(item['chapters_read_list']) if item['chapters_read_list'] else [],
+        "last_read_at": item['last_read_at'].isoformat() if item['last_read_at'] else None,
     } for item in raw_data]
 
     return jsonify(books)
@@ -206,13 +227,9 @@ def update_progress():
     cur = conn.cursor(cursor_factory=RealDictCursor)
 
     try:
-        cur.execute(
-            "SELECT cycle_id FROM reading_cycles WHERE user_id = %s ORDER BY cycle_number DESC",
-            (user_id,))
-        cycle = cur.fetchone()
-        if not cycle:
+        cycle_id = get_active_cycle_id(cur, user_id)
+        if not cycle_id:
             return jsonify({'success': False, 'error': 'No active reading cycle found'}), 404
-        cycle_id = cycle['cycle_id']
 
         book = get_book_by_name(book_name)
         if not book:
@@ -230,24 +247,14 @@ def update_progress():
             fetch=True,
         )
         newly_inserted = len(inserted_rows)
-
-        cur.execute("""
-            SELECT COUNT(*) AS chapters_read,
-                COALESCE(
-                    ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
-                    ARRAY[]::INTEGER[]
-                ) AS list
-            FROM chapter_progress
-            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-        """, (user_id, cycle_id, book_id))
-        result = cur.fetchone()
+        result = get_book_chapters(cur, user_id, cycle_id, book_id)
 
         conn.commit()
         return jsonify({
             'success': True,
             'chapters_read': result['chapters_read'],
             'newly_logged': newly_inserted,
-            'chapters_read_list': list(result['list'] or []),
+            'chapters_read_list': result['chapters_read_list'],
         })
     except Exception as e:
         conn.rollback()
@@ -268,13 +275,9 @@ def undo_progress():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute(
-            "SELECT cycle_id FROM reading_cycles WHERE user_id = %s ORDER BY cycle_number DESC",
-            (user_id,))
-        cycle = cur.fetchone()
-        if not cycle:
+        cycle_id = get_active_cycle_id(cur, user_id)
+        if not cycle_id:
             return jsonify({'success': False, 'error': 'No active cycle'}), 404
-        cycle_id = cycle['cycle_id']
 
         book = get_book_by_name(book_name)
         if not book:
@@ -295,23 +298,9 @@ def undo_progress():
             WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND logged_at = %s
         """, (user_id, cycle_id, book_id, latest))
 
-        cur.execute("""
-            SELECT COUNT(*) AS chapters_read,
-                COALESCE(
-                    ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
-                    ARRAY[]::INTEGER[]
-                ) AS list
-            FROM chapter_progress
-            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-        """, (user_id, cycle_id, book_id))
-        result = cur.fetchone()
-
+        result = get_book_chapters(cur, user_id, cycle_id, book_id)
         conn.commit()
-        return jsonify({
-            'success': True,
-            'chapters_read': result['chapters_read'],
-            'chapters_read_list': list(result['list'] or []),
-        })
+        return jsonify({'success': True, **result})
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -329,13 +318,9 @@ def reset_progress():
     conn = get_db_connection()
     cur = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cur.execute(
-            "SELECT cycle_id FROM reading_cycles WHERE user_id = %s ORDER BY cycle_number DESC",
-            (user_id,))
-        cycle = cur.fetchone()
-        if not cycle:
+        cycle_id = get_active_cycle_id(cur, user_id)
+        if not cycle_id:
             return jsonify({'success': False, 'error': 'No active cycle'}), 404
-        cycle_id = cycle['cycle_id']
 
         book = get_book_by_name(book_name)
         if not book:
@@ -348,11 +333,7 @@ def reset_progress():
         """, (user_id, cycle_id, book_id))
 
         conn.commit()
-        return jsonify({
-            'success': True,
-            'chapters_read': 0,
-            'chapters_read_list': [],
-        })
+        return jsonify({'success': True, 'chapters_read': 0, 'chapters_read_list': []})
     except Exception as e:
         conn.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500

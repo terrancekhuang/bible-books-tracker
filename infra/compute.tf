@@ -1,24 +1,24 @@
 resource "hcloud_ssh_key" "deploy" {
-  name       = "bible-tracker-deploy"
+  name       = "bible-books-tracker-deploy"
   public_key = tls_private_key.deploy.public_key_openssh
 }
 
 resource "hcloud_ssh_key" "admin" {
   count      = var.admin_ssh_key != "" ? 1 : 0
-  name       = "bible-tracker-admin"
+  name       = "bible-books-tracker-admin"
   public_key = var.admin_ssh_key
 }
 
 # Reserved public IP — survives server rebuilds
 resource "hcloud_primary_ip" "main" {
-  name        = "bible-tracker-ip"
+  name        = "bible-books-tracker-ip"
   type        = "ipv4"
   location    = var.location
   auto_delete = false
 }
 
 resource "hcloud_server" "app" {
-  name         = "bible-tracker"
+  name         = "bible-books-tracker"
   server_type  = var.server_type
   image        = "ubuntu-22.04"
   location     = var.location

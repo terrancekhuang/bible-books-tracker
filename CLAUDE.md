@@ -11,7 +11,7 @@ Full-stack Bible reading progress tracker:
 - **Database**: PostgreSQL 17 (self-hosted in Docker)
 - **Infra**: Hetzner Cloud VM (`cpx22`, `nbg1`), Terraform, host nginx + Let's Encrypt
 - **CI/CD**: GitHub Actions — rsync + SSH deploy on push to `master`
-- **Live URL**: `https://bible.terrancehuang.dev` (server IP: `91.98.21.147`)
+- **Live URL**: `https://bible.terrancehuang.dev` (server IP: `5.78.230.164`)
 
 ## Local development
 
@@ -57,6 +57,10 @@ DATABASE_URL=postgresql://postgres:<password>@db:5432/bible-books-tracker
 FRONTEND_URL=https://bible.terrancehuang.dev
 POSTGRES_PASSWORD=...
 VITE_GOOGLE_CLIENT_ID=...   # baked into frontend bundle at Docker build time — must be present
+BACKUP_S3_ACCESS_KEY=...    # Cloudflare R2 credentials — R2 → Manage R2 API Tokens in CF dashboard
+BACKUP_S3_SECRET_KEY=...
+BACKUP_S3_ENDPOINT=...      # from `terraform output backup_s3_endpoint`
+BACKUP_S3_BUCKET=...        # from `terraform output backup_bucket_name`
 ```
 
 `VITE_GOOGLE_CLIENT_ID` is a Vite build-time variable. It gets embedded in the JS bundle when the frontend Docker image is built. Changing it requires rebuilding the frontend container.
@@ -70,7 +74,7 @@ Pushing to `master` triggers `.github/workflows/deploy.yml`, which:
 
 **Manual deploy / debugging**:
 ```bash
-ssh -i infra/deploy_key root@91.98.21.147
+ssh -i infra/deploy_key root@5.78.230.164
 cd /srv/apps/bible-books-tracker
 docker compose -f docker-compose.prod.yml up -d --build
 docker logs app-backend-1 --tail 50

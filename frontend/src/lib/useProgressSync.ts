@@ -56,10 +56,8 @@ export function useProgressSync(): SyncOps {
       const confirmed: Book = { ...book, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now }
       patchBook(book.name, confirmed)
 
-      if (data.newly_logged > 0) {
-        invalidateProgress()
-        await refreshStats()
-      }
+      if (data.newly_logged > 0) invalidateProgress()
+      if (data.newly_logged > 0 || newlyLogged > 0) await refreshStats()
     } catch (e) {
       if (!navigator.onLine || e instanceof TypeError) {
         try {

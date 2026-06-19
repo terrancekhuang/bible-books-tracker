@@ -11,7 +11,7 @@ Full-stack Bible reading progress tracker:
 - **Database**: PostgreSQL 17 (self-hosted in Docker)
 - **Infra**: Hetzner Cloud VM (`cpx22`, `nbg1`), Terraform, host nginx + Let's Encrypt
 - **CI/CD**: GitHub Actions — rsync + SSH deploy on push to `master`
-- **Live URL**: `https://bible.terrancehuang.dev` (server IP: `5.78.230.164`)
+- **Live URL**: `https://bible.terrancehuang.dev` (server IP: `5.78.233.181`)
 
 ## Local development
 
@@ -74,7 +74,7 @@ Pushing to `master` triggers `.github/workflows/deploy.yml`, which:
 
 **Manual deploy / debugging**:
 ```bash
-ssh -i infra/deploy_key root@5.78.230.164
+ssh -i infra/deploy_key root@5.78.233.181
 cd /srv/apps/bible-books-tracker
 docker compose -f docker-compose.prod.yml up -d --build
 docker logs app-backend-1 --tail 50

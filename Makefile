@@ -1,10 +1,11 @@
 VENV        := venv
 PYTHON      := $(VENV)/bin/python
 PIP         := $(VENV)/bin/pip
+SERVER      ?= root@5.78.233.181
 
 .DEFAULT_GOAL := help
 .PHONY: all install install-frontend install-backend dev dev-frontend dev-backend \
-        db db-stop test lint build help
+        db db-stop db-tunnel test lint build help
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -30,6 +31,9 @@ db: ## Start local PostgreSQL via docker compose
 
 db-stop: ## Stop local PostgreSQL
 	docker compose down
+
+db-tunnel: ## Forward prod Postgres to localhost:5433 (connect pgAdmin there)
+	ssh -i infra/deploy_key -L 5433:localhost:5432 $(SERVER) -N
 
 # ── Dev servers ───────────────────────────────────────────────────────────────
 

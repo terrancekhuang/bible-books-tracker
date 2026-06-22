@@ -1,0 +1,20 @@
+{
+  "projectId": "6330f0f1-499a-4dcd-b795-80dd526a3ba6",
+  "pkg": "bible-books-tracker",
+  "globalName": "BibleTracker",
+  "shape": "package",
+  "srcDir": "frontend/src/components",
+  "tsconfig": "tsconfig.app.json",
+  "cssEntry": ".design-sync/tailwind-built.css",
+  "runtimeFontPrefixes": ["Cinzel", "Cormorant Garamond", "Raleway", "Lora", "Cambria"],
+  "provider": {
+    "component": "PreviewProvider"
+  },
+  "extraEntries": ["./frontend/src/lib/PreviewProvider.tsx"],
+  "componentSrcMap": {
+    "Tracker": null
+  },
+  "libOverrides": {
+    "source-kit.mjs": "re-export default exports as named symbols — React app uses export default function Name() which export * silently skips"
+  }
+}

@@ -46,3 +46,10 @@ infra/.terraform.lock.hcl
 infra/*.tfstate
 infra/*.tfstate.backup
 infra/deploy_key
+
+# Design sync — ephemeral build artifacts (durable files in .design-sync/ are committed)
+ds-bundle/
+.ds-sync/
+.design-sync/node_modules
+.design-sync/.cache/
+skills-lock.json

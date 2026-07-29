@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import { useAuth } from './lib/AuthContext'
+import { useKeyChord } from './lib/useKeyChord'
 import Login from './Login'
 import Profile from './Profile'
 import Tracker from './components/Tracker'
@@ -19,8 +20,7 @@ export default function App() {
 
   const [showHelp, setShowHelp] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
-  const gKeyRef = useRef<string | null>(null);
-  const gKeyTimeoutRef = useRef<number | null>(null);
+  const { arm: armGChord, consume: consumeGChord } = useKeyChord();
 
   useEffect(() => {
     const updateSW = registerSW({
@@ -67,15 +67,11 @@ export default function App() {
       }
       if (e.key === 'g' && !isInput) {
         e.preventDefault();
-        gKeyRef.current = 'g';
-        if (gKeyTimeoutRef.current !== null) clearTimeout(gKeyTimeoutRef.current);
-        gKeyTimeoutRef.current = window.setTimeout(() => { gKeyRef.current = null; }, 500);
+        armGChord();
         return;
       }
-      if (!isInput && gKeyRef.current === 'g' && (e.key === 'd' || e.key === 't' || e.key === 'p')) {
+      if (!isInput && (e.key === 'd' || e.key === 't' || e.key === 'p') && consumeGChord()) {
         e.preventDefault();
-        if (gKeyTimeoutRef.current !== null) clearTimeout(gKeyTimeoutRef.current);
-        gKeyRef.current = null;
         if (e.key === 'd') navigate('/');
         else if (e.key === 't') navigate('/tracker');
         else navigate('/profile');
@@ -84,7 +80,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [jwt, showHelp, navigate]);
+  }, [jwt, showHelp, navigate, armGChord, consumeGChord]);
 
   return (
     <>

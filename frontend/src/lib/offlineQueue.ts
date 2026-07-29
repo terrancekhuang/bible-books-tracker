@@ -56,15 +56,15 @@ let flushing = false;
 export async function flushQueue(onLogout: () => void): Promise<void> {
   if (flushing) return;
   flushing = true;
+  let db: IDBDatabase | null = null;
   try {
-    const db = await openDB();
+    db = await openDB();
     const items = await new Promise<PendingWrite[]>((resolve, reject) => {
-      const tx = db.transaction(STORE, 'readonly');
+      const tx = db!.transaction(STORE, 'readonly');
       const req = tx.objectStore(STORE).getAll();
       req.onsuccess = () => resolve(req.result as PendingWrite[]);
       req.onerror = () => reject(req.error);
     });
-    db.close();
 
     for (const item of items) {
       let response: Response;
@@ -85,19 +85,19 @@ export async function flushQueue(onLogout: () => void): Promise<void> {
 
       if (response.ok || (response.status >= 400 && response.status < 500)) {
         // ok: successfully replayed; 4xx: permanently invalid write — discard either way
-        const db2 = await openDB();
+        // (a fresh transaction is required here since one can't span the awaited fetch above)
         await new Promise<void>((resolve, reject) => {
-          const tx = db2.transaction(STORE, 'readwrite');
+          const tx = db!.transaction(STORE, 'readwrite');
           tx.objectStore(STORE).delete(item.id!);
           tx.oncomplete = () => resolve();
           tx.onerror = () => reject(tx.error);
         });
-        db2.close();
       } else {
         break; // transient 5xx — stop replaying, retry on next reconnect
       }
     }
   } finally {
+    db?.close();
     flushing = false;
   }
 }

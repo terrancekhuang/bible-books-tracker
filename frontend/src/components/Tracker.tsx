@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../lib/ThemeContext'
 import { useCachedFetch } from '../lib/useCachedFetch'
 import { useProgressSync } from '../lib/useProgressSync'
-import { parseChapters, sortBooks, filterBooks, availableFilterOptions, calculateProgress, type SortKey, type SortDir, TOTAL_CHAPTERS } from '../lib/trackerLogic'
+import { useKeyChord } from '../lib/useKeyChord'
+import { useConfirm } from '../lib/useConfirm'
+import { parseChapters, sortBooks, filterBooks, availableFilterOptions, calculateProgress, calculateOverallProgress, type SortKey, type SortDir, TOTAL_CHAPTERS } from '../lib/trackerLogic'
 import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
@@ -27,8 +29,8 @@ export default function Tracker() {
   const selectedBook = books.find(b => b.name === selectedBookName) ?? null
 
   const [chaptersInput, setChaptersInput] = useState('');
-  const [confirmMarkAll, setConfirmMarkAll] = useState(false);
-  const [resetConfirm, setResetConfirm] = useState(false);
+  const resetConfirm = useConfirm(selectedBookName);
+  const confirmMarkAll = useConfirm(selectedBookName);
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
@@ -40,8 +42,7 @@ export default function Tracker() {
 
   const chaptersInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const lastKeyRef = useRef<string | null>(null);
-  const lastKeyTimeoutRef = useRef<number | null>(null);
+  const gChord = useKeyChord();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -78,13 +79,18 @@ export default function Tracker() {
     return sortDir === "asc" ? " ↑" : " ↓";
   };
 
-  const tabFilteredBooks = filterBooks(sortBooks(books, sortKey, sortDir), { search, filterTestament, filterCategory, filterStatus });
-  const { testaments: availableTestamentOptions, categories: availableCategoryOptions } = availableFilterOptions(books, { filterTestament, filterCategory });
+  const tabFilteredBooks = useMemo(
+    () => filterBooks(sortBooks(books, sortKey, sortDir), { search, filterTestament, filterCategory, filterStatus }),
+    [books, sortKey, sortDir, search, filterTestament, filterCategory, filterStatus]
+  );
+  const { testaments: availableTestamentOptions, categories: availableCategoryOptions } = useMemo(
+    () => availableFilterOptions(books, { filterTestament, filterCategory }),
+    [books, filterTestament, filterCategory]
+  );
   const anyFilterActive = filterTestament !== '' || filterCategory !== '' || filterStatus !== '';
   const clearFilters = () => { setFilterTestament(''); setFilterCategory(''); setFilterStatus(''); };
 
-  const totalRead = books.reduce((sum, b) => sum + b.chapters_read, 0)
-  const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
+  const { totalRead, overallPct } = useMemo(() => calculateOverallProgress(books), [books])
 
   const parsedChapters = selectedBook ? parseChapters(chaptersInput, selectedBook.num_chapters) : [];
   const inputIsInvalid = chaptersInput.trim() !== '' && parsedChapters.length === 0;
@@ -98,7 +104,7 @@ export default function Tracker() {
   const handleMarkAllRead = async () => {
     if (!selectedBook) return;
     const allChapters = Array.from({ length: selectedBook.num_chapters }, (_, i) => i + 1);
-    setConfirmMarkAll(false);
+    confirmMarkAll.cancel();
     await submit(selectedBook, allChapters);
   };
 
@@ -108,9 +114,7 @@ export default function Tracker() {
   };
 
   const handleReset = async () => {
-    if (!selectedBook) return;
-    if (!resetConfirm) { setResetConfirm(true); return; }
-    setResetConfirm(false);
+    if (!selectedBook || !resetConfirm.confirmOrRequest()) return;
     await reset(selectedBook);
   };
 
@@ -119,14 +123,24 @@ export default function Tracker() {
     document.querySelector(`[data-book="${selectedBook.name}"]`)?.scrollIntoView({ block: 'nearest' });
   }, [selectedBook, isMobile]);
 
+  const moveSelection = (step: number) => {
+    const currentIndex = selectedBook ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name) : -1;
+    if (currentIndex === -1) {
+      if (step > 0 && tabFilteredBooks.length > 0) setSelectedBookName(tabFilteredBooks[0].name);
+      return;
+    }
+    const nextIndex = currentIndex + step;
+    if (nextIndex >= 0 && nextIndex < tabFilteredBooks.length) setSelectedBookName(tabFilteredBooks[nextIndex].name);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
       if (e.key === 'Escape') {
-        if (resetConfirm) { setResetConfirm(false); return; }
-        if (confirmMarkAll) { setConfirmMarkAll(false); return; }
+        if (resetConfirm.confirming) { resetConfirm.cancel(); return; }
+        if (confirmMarkAll.confirming) { confirmMarkAll.cancel(); return; }
         if (target === searchInputRef.current) {
           setSearch(''); searchInputRef.current?.blur();
         } else {
@@ -141,20 +155,17 @@ export default function Tracker() {
       if (e.key === 'R' && !isInput && selectedBook) { e.preventDefault(); handleReset(); return; }
       if (e.key === 'A' && !isInput && selectedBook) {
         e.preventDefault();
-        if (confirmMarkAll) handleMarkAllRead(); else setConfirmMarkAll(true);
+        if (confirmMarkAll.confirming) handleMarkAllRead(); else confirmMarkAll.request();
         return;
       }
       if (e.key === 'i' && !isInput && selectedBook) { e.preventDefault(); chaptersInputRef.current?.focus(); return; }
 
       if (e.key === 'g' && !isInput) {
         e.preventDefault();
-        if (lastKeyRef.current === 'g') {
-          if (lastKeyTimeoutRef.current !== null) clearTimeout(lastKeyTimeoutRef.current);
-          lastKeyRef.current = null;
+        if (gChord.consume()) {
           if (tabFilteredBooks.length > 0) { setSelectedBookName(tabFilteredBooks[0].name); setChaptersInput(''); }
         } else {
-          lastKeyRef.current = 'g';
-          lastKeyTimeoutRef.current = window.setTimeout(() => { lastKeyRef.current = null; }, 500);
+          gChord.arm();
         }
         return;
       }
@@ -169,37 +180,20 @@ export default function Tracker() {
 
       if ((resolvedKey === 'ArrowRight' || resolvedKey === 'ArrowLeft') && !isInput) {
         e.preventDefault();
-        const currentIndex = selectedBook ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name) : -1;
-        if (resolvedKey === 'ArrowRight') {
-          if (currentIndex === -1 && tabFilteredBooks.length > 0) setSelectedBookName(tabFilteredBooks[0].name);
-          else if (currentIndex < tabFilteredBooks.length - 1) setSelectedBookName(tabFilteredBooks[currentIndex + 1].name);
-        } else {
-          if (currentIndex > 0) setSelectedBookName(tabFilteredBooks[currentIndex - 1].name);
-        }
+        moveSelection(resolvedKey === 'ArrowRight' ? 1 : -1);
         setChaptersInput(''); return;
       }
       if ((resolvedKey === 'ArrowDown' || resolvedKey === 'ArrowUp') && !isInput) {
         e.preventDefault();
         const numCols = window.innerWidth < 640 ? 2 : 3;
-        const currentIndex = selectedBook ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name) : -1;
-        if (resolvedKey === 'ArrowDown') {
-          if (currentIndex === -1 && tabFilteredBooks.length > 0) setSelectedBookName(tabFilteredBooks[0].name);
-          else { const next = currentIndex + numCols; if (next < tabFilteredBooks.length) setSelectedBookName(tabFilteredBooks[next].name); }
-        } else {
-          const prev = currentIndex - numCols; if (prev >= 0) setSelectedBookName(tabFilteredBooks[prev].name);
-        }
+        moveSelection(resolvedKey === 'ArrowDown' ? numCols : -numCols);
         setChaptersInput('');
       }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBook, tabFilteredBooks, chaptersInput, resetConfirm, confirmMarkAll, isOnline]);
-
-  useEffect(() => {
-    const t = setTimeout(() => { setConfirmMarkAll(false); setResetConfirm(false); }, 0)
-    return () => clearTimeout(t)
-  }, [selectedBookName]);
+  }, [selectedBook, tabFilteredBooks, chaptersInput, resetConfirm.confirming, confirmMarkAll.confirming, isOnline]);
 
   const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;
@@ -497,12 +491,12 @@ export default function Tracker() {
                             <button
                               onClick={handleReset}
                               className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors"
-                              style={resetConfirm
+                              style={resetConfirm.confirming
                                 ? { background: 'rgba(220,60,60,0.18)', border: '1px solid rgba(220,60,60,0.35)', color: 'rgba(240,100,100,0.9)', fontFamily: "'Raleway', sans-serif" }
                                 : { background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(13,21,51,0.12)', color: dimText, fontFamily: "'Raleway', sans-serif" }
                               }
                             >
-                              {resetConfirm ? 'Confirm reset?' : 'Reset progress'}
+                              {resetConfirm.confirming ? 'Confirm reset?' : 'Reset progress'}
                             </button>
                           </div>
                         ) : (
@@ -562,7 +556,7 @@ export default function Tracker() {
                               <div className="flex gap-2">
                                 {[
                                   { label: 'Undo', onClick: handleUndo, disabled: !isOnline, confirm: false },
-                                  { label: resetConfirm ? 'Confirm reset?' : 'Reset', onClick: handleReset, disabled: false, confirm: resetConfirm },
+                                  { label: resetConfirm.confirming ? 'Confirm reset?' : 'Reset', onClick: handleReset, disabled: false, confirm: resetConfirm.confirming },
                                 ].map(({ label, onClick, disabled, confirm }) => (
                                   <button
                                     key={label}
@@ -582,7 +576,7 @@ export default function Tracker() {
                               </div>
                             )}
 
-                            {confirmMarkAll ? (
+                            {confirmMarkAll.confirming ? (
                               <div className="flex gap-2">
                                 <button
                                   onClick={handleMarkAllRead}
@@ -592,7 +586,7 @@ export default function Tracker() {
                                   Confirm — all {selectedBook.num_chapters} chapters
                                 </button>
                                 <button
-                                  onClick={() => setConfirmMarkAll(false)}
+                                  onClick={() => confirmMarkAll.cancel()}
                                   className="px-3.5 py-2 rounded-xl text-sm transition-colors"
                                   style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
                                 >
@@ -601,7 +595,7 @@ export default function Tracker() {
                               </div>
                             ) : (
                               <button
-                                onClick={() => setConfirmMarkAll(true)}
+                                onClick={() => confirmMarkAll.request()}
                                 className="w-full py-2 rounded-xl text-sm transition-colors"
                                 style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
                               >

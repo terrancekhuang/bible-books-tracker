@@ -10,7 +10,7 @@ import BookCard from './components/BookCard'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
 import NavBar from './components/NavBar'
-import type { Stats } from './lib/trackerLogic'
+import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, type Book, type Stats } from './lib/trackerLogic'
 
 interface UserInfo {
   name: string | null
@@ -24,21 +24,13 @@ interface DashboardData {
   user: UserInfo
 }
 
-const TOTAL_CHAPTERS = 1189
-const TOTAL_BOOKS = 66
-const OT_CHAPTERS = 929
-const NT_CHAPTERS = 260
-
 const CATEGORY_ORDER = [
   'Law', 'History', 'Poetry', 'Major Prophets', 'Minor Prophets',
   'Gospels', 'Church History', "Paul's Epistles", 'General Epistles',
 ]
 
-const CATEGORY_TOTALS: Record<string, number> = {
-  'Law': 187, 'History': 249, 'Poetry': 243,
-  'Major Prophets': 183, 'Minor Prophets': 67,
-  'Gospels': 89, 'Church History': 28,
-  "Paul's Epistles": 87, 'General Epistles': 56,
+function sumChapters(books: Book[]): number {
+  return books.reduce((s, b) => s + b.num_chapters, 0)
 }
 
 const CATEGORY_BAR_COLORS: Record<string, string> = {
@@ -90,11 +82,10 @@ export default function Dashboard() {
 
   const weeklyGoal = localGoal ?? dashboard?.weekly_goal ?? 7
 
-  const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
-  const overallPct = Math.round((totalRead / TOTAL_CHAPTERS) * 100)
-  const booksComplete = books.filter(b => b.chapters_read >= b.num_chapters).length
+  const { totalRead, overallPct } = useMemo(() => calculateOverallProgress(books), [books])
+  const booksComplete = useMemo(() => books.filter(b => b.chapters_read >= b.num_chapters).length, [books])
 
-  const continueBooks = books
+  const continueBooks = useMemo(() => books
     .filter(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters)
     .sort((a, b) => {
       if (!a.last_read_at && !b.last_read_at) return 0
@@ -102,16 +93,19 @@ export default function Dashboard() {
       if (!b.last_read_at) return -1
       return b.last_read_at.localeCompare(a.last_read_at)
     })
-    .slice(0, 3)
+    .slice(0, 3), [books])
 
-  const otRead = books.filter(b => b.testament === 'Old Testament').reduce((s, b) => s + b.chapters_read, 0)
-  const ntRead = books.filter(b => b.testament === 'New Testament').reduce((s, b) => s + b.chapters_read, 0)
+  const otRead = useMemo(() => books.filter(b => b.testament === 'Old Testament').reduce((s, b) => s + b.chapters_read, 0), [books])
+  const ntRead = useMemo(() => books.filter(b => b.testament === 'New Testament').reduce((s, b) => s + b.chapters_read, 0), [books])
+  const otTotal = useMemo(() => sumChapters(books.filter(b => b.testament === 'Old Testament')), [books])
+  const ntTotal = useMemo(() => sumChapters(books.filter(b => b.testament === 'New Testament')), [books])
 
-  const categoryProgress = CATEGORY_ORDER.map(cat => {
-    const catRead = books.filter(b => b.category === cat).reduce((s, b) => s + b.chapters_read, 0)
-    const total = CATEGORY_TOTALS[cat]
+  const categoryProgress = useMemo(() => CATEGORY_ORDER.map(cat => {
+    const booksInCategory = books.filter(b => b.category === cat)
+    const catRead = booksInCategory.reduce((s, b) => s + b.chapters_read, 0)
+    const total = sumChapters(booksInCategory)
     return { cat, read: catRead, total, pct: total > 0 ? Math.min(Math.round((catRead / total) * 100), 100) : 0 }
-  })
+  }), [books])
 
   const weekChapters = stats?.chapters_this_week ?? 0
   const atGoal = weekChapters >= weeklyGoal
@@ -336,10 +330,10 @@ export default function Dashboard() {
           <span style={secLabel} className="block mb-4">Testament Progress</span>
           <div className="flex flex-col gap-4">
             {[
-              { label: 'Old Testament', read: otRead, total: OT_CHAPTERS, color: 'rgba(240,180,60,0.85)' },
-              { label: 'New Testament', read: ntRead, total: NT_CHAPTERS, color: 'rgba(170,120,255,0.85)' },
+              { label: 'Old Testament', read: otRead, total: otTotal, color: 'rgba(240,180,60,0.85)' },
+              { label: 'New Testament', read: ntRead, total: ntTotal, color: 'rgba(170,120,255,0.85)' },
             ].map(({ label, read, total, color }) => {
-              const pct = Math.round((read / total) * 100)
+              const pct = total > 0 ? Math.round((read / total) * 100) : 0
               return (
                 <div key={label}>
                   <div className="flex items-center justify-between text-sm mb-1.5">

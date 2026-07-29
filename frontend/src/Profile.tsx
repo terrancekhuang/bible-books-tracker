@@ -5,6 +5,7 @@ import { api } from "./lib/api";
 import { useTheme } from "./lib/ThemeContext";
 import { useCachedFetch } from "./lib/useCachedFetch";
 import { invalidateCycle } from "./lib/cache";
+import { TOTAL_BOOKS, TOTAL_CHAPTERS } from "./lib/trackerLogic";
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
 import NavBar from "./components/NavBar";
@@ -36,9 +37,6 @@ interface FavoriteBook {
   book_name: string;
   cycle_count: number;
 }
-
-const TOTAL_BOOKS = 66;
-const TOTAL_CHAPTERS = 1189;
 
 type BadgeTier = "bronze" | "silver" | "gold" | "rainbow";
 
@@ -245,7 +243,9 @@ export default function Profile() {
         )}
 
         {/* Current cycle */}
-        {currentCycle && (
+        {currentCycle && (() => {
+          const cyclePct = Math.round((currentCycle.chapters_read / TOTAL_CHAPTERS) * 100);
+          return (
           <div className="p-5" style={glassCard}>
             <h2 className="mb-3" style={sectionHeadStyle}>
               Current Cycle — <span style={{ color: isDark ? 'rgba(200,185,100,0.85)' : 'rgba(140,100,20,0.7)' }}>#{currentCycle.cycle_number}</span>
@@ -260,21 +260,22 @@ export default function Profile() {
               <div
                 className="h-full rounded-full transition-all"
                 style={{
-                  width: `${Math.round((currentCycle.chapters_read / TOTAL_CHAPTERS) * 100)}%`,
+                  width: `${cyclePct}%`,
                   background: isDark ? 'rgba(150,175,255,0.72)' : 'rgba(13,21,51,0.55)',
                 }}
               />
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
               <span style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-                {Math.round((currentCycle.chapters_read / TOTAL_CHAPTERS) * 100)}% complete
+                {cyclePct}% complete
               </span>
               <span style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
                 {currentCycle.books_complete} / {TOTAL_BOOKS} books
               </span>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* Start New Cycle */}
         <div>

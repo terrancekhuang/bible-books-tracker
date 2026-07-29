@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { authHeaders } from './auth'
 import { useAuth } from './AuthContext'
 import { getCache, setCache } from './cache'
+import { fetchJson } from './api'
 
 interface Options {
   refetchOnOnline?: boolean
@@ -20,19 +20,15 @@ export function useCachedFetch<T>(
   const [error, setError] = useState(false)
 
   const run = useCallback(async () => {
-    try {
-      const res = await fetch(url, { headers: authHeaders() })
-      if (res.status === 401) { logout(); return }
-      if (!res.ok) { setError(true); return }
-      const json = await res.json() as T
-      setData(json)
-      setCache(cacheKey, json)
+    const result = await fetchJson<T>(url, logout)
+    if (result.ok) {
+      setData(result.data)
+      setCache(cacheKey, result.data)
       setError(false)
-    } catch {
+    } else if (!result.unauthorized) {
       setError(true)
-    } finally {
-      setLoading(false)
     }
+    setLoading(false)
   }, [cacheKey, url, logout])
 
   useEffect(() => {

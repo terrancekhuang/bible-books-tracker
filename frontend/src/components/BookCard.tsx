@@ -1,6 +1,7 @@
 import { useTheme } from '../lib/ThemeContext'
 import { CategoryIcon } from './Icons'
 import { getCategoryPalette } from '../lib/categoryColors'
+import { calculateProgress } from '../lib/trackerLogic'
 import ArcProgress from './ArcProgress'
 
 export interface BookCardData {
@@ -28,7 +29,7 @@ export default function BookCard({ book, isSelected = false, onClick, variant = 
 
   const isComplete = book.chapters_read >= book.num_chapters
   const inProgress = book.chapters_read > 0 && !isComplete
-  const pct = Math.round((book.chapters_read / book.num_chapters) * 100)
+  const pct = calculateProgress(book)
 
   const cardBg = isDark
     ? `radial-gradient(ellipse at 90% 5%, ${cat.glow} 0%, transparent 62%), rgba(8,13,34,0.72)`

@@ -8,6 +8,7 @@ from google.auth.transport import requests as google_requests
 import psycopg2
 import psycopg2.pool
 import os
+from contextlib import contextmanager
 from psycopg2.extras import RealDictCursor, execute_values
 from datetime import date, datetime, timezone, timedelta
 from config import Config
@@ -38,19 +39,26 @@ def release_db_connection(conn):
         conn.close()
 
 
+@contextmanager
+def db_cursor(cursor_factory=RealDictCursor):
+    """Acquire a pooled connection + cursor, always releasing it. Callers own commit/rollback."""
+    conn = get_db_connection()
+    cur = conn.cursor(cursor_factory=cursor_factory)
+    try:
+        yield conn, cur
+    finally:
+        cur.close()
+        release_db_connection(conn)
+
+
 _book_cache: dict | None = None
 
 def get_book_by_name(name: str) -> dict | None:
     global _book_cache
     if _book_cache is None:
-        conn = get_db_connection()
-        cur = conn.cursor(cursor_factory=RealDictCursor)
-        try:
+        with db_cursor() as (conn, cur):
             cur.execute("SELECT book_id, name, num_chapters FROM bible_books")
             _book_cache = {row['name']: dict(row) for row in cur.fetchall()}
-        finally:
-            cur.close()
-            release_db_connection(conn)
     return _book_cache.get(name)
 
 
@@ -60,6 +68,19 @@ def get_active_cycle_id(cur, user_id: int) -> int | None:
         (user_id,))
     row = cur.fetchone()
     return row['cycle_id'] if row else None
+
+
+def resolve_cycle_and_book(cur, user_id: int, book_name: str):
+    """Returns (cycle_id, book) on success, or (None, (response, status)) on failure."""
+    cycle_id = get_active_cycle_id(cur, user_id)
+    if not cycle_id:
+        return None, (jsonify({'success': False, 'error': 'No active reading cycle found'}), 404)
+
+    book = get_book_by_name(book_name)
+    if not book:
+        return None, (jsonify({'success': False, 'error': f'Book "{book_name}" not found'}), 404)
+
+    return (cycle_id, book), None
 
 
 def get_book_chapters(cur, user_id: int, cycle_id: int, book_id: int) -> dict:
@@ -80,17 +101,12 @@ def get_book_chapters(cur, user_id: int, cycle_id: int, book_id: int) -> dict:
 
 
 def initialize_database():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
+    with db_cursor(cursor_factory=None) as (conn, cur):
         schema_path = os.path.join(os.path.dirname(__file__), 'schema.sql')
         with open(schema_path, 'r') as f:
             schema_sql = f.read()
         cur.execute(schema_sql)
         conn.commit()
-    finally:
-        cur.close()
-        release_db_connection(conn)
 
 
 @app.route('/auth/google', methods=['POST'])
@@ -114,9 +130,7 @@ def auth_google():
     name = idinfo.get('name', '')
     picture = idinfo.get('picture', '')
 
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
+    with db_cursor() as (conn, cur):
         cur.execute("""
             INSERT INTO users (google_id, email, name, picture_url)
             VALUES (%s, %s, %s, %s)
@@ -136,9 +150,6 @@ def auth_google():
         """, (user_id,))
 
         conn.commit()
-    finally:
-        cur.close()
-        release_db_connection(conn)
 
     access_token = create_access_token(identity=str(user_id))
     return jsonify({'access_token': access_token, 'user_id': user_id})
@@ -148,14 +159,9 @@ def auth_google():
 @jwt_required()
 def auth_me():
     user_id = int(get_jwt_identity())
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
+    with db_cursor() as (conn, cur):
         cur.execute("SELECT user_id, email, name, picture_url FROM users WHERE user_id = %s", (user_id,))
         user = cur.fetchone()
-    finally:
-        cur.close()
-        release_db_connection(conn)
     if not user:
         return jsonify({'error': 'User not found'}), 404
     return jsonify({
@@ -170,9 +176,7 @@ def auth_me():
 @jwt_required()
 def get_books():
     user_id = int(get_jwt_identity())
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
+    with db_cursor() as (conn, cur):
         cycle_id = get_active_cycle_id(cur, user_id)
 
         cur.execute("""
@@ -197,9 +201,6 @@ def get_books():
             ORDER BY b.book_id ASC
         """, (user_id, cycle_id))
         raw_data = cur.fetchall()
-    finally:
-        cur.close()
-        release_db_connection(conn)
 
     books = [{
         "book_id": item['book_id'],
@@ -208,7 +209,7 @@ def get_books():
         "category": item['category'],
         "num_chapters": item['num_chapters'],
         "chapters_read": item['chapters_read'],
-        "chapters_read_list": list(item['chapters_read_list']) if item['chapters_read_list'] else [],
+        "chapters_read_list": item['chapters_read_list'],
         "last_read_at": item['last_read_at'].isoformat() if item['last_read_at'] else None,
     } for item in raw_data]
 
@@ -223,47 +224,39 @@ def update_progress():
     book_name = data.get('book_name')
     chapter_numbers = data.get('chapters', [])
 
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    with db_cursor() as (conn, cur):
+        try:
+            resolved, error = resolve_cycle_and_book(cur, user_id, book_name)
+            if error:
+                return error
+            cycle_id, book = resolved
+            book_id = book['book_id']
+            num_chapters = book['num_chapters']
 
-    try:
-        cycle_id = get_active_cycle_id(cur, user_id)
-        if not cycle_id:
-            return jsonify({'success': False, 'error': 'No active reading cycle found'}), 404
+            chapter_numbers = [ch for ch in chapter_numbers if 1 <= ch <= num_chapters]
+            if not chapter_numbers:
+                return jsonify({'success': False, 'error': 'No valid chapter numbers provided'}), 400
 
-        book = get_book_by_name(book_name)
-        if not book:
-            return jsonify({'success': False, 'error': f'Book "{book_name}" not found'}), 404
-        book_id = book['book_id']
-        num_chapters = book['num_chapters']
+            inserted_rows = execute_values(cur,
+                "INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number) VALUES %s ON CONFLICT DO NOTHING RETURNING chapter_number",
+                [(user_id, cycle_id, book_id, ch) for ch in chapter_numbers],
+                fetch=True,
+            )
+            newly_inserted = len(inserted_rows)
+            result = get_book_chapters(cur, user_id, cycle_id, book_id)
 
-        chapter_numbers = [ch for ch in chapter_numbers if 1 <= ch <= num_chapters]
-        if not chapter_numbers:
-            return jsonify({'success': False, 'error': 'No valid chapter numbers provided'}), 400
-
-        inserted_rows = execute_values(cur,
-            "INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number) VALUES %s ON CONFLICT DO NOTHING RETURNING chapter_number",
-            [(user_id, cycle_id, book_id, ch) for ch in chapter_numbers],
-            fetch=True,
-        )
-        newly_inserted = len(inserted_rows)
-        result = get_book_chapters(cur, user_id, cycle_id, book_id)
-
-        conn.commit()
-        return jsonify({
-            'success': True,
-            'chapters_read': result['chapters_read'],
-            'newly_logged': newly_inserted,
-            'chapters_read_list': result['chapters_read_list'],
-        })
-    except Exception as e:
-        conn.rollback()
-        return jsonify({
-            'success': False, 'error': str(e)
-        }), 500
-    finally:
-        cur.close()
-        release_db_connection(conn)
+            conn.commit()
+            return jsonify({
+                'success': True,
+                'chapters_read': result['chapters_read'],
+                'newly_logged': newly_inserted,
+                'chapters_read_list': result['chapters_read_list'],
+            })
+        except Exception as e:
+            conn.rollback()
+            return jsonify({
+                'success': False, 'error': str(e)
+            }), 500
 
 
 @app.route('/api/progress/undo', methods=['POST'])
@@ -272,41 +265,34 @@ def undo_progress():
     user_id = int(get_jwt_identity())
     data = request.json
     book_name = data.get('book_name')
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cycle_id = get_active_cycle_id(cur, user_id)
-        if not cycle_id:
-            return jsonify({'success': False, 'error': 'No active cycle'}), 404
+    with db_cursor() as (conn, cur):
+        try:
+            resolved, error = resolve_cycle_and_book(cur, user_id, book_name)
+            if error:
+                return error
+            cycle_id, book = resolved
+            book_id = book['book_id']
 
-        book = get_book_by_name(book_name)
-        if not book:
-            return jsonify({'success': False, 'error': 'Book not found'}), 404
-        book_id = book['book_id']
+            cur.execute("""
+                SELECT MAX(logged_at) AS latest FROM chapter_progress
+                WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+            """, (user_id, cycle_id, book_id))
+            row = cur.fetchone()
+            if not row['latest']:
+                return jsonify({'success': False, 'error': 'Nothing to undo'}), 400
+            latest = row['latest']
 
-        cur.execute("""
-            SELECT MAX(logged_at) AS latest FROM chapter_progress
-            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-        """, (user_id, cycle_id, book_id))
-        row = cur.fetchone()
-        if not row['latest']:
-            return jsonify({'success': False, 'error': 'Nothing to undo'}), 400
-        latest = row['latest']
+            cur.execute("""
+                DELETE FROM chapter_progress
+                WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND logged_at = %s
+            """, (user_id, cycle_id, book_id, latest))
 
-        cur.execute("""
-            DELETE FROM chapter_progress
-            WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND logged_at = %s
-        """, (user_id, cycle_id, book_id, latest))
-
-        result = get_book_chapters(cur, user_id, cycle_id, book_id)
-        conn.commit()
-        return jsonify({'success': True, **result})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-    finally:
-        cur.close()
-        release_db_connection(conn)
+            result = get_book_chapters(cur, user_id, cycle_id, book_id)
+            conn.commit()
+            return jsonify({'success': True, **result})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/progress/reset', methods=['POST'])
@@ -315,40 +301,31 @@ def reset_progress():
     user_id = int(get_jwt_identity())
     data = request.json
     book_name = data.get('book_name')
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cycle_id = get_active_cycle_id(cur, user_id)
-        if not cycle_id:
-            return jsonify({'success': False, 'error': 'No active cycle'}), 404
+    with db_cursor() as (conn, cur):
+        try:
+            resolved, error = resolve_cycle_and_book(cur, user_id, book_name)
+            if error:
+                return error
+            cycle_id, book = resolved
+            book_id = book['book_id']
 
-        book = get_book_by_name(book_name)
-        if not book:
-            return jsonify({'success': False, 'error': 'Book not found'}), 404
-        book_id = book['book_id']
+            cur.execute("""
+                DELETE FROM chapter_progress
+                WHERE user_id = %s AND cycle_id = %s AND book_id = %s
+            """, (user_id, cycle_id, book_id))
 
-        cur.execute("""
-            DELETE FROM chapter_progress
-            WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-        """, (user_id, cycle_id, book_id))
-
-        conn.commit()
-        return jsonify({'success': True, 'chapters_read': 0, 'chapters_read_list': []})
-    except Exception as e:
-        conn.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-    finally:
-        cur.close()
-        release_db_connection(conn)
+            conn.commit()
+            return jsonify({'success': True, 'chapters_read': 0, 'chapters_read_list': []})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/cycles', methods=['GET'])
 @jwt_required()
 def get_cycles():
     user_id = int(get_jwt_identity())
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
+    with db_cursor() as (conn, cur):
         cur.execute("""
             WITH cycle_book_counts AS (
                 SELECT cycle_id, book_id, COUNT(*) AS chap_count
@@ -370,9 +347,6 @@ def get_cycles():
             ORDER BY rc.cycle_number ASC
         """, (user_id, user_id))
         cycles = cur.fetchall()
-    finally:
-        cur.close()
-        release_db_connection(conn)
     return jsonify([dict(c) for c in cycles])
 
 
@@ -380,9 +354,7 @@ def get_cycles():
 @jwt_required()
 def create_cycle():
     user_id = int(get_jwt_identity())
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
+    with db_cursor() as (conn, cur):
         cur.execute("""
             INSERT INTO reading_cycles (user_id, cycle_number)
             SELECT %s, COALESCE(MAX(cycle_number), 0) + 1
@@ -391,10 +363,21 @@ def create_cycle():
         """, (user_id, user_id))
         cycle = cur.fetchone()
         conn.commit()
-    finally:
-        cur.close()
-        release_db_connection(conn)
     return jsonify({'cycle_id': cycle['cycle_id'], 'cycle_number': cycle['cycle_number']})
+
+
+def _compute_activity(cur, user_id: int, tz_offset: int) -> list[dict]:
+    cutoff_utc = datetime.now(timezone.utc) - timedelta(days=365)
+    cur.execute("""
+        SELECT (logged_at + INTERVAL '1 minute' * %s)::date AS local_date, COUNT(*) AS chapters
+        FROM chapter_progress
+        WHERE user_id = %s
+          AND logged_at >= %s
+        GROUP BY (logged_at + INTERVAL '1 minute' * %s)::date
+        ORDER BY local_date
+    """, (tz_offset, user_id, cutoff_utc, tz_offset))
+    rows = cur.fetchall()
+    return [{'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']} for r in rows]
 
 
 @app.route('/api/activity', methods=['GET'])
@@ -402,23 +385,8 @@ def create_cycle():
 def get_activity():
     user_id = int(get_jwt_identity())
     tz_offset = int(request.args.get('tz_offset', 0))  # minutes: -getTimezoneOffset()
-    cutoff_utc = datetime.now(timezone.utc) - timedelta(days=365)
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cur.execute("""
-            SELECT (logged_at + INTERVAL '1 minute' * %s)::date AS local_date, COUNT(*) AS chapters
-            FROM chapter_progress
-            WHERE user_id = %s
-              AND logged_at >= %s
-            GROUP BY (logged_at + INTERVAL '1 minute' * %s)::date
-            ORDER BY local_date
-        """, (tz_offset, user_id, cutoff_utc, tz_offset))
-        rows = cur.fetchall()
-        return jsonify([{'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']} for r in rows])
-    finally:
-        cur.close()
-        release_db_connection(conn)
+    with db_cursor() as (conn, cur):
+        return jsonify(_compute_activity(cur, user_id, tz_offset))
 
 
 def _compute_stats(cur, user_id: int, tz_offset: int) -> dict:
@@ -482,13 +450,8 @@ def _compute_stats(cur, user_id: int, tz_offset: int) -> dict:
 def get_stats():
     user_id = int(get_jwt_identity())
     tz_offset = int(request.args.get('tz_offset', 0))
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
+    with db_cursor() as (conn, cur):
         return jsonify(_compute_stats(cur, user_id, tz_offset))
-    finally:
-        cur.close()
-        release_db_connection(conn)
 
 
 @app.route('/api/dashboard', methods=['GET'])
@@ -496,44 +459,28 @@ def get_stats():
 def get_dashboard():
     user_id = int(get_jwt_identity())
     tz_offset = int(request.args.get('tz_offset', 0))
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
-        cutoff_utc = datetime.now(timezone.utc) - timedelta(days=365)
-
-        cur.execute("""
-            SELECT (logged_at + INTERVAL '1 minute' * %s)::date AS local_date, COUNT(*) AS chapters
-            FROM chapter_progress
-            WHERE user_id = %s AND logged_at >= %s
-            GROUP BY (logged_at + INTERVAL '1 minute' * %s)::date
-            ORDER BY local_date
-        """, (tz_offset, user_id, cutoff_utc, tz_offset))
-        activity_rows = cur.fetchall()
+    with db_cursor() as (conn, cur):
+        activity = _compute_activity(cur, user_id, tz_offset)
 
         cur.execute("SELECT weekly_goal, name, picture_url FROM users WHERE user_id = %s", (user_id,))
         user_row = cur.fetchone()
 
         return jsonify({
             'stats': _compute_stats(cur, user_id, tz_offset),
-            'activity': [{'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']} for r in activity_rows],
+            'activity': activity,
             'weekly_goal': user_row['weekly_goal'] if user_row else 7,
             'user': {
                 'name': user_row['name'] if user_row else None,
                 'picture_url': user_row['picture_url'] if user_row else None,
             },
         })
-    finally:
-        cur.close()
-        release_db_connection(conn)
 
 
 @app.route('/api/favorites', methods=['GET'])
 @jwt_required()
 def get_favorites():
     user_id = int(get_jwt_identity())
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
+    with db_cursor() as (conn, cur):
         cur.execute("""
             SELECT
                 bb.book_id,
@@ -552,23 +499,15 @@ def get_favorites():
             'book_name': r['book_name'],
             'cycle_count': int(r['cycle_count']),
         } for r in rows])
-    finally:
-        cur.close()
-        release_db_connection(conn)
 
 
 @app.route('/api/settings', methods=['GET'])
 @jwt_required()
 def get_settings():
     user_id = int(get_jwt_identity())
-    conn = get_db_connection()
-    cur = conn.cursor(cursor_factory=RealDictCursor)
-    try:
+    with db_cursor() as (conn, cur):
         cur.execute("SELECT weekly_goal FROM users WHERE user_id = %s", (user_id,))
         row = cur.fetchone()
-    finally:
-        cur.close()
-        release_db_connection(conn)
     return jsonify({'weekly_goal': row['weekly_goal'] if row else 7})
 
 
@@ -582,14 +521,9 @@ def update_settings():
     weekly_goal = data.get('weekly_goal')
     if not isinstance(weekly_goal, int) or isinstance(weekly_goal, bool) or weekly_goal < 1:
         return jsonify({'error': 'weekly_goal must be a positive integer'}), 400
-    conn = get_db_connection()
-    cur = conn.cursor()
-    try:
+    with db_cursor(cursor_factory=None) as (conn, cur):
         cur.execute("UPDATE users SET weekly_goal = %s WHERE user_id = %s", (weekly_goal, user_id))
         conn.commit()
-    finally:
-        cur.close()
-        release_db_connection(conn)
     return jsonify({'weekly_goal': weekly_goal})
 
 

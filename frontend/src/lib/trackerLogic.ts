@@ -22,6 +22,7 @@ export type SortKey = 'name' | 'chapters_read' | 'percent' | 'status'
 export type SortDir = 'asc' | 'desc'
 
 export const TOTAL_CHAPTERS = 1189
+export const TOTAL_BOOKS = 66
 
 export function parseChapters(input: string, max: number): number[] {
   if (!input.trim()) return []
@@ -40,9 +41,14 @@ export function parseChapters(input: string, max: number): number[] {
   return [...result].sort((a, b) => a - b)
 }
 
-export function calculateProgress(book: Book): number {
+export function calculateProgress(book: Pick<Book, 'chapters_read' | 'num_chapters'>): number {
   if (!book.chapters_read) return 0
   return Math.round((book.chapters_read / book.num_chapters) * 100)
+}
+
+export function calculateOverallProgress(books: Book[]): { totalRead: number; overallPct: number } {
+  const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
+  return { totalRead, overallPct: Math.round((totalRead / TOTAL_CHAPTERS) * 100) }
 }
 
 function statusRank(book: Book): number {

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import type { CSSProperties } from 'react'
 import { useTheme } from '../lib/ThemeContext'
 
@@ -36,39 +37,42 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
   const legendStyles = isDark ? LEGEND_STYLES_DARK : LEGEND_STYLES_LIGHT
   const labelColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(60,90,180,0.45)'
 
-  const chaptersByDate = new Map<string, number>()
-  for (const d of activity) {
-    chaptersByDate.set(d.logged_at, (chaptersByDate.get(d.logged_at) ?? 0) + d.chapters)
-  }
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const start = new Date(today)
-  start.setDate(today.getDate() - today.getDay() - 51 * 7)
-
-  const weeks: Array<Array<{ dateStr: string; label: string; chapters: number; isFuture: boolean }>> = []
-  const cursor = new Date(start)
-
-  while (cursor <= new Date(today.getTime() + 7 * 86400000)) {
-    if (weeks.length >= 53) break
-    const week = []
-    for (let d = 0; d < 7; d++) {
-      const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
-      week.push({
-        dateStr,
-        label: cursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        chapters: chaptersByDate.get(dateStr) ?? 0,
-        isFuture: cursor > today,
-      })
-      cursor.setDate(cursor.getDate() + 1)
+  const weeks = useMemo(() => {
+    const chaptersByDate = new Map<string, number>()
+    for (const d of activity) {
+      chaptersByDate.set(d.logged_at, (chaptersByDate.get(d.logged_at) ?? 0) + d.chapters)
     }
-    weeks.push(week)
-  }
 
-  const monthLabels = weeks.map(week => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const start = new Date(today)
+    start.setDate(today.getDate() - today.getDay() - 51 * 7)
+
+    const result: Array<Array<{ dateStr: string; label: string; chapters: number; isFuture: boolean }>> = []
+    const cursor = new Date(start)
+
+    while (cursor <= new Date(today.getTime() + 7 * 86400000)) {
+      if (result.length >= 53) break
+      const week = []
+      for (let d = 0; d < 7; d++) {
+        const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
+        week.push({
+          dateStr,
+          label: cursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          chapters: chaptersByDate.get(dateStr) ?? 0,
+          isFuture: cursor > today,
+        })
+        cursor.setDate(cursor.getDate() + 1)
+      }
+      result.push(week)
+    }
+    return result
+  }, [activity])
+
+  const monthLabels = useMemo(() => weeks.map(week => {
     const d = new Date(week[0].dateStr + 'T00:00:00')
     return d.getDate() <= 7 ? d.toLocaleString('en-US', { month: 'short' }) : ''
-  })
+  }), [weeks])
 
   const labelStyle: CSSProperties = {
     fontSize: 10,

@@ -1,7 +1,7 @@
 const TTL_SHORT_MS = 5 * 60 * 1000        // 5 min — real-time data (stats, activity)
 const TTL_LONG_MS  = 24 * 60 * 60 * 1000  // 24 h  — stable data (books, user)
 
-const SHORT_TTL_KEYS = new Set(['stats', 'activity'])
+const SHORT_TTL_KEYS = new Set(['stats', 'activity', 'dashboard'])
 
 function ttlFor(key: string): number {
   return SHORT_TTL_KEYS.has(key) ? TTL_SHORT_MS : TTL_LONG_MS
@@ -35,9 +35,9 @@ export function invalidateCache(...keys: string[]): void {
 // Add any new dependent keys here; call sites stay unchanged.
 
 export function invalidateProgress(): void {
-  invalidateCache('activity', 'stats')
+  invalidateCache('activity', 'stats', 'dashboard')
 }
 
 export function invalidateCycle(): void {
-  invalidateCache('cycles', 'stats', 'books', 'activity')
+  invalidateCache('cycles', 'stats', 'books', 'activity', 'dashboard')
 }

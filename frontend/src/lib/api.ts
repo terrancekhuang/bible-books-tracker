@@ -1,5 +1,19 @@
 import { authHeaders } from './auth'
 
+export type FetchResult<T> = { ok: true; data: T } | { ok: false; unauthorized: boolean }
+
+/** GET + parse JSON, with the shared session-expiry (401) handling every authenticated fetch needs. */
+export async function fetchJson<T>(url: string, onUnauthorized: () => void): Promise<FetchResult<T>> {
+  try {
+    const res = await fetch(url, { headers: authHeaders() })
+    if (res.status === 401) { onUnauthorized(); return { ok: false, unauthorized: true } }
+    if (!res.ok) return { ok: false, unauthorized: false }
+    return { ok: true, data: await res.json() as T }
+  } catch {
+    return { ok: false, unauthorized: false }
+  }
+}
+
 async function post(url: string, body?: unknown): Promise<Response> {
   return fetch(url, {
     method: 'POST',

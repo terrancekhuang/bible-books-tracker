@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useAuth } from './AuthContext'
-import { authHeaders } from './auth'
 import { getCache, setCache } from './cache'
+import { fetchJson } from './api'
 import type { Book } from './trackerLogic'
 
 function normalizeBook(item: Book): Book {
@@ -28,19 +28,16 @@ const BooksContext = createContext<BooksContextValue | null>(null)
 
 export function BooksProvider({ children }: { children: ReactNode }) {
   const { logout } = useAuth()
-  const logoutRef = useRef(logout)
-  logoutRef.current = logout
 
   const [books, setBooks] = useState<Book[]>(() => getCache<Book[]>('books') ?? [])
 
   const refreshBooks = useCallback(async () => {
-    const res = await fetch('/api/books', { headers: authHeaders() })
-    if (res.status === 401) { logoutRef.current(); return }
-    if (!res.ok) return
-    const data = (await res.json() as Book[]).map(normalizeBook)
+    const result = await fetchJson<Book[]>('/api/books', logout)
+    if (!result.ok) return
+    const data = result.data.map(normalizeBook)
     setBooks(data)
     setCache('books', data)
-  }, [])
+  }, [logout])
 
   useEffect(() => {
     refreshBooks()

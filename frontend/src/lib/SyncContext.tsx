@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useAuth } from './AuthContext'
 import { enqueueWrite, flushQueue, getPendingCount } from './offlineQueue'
@@ -15,21 +15,19 @@ const SyncContext = createContext<SyncContextValue | null>(null)
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { logout } = useAuth()
-  const logoutRef = useRef(logout)
-  logoutRef.current = logout
 
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
 
   const doFlush = useCallback(async (): Promise<void> => {
-    await flushQueue(logoutRef.current)
+    await flushQueue(logout)
     const n = await getPendingCount()
     setPendingCount(n)
     if (n === 0) {
       invalidateCycle()
       window.dispatchEvent(new CustomEvent('books-invalidated'))
     }
-  }, [])
+  }, [logout])
 
   // On mount: read queue depth; flush immediately if online and non-empty
   useEffect(() => {

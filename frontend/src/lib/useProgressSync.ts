@@ -1,11 +1,17 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useAuth } from './AuthContext'
 import { authHeaders } from './auth'
-import { api } from './api'
+import { api, fetchJson } from './api'
 import { useSyncContext } from './SyncContext'
 import { useBooksContext } from './BooksContext'
 import { getCache, setCache, invalidateProgress } from './cache'
 import type { Book, Stats } from './trackerLogic'
+
+interface ProgressActionResult {
+  success: boolean
+  chapters_read: number
+  chapters_read_list: number[]
+}
 
 export interface SyncOps {
   books: Book[]
@@ -24,16 +30,12 @@ export function useProgressSync(): SyncOps {
 
   const [stats, setStats] = useState<Stats | null>(() => getCache<Stats>('stats'))
 
-  const logoutRef = useRef(logout)
-  logoutRef.current = logout
-
   const refreshStats = useCallback(async () => {
-    const res = await fetch(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, { headers: authHeaders() })
-    if (!res.ok) return
-    const data = await res.json() as Stats
-    setStats(data)
-    setCache('stats', data)
-  }, [])
+    const result = await fetchJson<Stats>(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, logout)
+    if (!result.ok) return
+    setStats(result.data)
+    setCache('stats', result.data)
+  }, [logout])
 
   const submit = useCallback(async (book: Book, chapters: number[]) => {
     if (chapters.length === 0) return
@@ -49,7 +51,7 @@ export function useProgressSync(): SyncOps {
 
     try {
       const response = await api.progress.submit(book.name, chapters)
-      if (response.status === 401) { logoutRef.current(); return }
+      if (response.status === 401) { logout(); return }
       const data = await response.json()
       if (!response.ok || !data.success) throw new Error(data.error || 'Failed')
 
@@ -70,35 +72,28 @@ export function useProgressSync(): SyncOps {
         console.error('Error updating progress:', e)
       }
     }
-  }, [refreshStats, enqueue, patchBook])
+  }, [refreshStats, enqueue, patchBook, logout])
 
-  const undo = useCallback(async (book: Book) => {
+  const applyBookAction = useCallback(async (
+    book: Book,
+    call: (bookName: string) => Promise<Response>,
+    errorLabel: string,
+  ) => {
     try {
-      const response = await api.progress.undo(book.name)
-      if (response.status === 401) { logoutRef.current(); return }
-      const data = await response.json()
+      const response = await call(book.name)
+      if (response.status === 401) { logout(); return }
+      const data = await response.json() as ProgressActionResult
       if (!data.success) return
       patchBook(book.name, { ...book, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list })
       invalidateProgress()
       await refreshStats()
     } catch (e) {
-      console.error('Error undoing progress:', e)
+      console.error(`Error ${errorLabel}:`, e)
     }
-  }, [refreshStats, patchBook])
+  }, [refreshStats, patchBook, logout])
 
-  const reset = useCallback(async (book: Book) => {
-    try {
-      const response = await api.progress.reset(book.name)
-      if (response.status === 401) { logoutRef.current(); return }
-      const data = await response.json()
-      if (!data.success) return
-      patchBook(book.name, { ...book, chapters_read: 0, chapters_read_list: [] })
-      invalidateProgress()
-      await refreshStats()
-    } catch (e) {
-      console.error('Error resetting progress:', e)
-    }
-  }, [refreshStats, patchBook])
+  const undo = useCallback((book: Book) => applyBookAction(book, api.progress.undo, 'undoing progress'), [applyBookAction])
+  const reset = useCallback((book: Book) => applyBookAction(book, api.progress.reset, 'resetting progress'), [applyBookAction])
 
   return { books, stats, pendingCount, isOnline, submit, undo, reset }
 }

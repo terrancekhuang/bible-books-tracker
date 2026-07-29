@@ -1,22 +1,25 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTheme } from '../lib/ThemeContext'
 
 export default function SegmentedProgressBar({ total, readChapters }: { total: number; readChapters: number[] }) {
   const { isDark } = useTheme()
-  const readSet = new Set(readChapters);
+  const readSet = useMemo(() => new Set(readChapters), [readChapters]);
   const barRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ chapter: number; x: number; y: number } | null>(null);
 
-  const runs: { start: number; end: number; read: boolean }[] = [];
-  for (let i = 1; i <= total; i++) {
-    const read = readSet.has(i);
-    if (runs.length === 0 || runs[runs.length - 1].read !== read) {
-      runs.push({ start: i, end: i, read });
-    } else {
-      runs[runs.length - 1].end = i;
+  const runs = useMemo(() => {
+    const result: { start: number; end: number; read: boolean }[] = [];
+    for (let i = 1; i <= total; i++) {
+      const read = readSet.has(i);
+      if (result.length === 0 || result[result.length - 1].read !== read) {
+        result.push({ start: i, end: i, read });
+      } else {
+        result[result.length - 1].end = i;
+      }
     }
-  }
+    return result;
+  }, [total, readSet]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!barRef.current) return;

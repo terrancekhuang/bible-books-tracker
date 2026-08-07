@@ -5,8 +5,8 @@ import { useCachedFetch } from '../lib/useCachedFetch'
 import { useProgressSync } from '../lib/useProgressSync'
 import { useKeyChord } from '../lib/useKeyChord'
 import { useConfirm } from '../lib/useConfirm'
-import { parseChapters, sortBooks, filterBooks, availableFilterOptions, calculateProgress, calculateOverallProgress, type SortKey, type SortDir, TOTAL_CHAPTERS } from '../lib/trackerLogic'
-import { FlameIcon, CalendarIcon, CategoryIcon, BookOpenIcon } from './Icons'
+import { parseChapters, sortBooks, filterBooks, availableFilterOptions, calculateProgress, type SortKey, type SortDir } from '../lib/trackerLogic'
+import { CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import NavBar from './NavBar'
@@ -22,7 +22,7 @@ export default function Tracker() {
   const { isDark, colors } = useTheme()
   const { data: user } = useCachedFetch<UserInfo>('user', '/auth/me');
 
-  const { books, stats, pendingCount, isOnline, submit, undo, reset } = useProgressSync()
+  const { books, pendingCount, isOnline, submit, undo, reset } = useProgressSync()
 
   const [selectedBookName, setSelectedBookName] = useState<string | null>(null)
   const selectedBook = books.find(b => b.name === selectedBookName) ?? null
@@ -45,7 +45,7 @@ export default function Tracker() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { primaryText, dimText, bodyText, trackBg } = colors
+  const { primaryText, dimText, bodyText } = colors
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -88,8 +88,6 @@ export default function Tracker() {
   );
   const anyFilterActive = filterTestament !== '' || filterCategory !== '' || filterStatus !== '';
   const clearFilters = () => { setFilterTestament(''); setFilterCategory(''); setFilterStatus(''); };
-
-  const { totalRead, overallPct } = useMemo(() => calculateOverallProgress(books), [books])
 
   const parsedChapters = selectedBook ? parseChapters(chaptersInput, selectedBook.num_chapters) : [];
   const inputIsInvalid = chaptersInput.trim() !== '' && parsedChapters.length === 0;
@@ -248,40 +246,6 @@ export default function Tracker() {
       )}
 
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
-
-      {/* Progress strip */}
-      <div
-        className="px-5 pt-2 pb-2.5"
-        style={{
-          background: isDark ? 'rgba(6,12,30,0.5)' : 'rgba(255,255,255,0.7)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderBottom: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(100,130,255,0.1)',
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: trackBg }}>
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${overallPct}%`, background: isDark ? 'rgba(150,175,255,0.7)' : 'rgba(13,21,51,0.6)' }}
-            />
-          </div>
-          <span className="text-xs font-semibold shrink-0 tabular-nums" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-            {overallPct}%
-          </span>
-        </div>
-        <div className="flex items-center gap-3 mt-1 text-xs" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-          <span className="tabular-nums">{totalRead.toLocaleString()}/{TOTAL_CHAPTERS.toLocaleString()} ch</span>
-          {stats && (
-            <>
-              <span>·</span>
-              <span className="flex items-center gap-1"><FlameIcon size={12} />{stats.current_streak}d streak</span>
-              <span>·</span>
-              <span className="flex items-center gap-1"><CalendarIcon size={12} />Today: {stats.chapters_today}</span>
-            </>
-          )}
-        </div>
-      </div>
 
       <div className="flex flex-col md:flex-row gap-4 flex-1 md:overflow-hidden px-4 md:px-5 py-4">
 

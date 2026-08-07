@@ -36,6 +36,8 @@ export default function UserMenu({ pictureUrl, userName, showProfileLink = true 
         className="w-8 h-8 rounded-full overflow-hidden transition-opacity hover:opacity-80"
         style={{ outline: 'none', boxShadow: open ? `0 0 0 2px ${isDark ? 'rgba(150,175,255,0.5)' : 'rgba(13,21,51,0.25)'}` : 'none' }}
         title="Account"
+        aria-label="Account menu"
+        aria-expanded={open}
       >
         {pictureUrl ? (
           <img src={pictureUrl} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />

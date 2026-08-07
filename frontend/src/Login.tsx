@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from './lib/AuthContext'
+import { usePrefersReducedMotion } from './lib/usePrefersReducedMotion'
 
 interface Star {
   x: number
@@ -26,6 +27,7 @@ interface ShootingStar {
 function CosmicCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mouseRef = useRef<{ x: number; y: number }>({ x: -1, y: -1 })
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -55,6 +57,25 @@ function CosmicCanvas() {
           depth: (r - 0.15) / 1.3,
         }
       })
+    }
+
+    // Reduced motion: draw one static, un-animated starfield — no drift, parallax, twinkle, or shooting stars.
+    if (prefersReducedMotion) {
+      let resizeTimer: ReturnType<typeof setTimeout>
+      const drawStatic = () => {
+        init()
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        for (const s of stars) {
+          ctx.beginPath()
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+          ctx.fillStyle = 'rgba(255,255,255,0.45)'
+          ctx.fill()
+        }
+      }
+      const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawStatic, 150) }
+      drawStatic()
+      window.addEventListener('resize', onResize)
+      return () => { clearTimeout(resizeTimer); window.removeEventListener('resize', onResize) }
     }
 
     const spawnShooting = () => {
@@ -157,7 +178,7 @@ function CosmicCanvas() {
       window.removeEventListener('resize', init)
       window.removeEventListener('mousemove', onMouseMove)
     }
-  }, [])
+  }, [prefersReducedMotion])
 
   return (
     <canvas
@@ -176,19 +197,30 @@ const FEATURES = [
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [signInError, setSignInError] = useState<string | null>(null)
 
   const handleSuccess = async (credentialResponse: { credential?: string }) => {
     const googleToken = credentialResponse.credential
     if (!googleToken) return
-    const res = await fetch('/auth/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential: googleToken }),
-    })
-    if (!res.ok) { console.error('Auth failed:', await res.text()); return }
-    const data = await res.json()
-    login(data.access_token)
-    navigate('/')
+    setSignInError(null)
+    try {
+      const res = await fetch('/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential: googleToken }),
+      })
+      if (!res.ok) {
+        console.error('Auth failed:', await res.text())
+        setSignInError("Couldn't sign in — please try again.")
+        return
+      }
+      const data = await res.json()
+      login(data.access_token)
+      navigate('/')
+    } catch (err) {
+      console.error('Auth failed:', err)
+      setSignInError("Couldn't reach the server — check your connection and try again.")
+    }
   }
 
   return (
@@ -402,6 +434,11 @@ export default function Login() {
           opacity: 0;
           animation: cosmicFadeUp 1s ease 1.5s forwards;
         }
+
+        @media (prefers-reduced-motion: reduce) {
+          .cosmos-nebula { animation: none; }
+          .cosmos-title { animation: cosmicFadeUp 1s ease 0.3s forwards; }
+        }
       `}</style>
 
       <div className="cosmos-wrap">
@@ -446,11 +483,23 @@ export default function Login() {
               <span className="cosmos-signin-label">Begin your journey</span>
               <GoogleLogin
                 onSuccess={handleSuccess}
-                onError={() => console.error('Google login failed')}
+                onError={() => {
+                  console.error('Google login failed')
+                  setSignInError("Couldn't sign in — please try again.")
+                }}
                 theme="filled_black"
                 shape="pill"
                 size="large"
               />
+              {signInError && (
+                <p
+                  className="text-sm text-center"
+                  style={{ color: 'rgba(240,100,100,0.8)', fontFamily: "'Raleway', sans-serif" }}
+                  role="alert"
+                >
+                  {signInError}
+                </p>
+              )}
             </div>
           </div>
         </div>

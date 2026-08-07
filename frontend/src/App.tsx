@@ -133,6 +133,7 @@ export default function App() {
         <button
           onClick={() => setShowHelp(v => !v)}
           title="Keyboard shortcuts (?)"
+          aria-label="Show keyboard shortcuts"
           className="fixed bottom-20 md:bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full shadow-lg transition-all select-none font-bold text-sm"
           style={{
             background: 'rgba(13,21,51,0.7)',

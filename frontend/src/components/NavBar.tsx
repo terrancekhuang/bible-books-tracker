@@ -75,6 +75,7 @@ export default function NavBar({ pictureUrl, userName }: NavBarProps) {
               className="p-1.5 rounded-lg transition-colors"
               style={{ color: secondaryText }}
               title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+              aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
             >
               {theme === 'light' ? <MoonIcon /> : <SunIcon />}
             </button>

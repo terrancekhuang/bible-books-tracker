@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useTheme } from '../lib/ThemeContext'
+import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 
 interface Star {
   x: number; y: number; r: number
@@ -16,6 +17,7 @@ function StarCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mouseRef = useRef({ x: -1, y: -1 })
   const themeRef = useRef(theme)
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   useEffect(() => { themeRef.current = theme }, [theme])
 
@@ -47,6 +49,26 @@ function StarCanvas() {
           depth: (r - 0.15) / 1.25,
         }
       })
+    }
+
+    // Reduced motion: draw one static, un-animated starfield — no drift, parallax, twinkle, or shooting stars.
+    if (prefersReducedMotion) {
+      let resizeTimer: ReturnType<typeof setTimeout>
+      const drawStatic = () => {
+        init()
+        const isLight = themeRef.current === 'light'
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        for (const s of stars) {
+          ctx.beginPath()
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2)
+          ctx.fillStyle = isLight ? 'rgba(60,80,180,0.22)' : 'rgba(255,255,255,0.32)'
+          ctx.fill()
+        }
+      }
+      const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(drawStatic, 150) }
+      drawStatic()
+      window.addEventListener('resize', onResize)
+      return () => { clearTimeout(resizeTimer); window.removeEventListener('resize', onResize) }
     }
 
     const spawnShooting = () => {
@@ -162,7 +184,7 @@ function StarCanvas() {
       document.removeEventListener('visibilitychange', onVisibilityChange)
       window.removeEventListener('mousemove', onMouseMove)
     }
-  }, [])
+  }, [prefersReducedMotion])
 
   return (
     <canvas
@@ -177,14 +199,16 @@ const WRAP: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: -1, poi
 
 export default function CelestialBackground() {
   const { theme } = useTheme()
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const anim = (a: string) => (prefersReducedMotion ? undefined : a)
 
   if (theme === 'light') {
     return (
       <div style={WRAP}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 60% 15%, #f0f4ff 0%, #e8eeff 45%, #dde6ff 100%)' }} />
-        <div style={{ ...BLOB, width: 800, height: 800, background: 'radial-gradient(circle, rgba(100,130,255,0.09) 0%, transparent 70%)', filter: 'blur(120px)', top: '-20%', right: '-12%', animation: 'nebulaDrift1 38s ease-in-out infinite' }} />
-        <div style={{ ...BLOB, width: 640, height: 640, background: 'radial-gradient(circle, rgba(120,80,200,0.07) 0%, transparent 70%)', filter: 'blur(100px)', bottom: '-14%', left: '-14%', animation: 'nebulaDrift2 44s ease-in-out infinite' }} />
-        <div style={{ ...BLOB, width: 500, height: 500, background: 'radial-gradient(circle, rgba(60,100,220,0.06) 0%, transparent 70%)', filter: 'blur(85px)', top: '40%', left: '50%', animation: 'nebulaDrift3 30s ease-in-out infinite' }} />
+        <div style={{ ...BLOB, width: 800, height: 800, background: 'radial-gradient(circle, rgba(100,130,255,0.09) 0%, transparent 70%)', filter: 'blur(120px)', top: '-20%', right: '-12%', animation: anim('nebulaDrift1 38s ease-in-out infinite') }} />
+        <div style={{ ...BLOB, width: 640, height: 640, background: 'radial-gradient(circle, rgba(120,80,200,0.07) 0%, transparent 70%)', filter: 'blur(100px)', bottom: '-14%', left: '-14%', animation: anim('nebulaDrift2 44s ease-in-out infinite') }} />
+        <div style={{ ...BLOB, width: 500, height: 500, background: 'radial-gradient(circle, rgba(60,100,220,0.06) 0%, transparent 70%)', filter: 'blur(85px)', top: '40%', left: '50%', animation: anim('nebulaDrift3 30s ease-in-out infinite') }} />
         <StarCanvas />
       </div>
     )
@@ -193,10 +217,10 @@ export default function CelestialBackground() {
   return (
     <div style={WRAP}>
       <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(ellipse at 35% 25%, #0d1533 0%, #060c1e 55%, #030810 100%)' }} />
-      <div style={{ ...BLOB, width: 820, height: 820, background: 'radial-gradient(circle, rgba(52,16,160,0.28) 0%, transparent 70%)', filter: 'blur(90px)', top: '-22%', left: '-18%', animation: 'nebulaDrift1 30s ease-in-out infinite' }} />
-      <div style={{ ...BLOB, width: 680, height: 680, background: 'radial-gradient(circle, rgba(8,42,170,0.22) 0%, transparent 70%)', filter: 'blur(95px)', bottom: '-18%', right: '-12%', animation: 'nebulaDrift2 36s ease-in-out infinite' }} />
-      <div style={{ ...BLOB, width: 520, height: 520, background: 'radial-gradient(circle, rgba(105,12,105,0.15) 0%, transparent 70%)', filter: 'blur(75px)', top: '38%', right: '12%', animation: 'nebulaDrift3 24s ease-in-out infinite' }} />
-      <div style={{ ...BLOB, width: 460, height: 460, background: 'radial-gradient(circle, rgba(12,65,135,0.18) 0%, transparent 70%)', filter: 'blur(70px)', bottom: '18%', left: '6%', animation: 'nebulaDrift1 28s ease-in-out infinite reverse' }} />
+      <div style={{ ...BLOB, width: 820, height: 820, background: 'radial-gradient(circle, rgba(52,16,160,0.28) 0%, transparent 70%)', filter: 'blur(90px)', top: '-22%', left: '-18%', animation: anim('nebulaDrift1 30s ease-in-out infinite') }} />
+      <div style={{ ...BLOB, width: 680, height: 680, background: 'radial-gradient(circle, rgba(8,42,170,0.22) 0%, transparent 70%)', filter: 'blur(95px)', bottom: '-18%', right: '-12%', animation: anim('nebulaDrift2 36s ease-in-out infinite') }} />
+      <div style={{ ...BLOB, width: 520, height: 520, background: 'radial-gradient(circle, rgba(105,12,105,0.15) 0%, transparent 70%)', filter: 'blur(75px)', top: '38%', right: '12%', animation: anim('nebulaDrift3 24s ease-in-out infinite') }} />
+      <div style={{ ...BLOB, width: 460, height: 460, background: 'radial-gradient(circle, rgba(12,65,135,0.18) 0%, transparent 70%)', filter: 'blur(70px)', bottom: '18%', left: '6%', animation: anim('nebulaDrift1 28s ease-in-out infinite reverse') }} />
       <StarCanvas />
     </div>
   )

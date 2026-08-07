@@ -20,6 +20,7 @@ function normalizeBook(item: Book): Book {
 
 interface BooksContextValue {
   books: Book[]
+  loading: boolean
   refreshBooks: () => Promise<void>
   patchBook: (name: string, book: Book) => void
 }
@@ -30,13 +31,16 @@ export function BooksProvider({ children }: { children: ReactNode }) {
   const { logout } = useAuth()
 
   const [books, setBooks] = useState<Book[]>(() => getCache<Book[]>('books') ?? [])
+  // loading is true only when we have no cached books yet — background refetches don't show a skeleton
+  const [loading, setLoading] = useState(() => getCache<Book[]>('books') === null)
 
   const refreshBooks = useCallback(async () => {
     const result = await fetchJson<Book[]>('/api/books', logout)
-    if (!result.ok) return
+    if (!result.ok) { setLoading(false); return }
     const data = result.data.map(normalizeBook)
     setBooks(data)
     setCache('books', data)
+    setLoading(false)
   }, [logout])
 
   useEffect(() => {
@@ -59,7 +63,7 @@ export function BooksProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <BooksContext.Provider value={{ books, refreshBooks, patchBook }}>
+    <BooksContext.Provider value={{ books, loading, refreshBooks, patchBook }}>
       {children}
     </BooksContext.Provider>
   )

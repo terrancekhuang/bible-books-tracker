@@ -7,6 +7,7 @@ import { useCachedFetch } from './lib/useCachedFetch'
 import { useBooksContext } from './lib/BooksContext'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
 import BookCard from './components/BookCard'
+import Skeleton from './components/Skeleton'
 import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
 import NavBar from './components/NavBar'
@@ -68,13 +69,15 @@ export default function Dashboard() {
   const [localGoal, setLocalGoal] = useState<number | null>(null)
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
+  const [goalError, setGoalError] = useState<string | null>(null)
   const animFrameRef = useRef<number | null>(null)
   const navigate = useNavigate()
 
   const tzOffset = useMemo(() => -new Date().getTimezoneOffset(), [])
 
-  const { books } = useBooksContext()
-  const { data: dashboard } = useCachedFetch<DashboardData>('dashboard', `/api/dashboard?tz_offset=${tzOffset}`, { refetchOnOnline: true })
+  const { books, loading: booksLoading } = useBooksContext()
+  const { data: dashboard, loading: dashboardLoading } = useCachedFetch<DashboardData>('dashboard', `/api/dashboard?tz_offset=${tzOffset}`, { refetchOnOnline: true })
+  const isInitialLoading = booksLoading || dashboardLoading
 
   const stats = dashboard?.stats ?? null
   const activity = dashboard?.activity ?? null
@@ -127,14 +130,17 @@ export default function Dashboard() {
 
   const saveGoal = (val: string) => {
     const n = parseInt(val, 10)
-    if (!isNaN(n) && n > 0) {
-      const prev = weeklyGoal
-      setLocalGoal(n)
-      api.settings.update(n)
-        .then(r => { if (!r.ok) setLocalGoal(prev) })
-        .catch(() => setLocalGoal(prev))
+    if (isNaN(n) || n <= 0 || n > 200) {
+      setGoalError('Enter a number between 1 and 200.')
+      return
     }
+    const prev = weeklyGoal
+    setLocalGoal(n)
+    setGoalError(null)
     setEditingGoal(false)
+    api.settings.update(n)
+      .then(r => { if (!r.ok) { setLocalGoal(prev); setGoalError("Couldn't save your goal — please try again.") } })
+      .catch(() => { setLocalGoal(prev); setGoalError("Couldn't save your goal — please try again.") })
   }
 
   const firstName = user?.name?.split(' ')[0] ?? 'friend'
@@ -159,22 +165,28 @@ export default function Dashboard() {
 
           {/* Ring */}
           <div className="relative shrink-0" style={fadeUp(0)}>
-            <CircularProgress
-              value={totalRead}
-              max={TOTAL_CHAPTERS}
-              size={180}
-              trackClassName={isDark ? 'text-white/10' : 'text-[#0d1533]/12'}
-              arcClassName={isDark ? 'text-[#aabfff] transition-all duration-700 ease-out' : 'text-[#0d1533]/75 transition-all duration-700 ease-out'}
-            />
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span
-                className="text-5xl md:text-6xl font-bold leading-none tabular-nums"
-                style={{ fontFamily: "'Cinzel', serif", color: primaryText }}
-              >
-                {displayPct}%
-              </span>
-              <span className="text-[11px] mt-1.5 uppercase tracking-widest" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>complete</span>
-            </div>
+            {isInitialLoading ? (
+              <Skeleton rounded="rounded-full" style={{ width: 180, height: 180 }} />
+            ) : (
+              <>
+                <CircularProgress
+                  value={totalRead}
+                  max={TOTAL_CHAPTERS}
+                  size={180}
+                  trackClassName={isDark ? 'text-white/10' : 'text-[#0d1533]/12'}
+                  arcClassName={isDark ? 'text-[#aabfff] transition-all duration-700 ease-out' : 'text-[#0d1533]/75 transition-all duration-700 ease-out'}
+                />
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span
+                    className="text-5xl md:text-6xl font-bold leading-none tabular-nums"
+                    style={{ fontFamily: "'Cinzel', serif", color: primaryText }}
+                  >
+                    {displayPct}%
+                  </span>
+                  <span className="text-[11px] mt-1.5 uppercase tracking-widest" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>complete</span>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Hero text */}
@@ -186,13 +198,22 @@ export default function Dashboard() {
             >
               {getGreeting()},<br />{firstName}.
             </h1>
-            <p className="text-sm" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>
-              <span className="font-semibold" style={{ color: primaryText }}>{totalRead.toLocaleString()}</span> of{' '}
-              <span className="font-semibold" style={{ color: primaryText }}>{TOTAL_CHAPTERS.toLocaleString()}</span> chapters ·{' '}
-              <span className="font-semibold" style={{ color: primaryText }}>{booksComplete}</span> of {TOTAL_BOOKS} books complete
-            </p>
+            {isInitialLoading ? (
+              <Skeleton className="h-5 w-64 max-w-full self-center md:self-start" />
+            ) : (
+              <p className="text-sm" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>
+                <span className="font-semibold" style={{ color: primaryText }}>{totalRead.toLocaleString()}</span> of{' '}
+                <span className="font-semibold" style={{ color: primaryText }}>{TOTAL_CHAPTERS.toLocaleString()}</span> chapters ·{' '}
+                <span className="font-semibold" style={{ color: primaryText }}>{booksComplete}</span> of {TOTAL_BOOKS} books complete
+              </p>
+            )}
             <div className="flex gap-3 flex-wrap justify-center md:justify-start mt-1">
-              {[
+              {isInitialLoading ? (
+                <>
+                  <Skeleton rounded="rounded-full" className="h-8 w-28" />
+                  <Skeleton rounded="rounded-full" className="h-8 w-24" />
+                </>
+              ) : [
                 { icon: <FlameIcon size={14} />, label: `${stats?.current_streak ?? 0}d streak` },
                 { icon: <CalendarIcon size={14} />, label: `${stats?.chapters_today ?? 0} today` },
               ].map(({ icon, label }) => (
@@ -225,74 +246,98 @@ export default function Dashboard() {
           <div className="glass-card p-5" style={fadeUp(160)}>
             <div className="flex items-center justify-between mb-4">
               <span style={secLabel}>Weekly Goal</span>
-              {!editingGoal && (
+              {!editingGoal && !isInitialLoading && (
                 <button
-                  onClick={() => { setGoalInput(String(weeklyGoal)); setEditingGoal(true) }}
+                  onClick={() => { setGoalInput(String(weeklyGoal)); setGoalError(null); setEditingGoal(true) }}
                   className="p-1 rounded-md transition-colors"
                   style={{ color: dimText }}
                   title="Edit goal"
+                  aria-label="Edit weekly goal"
                 >
                   <PencilIcon size={14} />
                 </button>
               )}
             </div>
 
-            {editingGoal ? (
-              <div className="flex items-center gap-2 mb-4">
-                <input
-                  type="number" min={1} max={200}
-                  value={goalInput}
-                  onChange={e => setGoalInput(e.target.value)}
-                  onBlur={() => saveGoal(goalInput)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') saveGoal(goalInput)
-                    if (e.key === 'Escape') setEditingGoal(false)
-                  }}
-                  autoFocus
-                  className="w-20 px-2 py-1 rounded-lg outline-none text-sm"
-                  style={{
-                    background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.06)',
-                    border: '1px solid rgba(150,175,255,0.25)',
-                    color: primaryText,
-                    fontFamily: "'Raleway', sans-serif",
-                  }}
-                />
-                <span className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>chapters / week</span>
-                <button
-                  onClick={() => saveGoal(goalInput)}
-                  className="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors"
-                  style={{ background: 'rgba(150,175,255,0.18)', color: isDark ? '#dde6ff' : '#0d1533', fontFamily: "'Raleway', sans-serif" }}
-                >
-                  Save
-                </button>
+            {isInitialLoading ? (
+              <div className="mb-4">
+                <Skeleton className="h-9 w-32" />
+              </div>
+            ) : editingGoal ? (
+              <div className="mb-4">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number" min={1} max={200}
+                    value={goalInput}
+                    onChange={e => { setGoalInput(e.target.value); setGoalError(null) }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') saveGoal(goalInput)
+                      if (e.key === 'Escape') { setGoalError(null); setEditingGoal(false) }
+                    }}
+                    autoFocus
+                    className="w-20 px-2 py-1 rounded-lg outline-none text-sm"
+                    style={{
+                      background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.06)',
+                      border: goalError ? '1px solid rgba(240,100,100,0.6)' : '1px solid rgba(150,175,255,0.25)',
+                      color: primaryText,
+                      fontFamily: "'Raleway', sans-serif",
+                    }}
+                  />
+                  <span className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>chapters / week</span>
+                  <button
+                    onClick={() => saveGoal(goalInput)}
+                    className="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors"
+                    style={{ background: 'rgba(150,175,255,0.18)', color: isDark ? '#dde6ff' : '#0d1533', fontFamily: "'Raleway', sans-serif" }}
+                  >
+                    Save
+                  </button>
+                </div>
+                {goalError && (
+                  <p className="text-xs mt-1.5" style={{ color: 'rgba(240,100,100,0.8)', fontFamily: "'Raleway', sans-serif" }} role="alert">
+                    {goalError}
+                  </p>
+                )}
               </div>
             ) : (
-              <div className="flex items-baseline gap-1.5 mb-4">
-                <span className="text-4xl font-bold tabular-nums" style={{ fontFamily: "'Cinzel', serif", color: primaryText }}>
-                  {weekChapters}
-                </span>
-                <span className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-                  / {weeklyGoal} chapters this week
-                </span>
+              <div className="mb-4">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl font-bold tabular-nums" style={{ fontFamily: "'Cinzel', serif", color: primaryText }}>
+                    {weekChapters}
+                  </span>
+                  <span className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                    / {weeklyGoal} chapters this week
+                  </span>
+                </div>
+                {goalError && (
+                  <p className="text-xs mt-1.5" style={{ color: 'rgba(240,100,100,0.8)', fontFamily: "'Raleway', sans-serif" }} role="alert">
+                    {goalError}
+                  </p>
+                )}
               </div>
             )}
 
-            <div className="h-2 rounded-full overflow-hidden" style={{ background: trackBg }}>
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${Math.min((weekChapters / weeklyGoal) * 100, 100)}%`,
-                  background: atGoal
-                    ? 'linear-gradient(90deg, rgba(80,200,140,0.85), rgba(100,225,165,0.9))'
-                    : 'linear-gradient(90deg, rgba(200,180,80,0.75), rgba(230,200,80,0.85))',
-                }}
-              />
-            </div>
-            <p className="text-xs mt-2" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-              {atGoal
-                ? `Goal reached!${weekChapters - weeklyGoal > 0 ? ` +${weekChapters - weeklyGoal} bonus` : ''}`
-                : `${weeklyGoal - weekChapters} more to reach your goal`}
-            </p>
+            {isInitialLoading ? (
+              <Skeleton className="h-2" />
+            ) : (
+              <div className="h-2 rounded-full overflow-hidden" style={{ background: trackBg }}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min((weekChapters / weeklyGoal) * 100, 100)}%`,
+                    background: atGoal
+                      ? 'linear-gradient(90deg, rgba(80,200,140,0.85), rgba(100,225,165,0.9))'
+                      : 'linear-gradient(90deg, rgba(200,180,80,0.75), rgba(230,200,80,0.85))',
+                  }}
+                />
+              </div>
+            )}
+            {!isInitialLoading && (
+              <p className="text-xs mt-2" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                {atGoal
+                  ? `Goal reached!${weekChapters - weeklyGoal > 0 ? ` +${weekChapters - weeklyGoal} bonus` : ''}`
+                  : `${weeklyGoal - weekChapters} more to reach your goal`}
+              </p>
+            )}
           </div>
 
           {/* Continue reading */}

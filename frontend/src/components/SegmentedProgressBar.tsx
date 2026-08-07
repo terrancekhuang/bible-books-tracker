@@ -29,22 +29,22 @@ export default function SegmentedProgressBar({ total, readChapters }: { total: n
   };
 
   return (
-    <div className="mt-2.5">
+    <div className="mt-2">
       <div
         ref={barRef}
-        className="flex h-2 gap-0.5 cursor-default"
+        className="flex h-3.5 gap-[3px] cursor-default"
         onMouseMove={handleMouseMove}
         onMouseLeave={() => setTooltip(null)}
       >
         {runs.map((run, i) => (
           <div
             key={i}
-            className="rounded-sm"
+            className="rounded-[3px]"
             style={{
               flex: run.end - run.start + 1,
               background: run.read
-                ? (isDark ? 'rgba(150,175,255,0.72)' : 'rgba(13,21,51,0.55)')
-                : (isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.08)'),
+                ? (isDark ? 'rgba(150,175,255,0.85)' : 'rgba(13,21,51,0.65)')
+                : (isDark ? 'rgba(150,175,255,0.1)' : 'rgba(13,21,51,0.08)'),
             }}
           />
         ))}

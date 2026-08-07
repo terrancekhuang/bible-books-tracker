@@ -11,7 +11,6 @@ import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import NavBar from './NavBar'
 import BookCard from './BookCard'
-import ArcProgress from './ArcProgress'
 import { getCategoryPalette } from '../lib/categoryColors'
 
 interface UserInfo {
@@ -438,43 +437,36 @@ export default function Tracker() {
                           </h2>
                         </div>
 
-                        {/* Arc ring + progress stats */}
-                        <div className="flex items-center gap-5">
-                          <div style={{ color: arcColor }}>
-                            <ArcProgress
-                              total={selectedBook.num_chapters}
-                              read={selectedBook.chapters_read}
-                              size={88}
-                              strokeWidth={5}
-                              isDark={isDark}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            <div>
-                              <span
-                                className="text-3xl font-bold tabular-nums"
-                                style={{ fontFamily: "'Cinzel', serif", color: arcColor, letterSpacing: '-0.01em' }}
-                              >
-                                {pct}%
-                              </span>
-                            </div>
-                            <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-                              {selectedBook.chapters_read} of {selectedBook.num_chapters} chapters
-                            </p>
-                            {isComplete && (
-                              <span
-                                className="text-xs px-2 py-0.5 rounded-full w-fit"
-                                style={{ background: `${cat.glow}`, color: cat.color, fontFamily: "'Raleway', sans-serif", border: `1px solid ${cat.color.replace(',1)', ',0.3)')}` }}
-                              >
-                                Complete
-                              </span>
-                            )}
-                          </div>
+                        {/* Progress stats */}
+                        <div className="flex items-baseline gap-3">
+                          <span
+                            className="text-4xl font-bold tabular-nums"
+                            style={{ fontFamily: "'Cinzel', serif", color: arcColor, letterSpacing: '-0.01em' }}
+                          >
+                            {pct}%
+                          </span>
+                          <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                            {selectedBook.chapters_read} of {selectedBook.num_chapters} chapters
+                          </p>
+                          {isComplete && (
+                            <span
+                              className="text-xs px-2 py-0.5 rounded-full w-fit ml-auto"
+                              style={{ background: `${cat.glow}`, color: cat.color, fontFamily: "'Raleway', sans-serif", border: `1px solid ${cat.color.replace(',1)', ',0.3)')}` }}
+                            >
+                              Complete
+                            </span>
+                          )}
                         </div>
 
-                        {/* Segmented progress bar (chapter-level detail) */}
+                        {/* Chapter progress — the hero: which chapters, not just how many */}
                         {!isComplete && (
                           <div>
+                            <span
+                              className="text-xs font-medium uppercase"
+                              style={{ color: cat.dim, fontFamily: "'Raleway', sans-serif", letterSpacing: '0.08em' }}
+                            >
+                              Chapter progress
+                            </span>
                             <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} />
                           </div>
                         )}

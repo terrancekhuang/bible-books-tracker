@@ -90,7 +90,7 @@ function AchievementBadge({ icon, label, tier, animDelay = 0 }: { icon: string; 
             ? `0 0 28px ${cfg.glow}, 0 0 8px ${cfg.glow}, 0 4px 20px ${cfg.shadow}`
             : `0 0 14px ${cfg.glow}, 0 2px 10px ${cfg.shadow}`,
           transform: hovered ? "scale(1.12) translateY(-2px)" : "scale(1)",
-          transition: "transform 0.22s cubic-bezier(.34,1.56,.64,1), box-shadow 0.22s ease",
+          transition: "transform 0.22s cubic-bezier(.16,1,.3,1), box-shadow 0.22s ease",
           cursor: "default",
           animationDelay: `${animDelay}ms`,
           flexShrink: 0,

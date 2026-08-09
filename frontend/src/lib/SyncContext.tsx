@@ -49,6 +49,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [doFlush])
 
+  // Tab regains focus: another device may have written since we last fetched
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        window.dispatchEvent(new CustomEvent('books-invalidated'))
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [])
+
   const enqueue = useCallback(async (
     url: string, method: string, headers: Record<string, string>, body: string,
   ): Promise<void> => {

@@ -58,10 +58,7 @@ export function useProgressSync(): SyncOps {
       const confirmed: Book = { ...book, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list, last_read_at: now }
       patchBook(book.name, confirmed)
 
-      if (data.newly_logged > 0) {
-        invalidateProgress()
-        window.dispatchEvent(new CustomEvent('books-invalidated'))
-      }
+      if (data.newly_logged > 0) invalidateProgress()
       if (data.newly_logged > 0 || newlyLogged > 0) await refreshStats()
     } catch (e) {
       if (!navigator.onLine || e instanceof TypeError) {
@@ -89,7 +86,6 @@ export function useProgressSync(): SyncOps {
       if (!data.success) return
       patchBook(book.name, { ...book, chapters_read: data.chapters_read, chapters_read_list: data.chapters_read_list })
       invalidateProgress()
-      window.dispatchEvent(new CustomEvent('books-invalidated'))
       await refreshStats()
     } catch (e) {
       console.error(`Error ${errorLabel}:`, e)

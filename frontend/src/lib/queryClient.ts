@@ -17,6 +17,13 @@ export const queryClient = new QueryClient({
     },
     mutations: {
       retry: 0,
+      // This app owns its own offline durability: a failed write is persisted to the
+      // IndexedDB queue in offlineQueue.ts and replayed on reconnect, so it survives the
+      // tab being closed. TanStack's default networkMode ('online') pauses a mutation
+      // started while offline and never calls its mutationFn at all — which silently
+      // bypasses that queue and leaves the write in memory only, where closing the tab
+      // loses it. 'always' runs the mutationFn regardless, letting the queue do its job.
+      networkMode: 'always',
     },
   },
 })

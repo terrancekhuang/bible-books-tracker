@@ -17,6 +17,8 @@ vi.mock('../cache', () => ({
 }))
 import { invalidateProgress, setCache } from '../cache'
 
+const TZ_OFFSET = -300
+
 const GENESIS: Book = {
   book_id: 1,
   name: 'Genesis',
@@ -43,9 +45,21 @@ function cachedBook(name = 'Genesis'): Book | undefined {
   return queryClient.getQueryData<Book[]>(queryKeys.books())?.find(b => b.name === name)
 }
 
+/**
+ * Whether the write told the dashboard query it was out of date. Checked against real
+ * cache state rather than a spy, so this also proves the write's prefix invalidation
+ * reaches a dashboard keyed by a specific timezone offset.
+ */
+function invalidatedDashboard(): boolean {
+  return queryClient.getQueryState(queryKeys.dashboard(TZ_OFFSET))?.isInvalidated ?? false
+}
+
 beforeEach(() => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData<Book[]>(queryKeys.books(), [GENESIS])
+  // A dashboard entry for invalidatedDashboard() to observe. Nothing subscribes to it,
+  // so invalidating only marks it stale — no refetch fires during these tests.
+  queryClient.setQueryData(queryKeys.dashboard(TZ_OFFSET), { weekly_goal: 7 })
 
   patchBook = vi.fn<(name: string, book: Book) => void>()
   logout = vi.fn<() => void>()
@@ -92,6 +106,25 @@ describe('submit', () => {
     expect(cachedBook()?.chapters_read_list).toEqual([1, 2, 3, 4, 5])
     expect(invalidateProgress).toHaveBeenCalled()
     expect(setCache).toHaveBeenCalledWith('stats', expect.anything())
+    expect(invalidatedDashboard()).toBe(true)
+  })
+
+  // The bug this redesign exists to fix: a confirmed write has to reach a Dashboard
+  // that was already mounted, without relying on a global event.
+  it('invalidates the dashboard even when only the optimistic guess logged anything', async () => {
+    const options = createSubmitMutationOptions(deps)
+    const vars = { book: GENESIS, chapters: [3] }
+    const context = await options.onMutate(vars)
+    expect(context.newlyLoggedOptimistic).toBe(1)
+
+    vi.stubGlobal('fetch', vi.fn())
+    await options.onSuccess(
+      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0 },
+      vars,
+      context,
+    )
+
+    expect(invalidatedDashboard()).toBe(true)
   })
 
   it('deduplicates chapters that were already read', async () => {
@@ -159,6 +192,7 @@ describe('submit', () => {
     await options.onSuccess(result, vars, context)
     expect(cachedBook()?.chapters_read_list).toEqual([1, 2, 3])
     expect(invalidateProgress).not.toHaveBeenCalled()
+    expect(invalidatedDashboard()).toBe(false)
   })
 
   it('skips the stats refresh when nothing new was actually logged', async () => {
@@ -176,6 +210,7 @@ describe('submit', () => {
 
     expect(invalidateProgress).not.toHaveBeenCalled()
     expect(setCache).not.toHaveBeenCalled()
+    expect(invalidatedDashboard()).toBe(false)
   })
 })
 
@@ -200,6 +235,7 @@ describe.each([
     expect(patchBook).toHaveBeenCalledWith('Genesis', expect.objectContaining({ chapters_read: 1 }))
     expect(invalidateProgress).toHaveBeenCalled()
     expect(setCache).toHaveBeenCalledWith('stats', expect.anything())
+    expect(invalidatedDashboard()).toBe(true)
   })
 
   it('does nothing when the server reports no change', async () => {
@@ -212,6 +248,7 @@ describe.each([
     expect(cachedBook()).toEqual(GENESIS)
     expect(patchBook).not.toHaveBeenCalled()
     expect(invalidateProgress).not.toHaveBeenCalled()
+    expect(invalidatedDashboard()).toBe(false)
   })
 
   it('logs out on 401 and leaves the cache untouched', async () => {

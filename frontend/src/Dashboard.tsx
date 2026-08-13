@@ -2,28 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from './lib/ThemeContext'
-import { api } from './lib/api'
-import { useCachedFetch } from './lib/useCachedFetch'
-import { useBooksContext } from './lib/BooksContext'
+import { useBooksQuery, useDashboardQuery } from './lib/queries'
+import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
 import BookCard from './components/BookCard'
 import Skeleton from './components/Skeleton'
-import ActivityHeatmap, { type ActivityDay } from './components/ActivityHeatmap'
+import ActivityHeatmap from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
 import NavBar from './components/NavBar'
-import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, type Book, type Stats } from './lib/trackerLogic'
-
-interface UserInfo {
-  name: string | null
-  picture_url: string | null
-}
-
-interface DashboardData {
-  stats: Stats
-  activity: ActivityDay[]
-  weekly_goal: number
-  user: UserInfo
-}
+import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, type Book } from './lib/trackerLogic'
 
 const CATEGORY_ORDER = [
   'Law', 'History', 'Poetry', 'Major Prophets', 'Minor Prophets',
@@ -66,24 +53,22 @@ const fadeUp = (delay: number): CSSProperties => ({
 export default function Dashboard() {
   const { isDark, colors } = useTheme()
   const [displayPct, setDisplayPct] = useState(0)
-  const [localGoal, setLocalGoal] = useState<number | null>(null)
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
   const [goalError, setGoalError] = useState<string | null>(null)
   const animFrameRef = useRef<number | null>(null)
   const navigate = useNavigate()
 
-  const tzOffset = useMemo(() => -new Date().getTimezoneOffset(), [])
-
-  const { books, loading: booksLoading } = useBooksContext()
-  const { data: dashboard, loading: dashboardLoading } = useCachedFetch<DashboardData>('dashboard', `/api/dashboard?tz_offset=${tzOffset}`, { refetchOnOnline: true })
+  const { data: books = [], isLoading: booksLoading } = useBooksQuery()
+  const { data: dashboard, isLoading: dashboardLoading } = useDashboardQuery()
+  const { save: saveWeeklyGoal } = useUpdateWeeklyGoal()
   const isInitialLoading = booksLoading || dashboardLoading
 
   const stats = dashboard?.stats ?? null
   const activity = dashboard?.activity ?? null
   const user = dashboard?.user ?? null
 
-  const weeklyGoal = localGoal ?? dashboard?.weekly_goal ?? 7
+  const weeklyGoal = dashboard?.weekly_goal ?? 7
 
   const { totalRead, overallPct } = useMemo(() => calculateOverallProgress(books), [books])
   const booksComplete = useMemo(() => books.filter(b => b.chapters_read >= b.num_chapters).length, [books])
@@ -128,19 +113,18 @@ export default function Dashboard() {
     return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current) }
   }, [overallPct, books.length])
 
-  const saveGoal = (val: string) => {
+  const saveGoal = async (val: string) => {
     const n = parseInt(val, 10)
     if (isNaN(n) || n <= 0 || n > 200) {
       setGoalError('Enter a number between 1 and 200.')
       return
     }
-    const prev = weeklyGoal
-    setLocalGoal(n)
     setGoalError(null)
     setEditingGoal(false)
-    api.settings.update(n)
-      .then(r => { if (!r.ok) { setLocalGoal(prev); setGoalError("Couldn't save your goal — please try again.") } })
-      .catch(() => { setLocalGoal(prev); setGoalError("Couldn't save your goal — please try again.") })
+    // The mutation writes the new goal into the dashboard cache before the request
+    // goes out and rolls it back itself on failure, so there's nothing to undo here.
+    const saved = await saveWeeklyGoal(n)
+    if (!saved) setGoalError("Couldn't save your goal — please try again.")
   }
 
   const firstName = user?.name?.split(' ')[0] ?? 'friend'

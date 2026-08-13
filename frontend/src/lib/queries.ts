@@ -8,9 +8,16 @@ import { queryKeys } from './queryKeys'
 import type { Book, Stats } from './trackerLogic'
 import type { ActivityDay } from '../components/ActivityHeatmap'
 
+/** The nav-bar slice of a user — all `/api/dashboard` embeds, and all NavBar needs. */
 export interface CurrentUser {
   name: string | null
   picture_url: string | null
+}
+
+/** `/auth/me` returns more than the dashboard's embedded user; Profile shows the rest. */
+export interface AuthUser extends CurrentUser {
+  user_id: number
+  email: string
 }
 
 /** The whole `/api/dashboard` payload — stats, heatmap, weekly goal and nav-bar user in one request. */
@@ -19,6 +26,22 @@ export interface DashboardData {
   activity: ActivityDay[]
   weekly_goal: number
   user: CurrentUser
+}
+
+/** One reading cycle with its aggregate progress, from `/api/cycles`. */
+export interface Cycle {
+  cycle_id: number
+  cycle_number: number
+  chapters_read: number
+  total_chapters: number
+  books_complete: number
+}
+
+/** A most-read book, from `/api/favorites` — `cycle_count` is how many cycles it appears in. */
+export interface FavoriteBook {
+  book_id: number
+  book_name: string
+  cycle_count: number
 }
 
 interface QueryDeps {
@@ -33,6 +56,25 @@ async function getJson<T>(url: string, logout: () => void): Promise<T> {
   throw new Error(`Failed to fetch ${url}`)
 }
 
+/**
+ * LEGACY BRIDGE: paints every page instantly on a hard reload, the way the old
+ * localStorage cache did. TanStack's cache is in-memory only until milestone 4 adds a
+ * real persister, so without this seed each page would flash empty or show skeletons
+ * where today it shows last-known values. `initialDataUpdatedAt: 0` marks the seed as
+ * already stale, so it always background-refetches — again matching today.
+ *
+ * The paired `setCache(key, data)` in each queryFn below is what keeps the seed alive:
+ * useCachedFetch used to write these keys, and invalidateProgress()/invalidateCycle()
+ * still delete them on every write, so without the write-back a seed would be dead
+ * after the user's first write. Both halves go with cache.ts in milestone 4.
+ */
+function legacySeed<T>(key: string) {
+  return {
+    initialData: () => getCache<T>(key) ?? undefined,
+    initialDataUpdatedAt: 0,
+  }
+}
+
 export function booksQueryOptions({ logout }: QueryDeps) {
   return queryOptions({
     queryKey: queryKeys.books(),
@@ -40,20 +82,20 @@ export function booksQueryOptions({ logout }: QueryDeps) {
       const books = await getJson<Book[]>('/api/books', logout)
       return books.map(normalizeBook)
     },
-    // LEGACY BRIDGE: BooksContext seeds itself synchronously from localStorage, so
-    // today the grid paints instantly on a hard reload. TanStack's cache is
-    // in-memory only until milestone 4 adds a real persister — without this seed
-    // the grid would flash empty on every reload. `initialDataUpdatedAt: 0` marks
-    // the seed as already stale so it always background-refetches, matching today.
-    initialData: () => getCache<Book[]>('books') ?? undefined,
-    initialDataUpdatedAt: 0,
+    // BooksContext, not this queryFn, is still what writes cache:books.
+    ...legacySeed<Book[]>('books'),
   })
 }
 
 export function currentUserQueryOptions({ logout }: QueryDeps) {
   return queryOptions({
     queryKey: queryKeys.currentUser(),
-    queryFn: (): Promise<CurrentUser> => getJson<CurrentUser>('/auth/me', logout),
+    queryFn: async (): Promise<AuthUser> => {
+      const data = await getJson<AuthUser>('/auth/me', logout)
+      setCache('user', data)
+      return data
+    },
+    ...legacySeed<AuthUser>('user'),
   })
 }
 
@@ -62,24 +104,51 @@ export function dashboardQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffs
     queryKey: queryKeys.dashboard(tzOffset),
     queryFn: async (): Promise<DashboardData> => {
       const data = await getJson<DashboardData>(`/api/dashboard?tz_offset=${tzOffset}`, logout)
-      // LEGACY BRIDGE: mirror the write-back useCachedFetch used to do, so the seed
-      // below stays alive. Load-bearing, not just belt-and-braces: invalidateProgress()
-      // deletes cache:dashboard on every Tracker write, and nothing else repopulates it
-      // now that useCachedFetch no longer serves this key — without this the seed would
-      // be dead after the first write. Goes with cache.ts in milestone 4.
       setCache('dashboard', data)
       return data
     },
-    // LEGACY BRIDGE: same reasoning as the books seed above — TanStack's cache is
-    // in-memory only until milestone 4's persister, so without this the Dashboard
-    // would show skeletons on every hard reload where today it paints instantly.
-    initialData: () => getCache<DashboardData>('dashboard') ?? undefined,
-    initialDataUpdatedAt: 0,
+    ...legacySeed<DashboardData>('dashboard'),
   })
 }
 
-// Named for the data, not the page — Dashboard and Profile reuse these in
-// milestones 2 and 3 rather than defining queries of their own.
+export function cyclesQueryOptions({ logout }: QueryDeps) {
+  return queryOptions({
+    queryKey: queryKeys.cycles(),
+    queryFn: async (): Promise<Cycle[]> => {
+      const data = await getJson<Cycle[]>('/api/cycles', logout)
+      setCache('cycles', data)
+      return data
+    },
+    ...legacySeed<Cycle[]>('cycles'),
+  })
+}
+
+export function favoritesQueryOptions({ logout }: QueryDeps) {
+  return queryOptions({
+    queryKey: queryKeys.favorites(),
+    queryFn: async (): Promise<FavoriteBook[]> => {
+      const data = await getJson<FavoriteBook[]>('/api/favorites', logout)
+      setCache('favorites', data)
+      return data
+    },
+    ...legacySeed<FavoriteBook[]>('favorites'),
+  })
+}
+
+export function statsQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
+  return queryOptions({
+    queryKey: queryKeys.stats(tzOffset),
+    queryFn: async (): Promise<Stats> => {
+      const data = await getJson<Stats>(`/api/stats?tz_offset=${tzOffset}`, logout)
+      setCache('stats', data)
+      return data
+    },
+    ...legacySeed<Stats>('stats'),
+  })
+}
+
+// Named for the data, not the page — every page reuses these rather than
+// defining queries of its own.
 
 export function useBooksQuery() {
   const { logout } = useAuth()
@@ -104,4 +173,20 @@ export function useDashboardQuery() {
   const { logout } = useAuth()
   const tzOffset = useTzOffset()
   return useQuery(dashboardQueryOptions({ logout, tzOffset }))
+}
+
+export function useCyclesQuery() {
+  const { logout } = useAuth()
+  return useQuery(cyclesQueryOptions({ logout }))
+}
+
+export function useFavoritesQuery() {
+  const { logout } = useAuth()
+  return useQuery(favoritesQueryOptions({ logout }))
+}
+
+export function useStatsQuery() {
+  const { logout } = useAuth()
+  const tzOffset = useTzOffset()
+  return useQuery(statsQueryOptions({ logout, tzOffset }))
 }

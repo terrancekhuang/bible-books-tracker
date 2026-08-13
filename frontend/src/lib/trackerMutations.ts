@@ -1,9 +1,10 @@
 import { authHeaders } from './auth'
-import { api, fetchJson } from './api'
-import { invalidateProgress, setCache } from './cache'
+import { api } from './api'
+import { invalidateProgress } from './cache'
+import { invalidateProgressWrite } from './invalidation'
 import { queryKeys } from './queryKeys'
 import type { QueryClient } from '@tanstack/react-query'
-import type { Book, Stats } from './trackerLogic'
+import type { Book } from './trackerLogic'
 
 /**
  * Tracker's three writes, as plain dependency-injected mutation-options factories.
@@ -30,33 +31,6 @@ function setBookEverywhere(deps: MutationDeps, name: string, book: Book): void {
     old?.map((b) => (b.name === name ? book : b))
   )
   deps.patchBook(name, book)
-}
-
-/**
- * The fix for the staleness bug this redesign exists to solve: a write now tells the
- * dashboard query it's out of date instead of relying on a global event every future
- * write would have to remember to fire.
- *
- * Deliberately not awaited. Tracker awaits `submit`, and blocking that on a dashboard
- * refetch would stall the Tracker UI for no benefit — when no Dashboard is mounted this
- * only marks the query stale and resolves immediately anyway.
- *
- * This still runs when Tracker has already unmounted, which is exactly the
- * navigate-away-before-the-write-lands case: callbacks on the options object handed to
- * `useMutation` fire regardless of the component's lifecycle, unlike callbacks passed
- * to `mutate()`.
- */
-function invalidateDashboard(deps: MutationDeps): void {
-  void deps.queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll() })
-}
-
-// LEGACY BRIDGE: replicates the stats refresh the pre-migration write path performed,
-// so Profile's /api/stats cache (still read through useCachedFetch) doesn't go stale
-// this milestone. Delete alongside cache.ts in milestone 4.
-async function refreshStatsBridge(logout: () => void): Promise<void> {
-  const result = await fetchJson<Stats>(`/api/stats?tz_offset=${-new Date().getTimezoneOffset()}`, logout)
-  if (!result.ok) return
-  setCache('stats', result.data)
 }
 
 interface SubmitVars {
@@ -138,7 +112,7 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
       console.error('Error updating progress:', error)
     },
 
-    onSuccess: async (result: SubmitResult, { book }: SubmitVars, context: SubmitContext | undefined) => {
+    onSuccess: (result: SubmitResult, { book }: SubmitVars, context: SubmitContext | undefined) => {
       if (result.status !== 'confirmed') return
       const confirmed: Book = {
         ...book,
@@ -149,8 +123,7 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
       setBookEverywhere(deps, book.name, confirmed)
       if (result.newly_logged > 0) invalidateProgress()
       if (result.newly_logged > 0 || (context?.newlyLoggedOptimistic ?? 0) > 0) {
-        invalidateDashboard(deps)
-        await refreshStatsBridge(deps.logout)
+        invalidateProgressWrite(deps.queryClient)
       }
     },
   }
@@ -186,7 +159,7 @@ function createBookActionMutationOptions(
       return await response.json() as ActionResult
     },
 
-    onSuccess: async (data: ActionResult | null, { book }: ActionVars) => {
+    onSuccess: (data: ActionResult | null, { book }: ActionVars) => {
       // `success: false` is the "nothing left to undo" case — not an error, just a no-op.
       if (!data?.success) return
       setBookEverywhere(deps, book.name, {
@@ -195,8 +168,7 @@ function createBookActionMutationOptions(
         chapters_read_list: data.chapters_read_list,
       })
       invalidateProgress()
-      invalidateDashboard(deps)
-      await refreshStatsBridge(deps.logout)
+      invalidateProgressWrite(deps.queryClient)
     },
 
     onError: (error: unknown) => {

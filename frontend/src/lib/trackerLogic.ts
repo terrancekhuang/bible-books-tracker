@@ -9,9 +9,11 @@ export interface Book {
   last_read_at: string | null
 }
 
+/** The full `/api/stats` payload — also nested inside `/api/dashboard`. */
 export interface Stats {
   chapters_today: number
   chapters_this_week: number
+  chapters_last_7_days: number
   current_streak: number
   best_streak: number
   total_chapters: number

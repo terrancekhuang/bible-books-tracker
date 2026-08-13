@@ -1,42 +1,12 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "./lib/AuthContext";
-import { api } from "./lib/api";
 import { useTheme } from "./lib/ThemeContext";
-import { useCachedFetch } from "./lib/useCachedFetch";
-import { invalidateCycle } from "./lib/cache";
+import { useCurrentUserQuery, useCyclesQuery, useFavoritesQuery, useStatsQuery } from "./lib/queries";
+import { useCreateCycle } from "./lib/useCycleMutations";
 import { TOTAL_BOOKS, TOTAL_CHAPTERS } from "./lib/trackerLogic";
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
 import NavBar from "./components/NavBar";
-
-interface UserInfo {
-  user_id: number;
-  email: string;
-  name: string | null;
-  picture_url: string | null;
-}
-
-interface Cycle {
-  cycle_id: number;
-  cycle_number: number;
-  chapters_read: number;
-  total_chapters: number;
-  books_complete: number;
-}
-
-interface Stats {
-  total_chapters: number;
-  total_days: number;
-  best_streak: number;
-  chapters_last_7_days: number;
-}
-
-interface FavoriteBook {
-  book_id: number;
-  book_name: string;
-  cycle_count: number;
-}
 
 type BadgeTier = "bronze" | "silver" | "gold" | "rainbow";
 
@@ -111,11 +81,10 @@ function AchievementBadge({ icon, label, tier, animDelay = 0 }: { icon: string; 
 }
 
 export default function Profile() {
-  const { logout } = useAuth()
   const { isDark, colors } = useTheme()
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [creating, setCreating] = useState(false);
+  const { create: createCycle, isCreating } = useCreateCycle();
 
   const { primaryText, dimText, bodyText, trackBg } = colors
 
@@ -135,12 +104,10 @@ export default function Profile() {
     borderRadius: '1rem',
   }
 
-  const tzOffset = useMemo(() => -new Date().getTimezoneOffset(), [])
-
-  const { data: user } = useCachedFetch<UserInfo>('user', '/auth/me')
-  const { data: rawCycles } = useCachedFetch<Cycle[]>('cycles', '/api/cycles')
-  const { data: stats } = useCachedFetch<Stats>('stats', `/api/stats?tz_offset=${tzOffset}`)
-  const { data: favorites, loading: favoritesLoading, error: favoritesError } = useCachedFetch<FavoriteBook[]>('favorites', '/api/favorites')
+  const { data: user } = useCurrentUserQuery()
+  const { data: rawCycles } = useCyclesQuery()
+  const { data: stats } = useStatsQuery()
+  const { data: favorites, isPending: favoritesLoading, isError: favoritesError } = useFavoritesQuery()
 
   const cycles = rawCycles ?? []
   const currentCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null;
@@ -172,20 +139,12 @@ export default function Profile() {
     completedCycles >= 2   && { icon: "🎖️", label: "Twice Blessed",   tier: "rainbow" as BadgeTier },
   ].filter(Boolean) as { icon: string; label: string; tier: BadgeTier }[];
 
+  // createCycle only resolves once the book grid has been refetched, so Tracker paints
+  // the new empty cycle rather than the one that was just finished.
   const handleNewCycle = async () => {
-    setCreating(true);
-    try {
-      const res = await api.cycles.create();
-      if (res.status === 401) { logout(); return; }
-      if (!res.ok) throw new Error("Failed to create cycle");
-      invalidateCycle()
-      dialogRef.current?.close();
-      navigate("/tracker");
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setCreating(false);
-    }
+    if (!await createCycle()) return;
+    dialogRef.current?.close();
+    navigate("/tracker");
   };
 
   return (
@@ -391,9 +350,9 @@ export default function Profile() {
                 letterSpacing: '0.05em',
               }}
               onClick={handleNewCycle}
-              disabled={creating}
+              disabled={isCreating}
             >
-              {creating ? "Creating…" : "Start New Cycle"}
+              {isCreating ? "Creating…" : "Start New Cycle"}
             </button>
           </div>
         </div>

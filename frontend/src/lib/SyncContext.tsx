@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from './AuthContext'
 import { enqueueWrite, flushQueue, getPendingCount } from './offlineQueue'
 import { invalidateCycle } from './cache'
+import { invalidateQueueFlushed } from './invalidation'
 
 interface SyncContextValue {
   isOnline: boolean
@@ -15,6 +17,7 @@ const SyncContext = createContext<SyncContextValue | null>(null)
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const { logout } = useAuth()
+  const queryClient = useQueryClient()
 
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   const [pendingCount, setPendingCount] = useState(0)
@@ -23,11 +26,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     await flushQueue(logout)
     const n = await getPendingCount()
     setPendingCount(n)
+    // Only once the queue is fully drained — a partial flush (a 5xx stops the replay)
+    // leaves writes outstanding, so the views would only go stale again.
     if (n === 0) {
+      invalidateQueueFlushed(queryClient)
+      // LEGACY BRIDGE: keeps cache:books — the books query's reload seed — accurate,
+      // via the refetch this triggers in BooksProvider. Goes with cache.ts in milestone 4.
       invalidateCycle()
       window.dispatchEvent(new CustomEvent('books-invalidated'))
     }
-  }, [logout])
+  }, [logout, queryClient])
 
   // On mount: read queue depth; flush immediately if online and non-empty
   useEffect(() => {

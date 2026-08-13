@@ -13,6 +13,7 @@ const DASHBOARD: DashboardData = {
   stats: {
     chapters_today: 3,
     chapters_this_week: 12,
+    chapters_last_7_days: 15,
     current_streak: 4,
     best_streak: 9,
     total_chapters: 120,

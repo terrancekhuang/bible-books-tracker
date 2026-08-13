@@ -31,10 +31,18 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
+            // NetworkFirst, not StaleWhileRevalidate: when a write invalidates a query,
+            // the refetch has to reach the server. Under SWR the service worker answered
+            // that refetch from its own cache and only revalidated in the background, so
+            // an installed PWA re-painted the pre-write numbers and self-healed a refetch
+            // late — the browser and the installed app behaved differently.
+            // The timeout keeps the offline-first feel: a slow or dead network falls back
+            // to the cached response instead of hanging.
             urlPattern: ({ url, request }) => url.pathname.startsWith("/api/") && request.method === "GET",
-            handler: "StaleWhileRevalidate",
+            handler: "NetworkFirst",
             options: {
               cacheName: "api-cache",
+              networkTimeoutSeconds: 5,
               expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 30 },
               cacheableResponse: { statuses: [0, 200] },
             },

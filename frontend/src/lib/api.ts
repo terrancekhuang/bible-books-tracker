@@ -2,6 +2,18 @@ import { authHeaders } from './auth'
 
 export type FetchResult<T> = { ok: true; data: T } | { ok: false; unauthorized: boolean }
 
+/**
+ * Thrown by query functions when a fetch failed with 401. `fetchJson` has already
+ * logged the user out by then, so retrying would only fire a second doomed request —
+ * `queryClient`'s retry predicate checks for this and gives up immediately.
+ */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super('Unauthorized')
+    this.name = 'UnauthorizedError'
+  }
+}
+
 /** GET + parse JSON, with the shared session-expiry (401) handling every authenticated fetch needs. */
 export async function fetchJson<T>(url: string, onUnauthorized: () => void): Promise<FetchResult<T>> {
   try {

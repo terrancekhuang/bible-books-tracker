@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../lib/ThemeContext'
-import { useCachedFetch } from '../lib/useCachedFetch'
-import { useProgressSync } from '../lib/useProgressSync'
+import { useBooksQuery, useCurrentUserQuery } from '../lib/queries'
+import { useTrackerMutations } from '../lib/useTrackerMutations'
 import { useKeyChord } from '../lib/useKeyChord'
 import { useConfirm } from '../lib/useConfirm'
 import { parseChapters, sortBooks, filterBooks, availableFilterOptions, calculateProgress, type SortKey, type SortDir } from '../lib/trackerLogic'
@@ -13,16 +13,12 @@ import NavBar from './NavBar'
 import BookCard from './BookCard'
 import { getCategoryPalette } from '../lib/categoryColors'
 
-interface UserInfo {
-  name: string | null
-  picture_url: string | null
-}
-
 export default function Tracker() {
   const { isDark, colors } = useTheme()
-  const { data: user } = useCachedFetch<UserInfo>('user', '/auth/me');
+  const { data: user } = useCurrentUserQuery();
+  const { data: books = [] } = useBooksQuery();
 
-  const { books, pendingCount, isOnline, submit, undo, reset } = useProgressSync()
+  const { pendingCount, isOnline, submit, undo, reset } = useTrackerMutations()
 
   const [selectedBookName, setSelectedBookName] = useState<string | null>(null)
   const selectedBook = books.find(b => b.name === selectedBookName) ?? null

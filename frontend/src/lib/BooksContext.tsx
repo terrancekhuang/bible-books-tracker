@@ -5,7 +5,9 @@ import { getCache, setCache } from './cache'
 import { fetchJson } from './api'
 import type { Book } from './trackerLogic'
 
-function normalizeBook(item: Book): Book {
+// Exported so queries.ts can reuse it rather than duplicating normalization.
+// eslint-disable-next-line react-refresh/only-export-components
+export function normalizeBook(item: Book): Book {
   return {
     book_id: item.book_id,
     name: item.name,

@@ -2,7 +2,6 @@ import { useCallback, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from './AuthContext'
 import { useSyncContext } from './SyncContext'
-import { useBooksContext } from './BooksContext'
 import { createSubmitMutationOptions, createUndoMutationOptions, createResetMutationOptions } from './trackerMutations'
 import type { MutationDeps } from './trackerMutations'
 import type { Book } from './trackerLogic'
@@ -20,13 +19,10 @@ export function useTrackerMutations(): TrackerMutations {
   const queryClient = useQueryClient()
   const { logout } = useAuth()
   const { isOnline, pendingCount, enqueue } = useSyncContext()
-  // LEGACY BRIDGE: BooksContext's write path, kept only so Dashboard and Profile —
-  // which still read it — stay in sync. See setBookEverywhere in trackerMutations.ts.
-  const { patchBook } = useBooksContext()
 
   const deps: MutationDeps = useMemo(
-    () => ({ queryClient, patchBook, logout, enqueue }),
-    [queryClient, patchBook, logout, enqueue],
+    () => ({ queryClient, logout, enqueue }),
+    [queryClient, logout, enqueue],
   )
 
   const { mutateAsync: submitAsync } = useMutation(createSubmitMutationOptions(deps))

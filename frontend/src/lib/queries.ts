@@ -2,8 +2,6 @@ import { useMemo } from 'react'
 import { useQuery, queryOptions } from '@tanstack/react-query'
 import { useAuth } from './AuthContext'
 import { fetchJson, UnauthorizedError } from './api'
-import { normalizeBook } from './BooksContext'
-import { getCache, setCache } from './cache'
 import { queryKeys } from './queryKeys'
 import type { Book, Stats } from './trackerLogic'
 import type { ActivityDay } from '../components/ActivityHeatmap'
@@ -56,22 +54,12 @@ async function getJson<T>(url: string, logout: () => void): Promise<T> {
   throw new Error(`Failed to fetch ${url}`)
 }
 
-/**
- * LEGACY BRIDGE: paints every page instantly on a hard reload, the way the old
- * localStorage cache did. TanStack's cache is in-memory only until milestone 4 adds a
- * real persister, so without this seed each page would flash empty or show skeletons
- * where today it shows last-known values. `initialDataUpdatedAt: 0` marks the seed as
- * already stale, so it always background-refetches — again matching today.
- *
- * The paired `setCache(key, data)` in each queryFn below is what keeps the seed alive:
- * useCachedFetch used to write these keys, and invalidateProgress()/invalidateCycle()
- * still delete them on every write, so without the write-back a seed would be dead
- * after the user's first write. Both halves go with cache.ts in milestone 4.
- */
-function legacySeed<T>(key: string) {
+/** Fills in the two fields the API may omit, so consumers never guard for them. */
+function normalizeBook(item: Book): Book {
   return {
-    initialData: () => getCache<T>(key) ?? undefined,
-    initialDataUpdatedAt: 0,
+    ...item,
+    chapters_read_list: item.chapters_read_list || [],
+    last_read_at: item.last_read_at ?? null,
   }
 }
 
@@ -82,68 +70,42 @@ export function booksQueryOptions({ logout }: QueryDeps) {
       const books = await getJson<Book[]>('/api/books', logout)
       return books.map(normalizeBook)
     },
-    // BooksContext, not this queryFn, is still what writes cache:books.
-    ...legacySeed<Book[]>('books'),
   })
 }
 
 export function currentUserQueryOptions({ logout }: QueryDeps) {
   return queryOptions({
     queryKey: queryKeys.currentUser(),
-    queryFn: async (): Promise<AuthUser> => {
-      const data = await getJson<AuthUser>('/auth/me', logout)
-      setCache('user', data)
-      return data
-    },
-    ...legacySeed<AuthUser>('user'),
+    queryFn: (): Promise<AuthUser> => getJson<AuthUser>('/auth/me', logout),
   })
 }
 
 export function dashboardQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
   return queryOptions({
     queryKey: queryKeys.dashboard(tzOffset),
-    queryFn: async (): Promise<DashboardData> => {
-      const data = await getJson<DashboardData>(`/api/dashboard?tz_offset=${tzOffset}`, logout)
-      setCache('dashboard', data)
-      return data
-    },
-    ...legacySeed<DashboardData>('dashboard'),
+    queryFn: (): Promise<DashboardData> =>
+      getJson<DashboardData>(`/api/dashboard?tz_offset=${tzOffset}`, logout),
   })
 }
 
 export function cyclesQueryOptions({ logout }: QueryDeps) {
   return queryOptions({
     queryKey: queryKeys.cycles(),
-    queryFn: async (): Promise<Cycle[]> => {
-      const data = await getJson<Cycle[]>('/api/cycles', logout)
-      setCache('cycles', data)
-      return data
-    },
-    ...legacySeed<Cycle[]>('cycles'),
+    queryFn: (): Promise<Cycle[]> => getJson<Cycle[]>('/api/cycles', logout),
   })
 }
 
 export function favoritesQueryOptions({ logout }: QueryDeps) {
   return queryOptions({
     queryKey: queryKeys.favorites(),
-    queryFn: async (): Promise<FavoriteBook[]> => {
-      const data = await getJson<FavoriteBook[]>('/api/favorites', logout)
-      setCache('favorites', data)
-      return data
-    },
-    ...legacySeed<FavoriteBook[]>('favorites'),
+    queryFn: (): Promise<FavoriteBook[]> => getJson<FavoriteBook[]>('/api/favorites', logout),
   })
 }
 
 export function statsQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
   return queryOptions({
     queryKey: queryKeys.stats(tzOffset),
-    queryFn: async (): Promise<Stats> => {
-      const data = await getJson<Stats>(`/api/stats?tz_offset=${tzOffset}`, logout)
-      setCache('stats', data)
-      return data
-    },
-    ...legacySeed<Stats>('stats'),
+    queryFn: (): Promise<Stats> => getJson<Stats>(`/api/stats?tz_offset=${tzOffset}`, logout),
   })
 }
 

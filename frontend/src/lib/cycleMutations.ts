@@ -1,5 +1,4 @@
 import { api } from './api'
-import { invalidateCycle } from './cache'
 import { invalidateCycleCreated } from './invalidation'
 import type { QueryClient } from '@tanstack/react-query'
 
@@ -39,16 +38,7 @@ export function createCreateCycleMutationOptions(deps: CycleMutationDeps) {
     // finished one. See invalidateCycleCreated.
     onSuccess: async (data: CreatedCycle | null) => {
       if (!data) return
-      // LEGACY BRIDGE, and load-bearing: cache:books still seeds the grid's first paint.
-      // Refetching the query can't help when the user loaded /profile directly, because
-      // then no books query exists for the invalidation to reach — Tracker would mount
-      // and paint the seed, i.e. the cycle just finished. Clearing it first means the
-      // worst case is an empty grid for one frame rather than a wrong one. The event
-      // makes BooksProvider rewrite the seed with the new cycle. Goes with cache.ts in
-      // milestone 4, once the persister owns first paint.
-      invalidateCycle()
-      window.dispatchEvent(new CustomEvent('books-invalidated'))
-      await invalidateCycleCreated(deps.queryClient)
+      await invalidateCycleCreated(deps.queryClient, deps.logout)
     },
 
     onError: (error: unknown) => {

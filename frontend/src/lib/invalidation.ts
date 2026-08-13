@@ -1,4 +1,5 @@
 import { queryKeys } from './queryKeys'
+import { booksQueryOptions } from './queries'
 import type { QueryClient } from '@tanstack/react-query'
 
 /**
@@ -6,8 +7,7 @@ import type { QueryClient } from '@tanstack/react-query'
  *
  * Callers name a domain operation rather than listing keys, so the three call sites
  * (Tracker's writes, cycle creation, and the offline queue's flush) cannot drift apart
- * — the class of bug this redesign exists to eliminate. Same convention as the
- * invalidate* functions in cache.ts, but over the query cache instead of localStorage.
+ * — the class of bug this redesign exists to eliminate.
  */
 
 /**
@@ -33,15 +33,26 @@ export function invalidateProgressWrite(queryClient: QueryClient): void {
  * has no server response to patch in — the grid has to be refetched wholesale.
  *
  * Awaited by the caller, which navigates to Tracker immediately afterwards: the grid's
- * first paint must be the new empty cycle, never the finished one. `refetchType: 'all'`
- * is what makes awaiting meaningful — the default refetches only *active* queries, and
- * nothing observes `books` from the Profile page, so a default invalidation would
- * resolve without fetching anything and Tracker would paint the old cycle first.
+ * first paint must be the new empty cycle, never the finished one.
+ *
+ * `fetchQuery`, not `invalidateQueries` — even with `refetchType: 'all'`. A books query
+ * restored from the persister holds data but no `queryFn`: query options are bound when
+ * a component mounts `useQuery`, and nothing observes books from Profile. Invalidating
+ * such a query therefore resolves without fetching, and Tracker paints the cycle the
+ * user just finished. Handing the options in is what guarantees a real request.
+ *
+ * If that request fails, the stale grid is dropped rather than kept: an empty grid for
+ * one frame is recoverable, a wrong one is not.
  */
-export async function invalidateCycleCreated(queryClient: QueryClient): Promise<void> {
+export async function invalidateCycleCreated(
+  queryClient: QueryClient,
+  logout: () => void,
+): Promise<void> {
   void queryClient.invalidateQueries({ queryKey: queryKeys.cycles() })
   invalidateProgressWrite(queryClient)
-  await queryClient.invalidateQueries({ queryKey: queryKeys.books(), refetchType: 'all' })
+  await queryClient
+    .fetchQuery(booksQueryOptions({ logout }))
+    .catch(() => queryClient.removeQueries({ queryKey: queryKeys.books() }))
 }
 
 /**

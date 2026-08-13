@@ -3,27 +3,20 @@ import { QueryClient } from '@tanstack/react-query'
 import { createCreateCycleMutationOptions, type CycleMutationDeps } from '../cycleMutations'
 import { queryKeys } from '../queryKeys'
 
-// cache.ts is a localStorage-backed legacy bridge — mock it wholesale so these tests
-// stay in the node environment, and so the bridge call is assertable.
-vi.mock('../cache', () => ({
-  invalidateCycle: vi.fn(),
-}))
-import { invalidateCycle } from '../cache'
-
 const TZ_OFFSET = -300
 
 function jsonResponse(body: unknown, status = 200): Response {
   return { ok: status >= 200 && status < 300, status, json: async () => body } as Response
 }
 
-const FINISHED_CYCLE_BOOKS = [{ name: 'Genesis', chapters_read: 50 }]
-const NEW_CYCLE_BOOKS = [{ name: 'Genesis', chapters_read: 0 }]
+// normalizeBook fills these two in, so the fixtures carry them.
+const FINISHED_CYCLE_BOOKS = [{ name: 'Genesis', chapters_read: 50, chapters_read_list: [1], last_read_at: null }]
+const NEW_CYCLE_BOOKS = [{ name: 'Genesis', chapters_read: 0, chapters_read_list: [], last_read_at: null }]
 
 let queryClient: QueryClient
 let deps: CycleMutationDeps
 let logout: ReturnType<typeof vi.fn<() => void>>
 let booksResponse: Promise<unknown>
-let dispatchEvent: ReturnType<typeof vi.fn<(e: Event) => boolean>>
 
 /**
  * Which of the seeded queries the mutation marked stale. `books` is deliberately absent
@@ -50,9 +43,8 @@ function cachedBooks(): unknown {
 beforeEach(() => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   booksResponse = Promise.resolve(NEW_CYCLE_BOOKS)
-  // Registered before the query exists — a query binds its options on creation.
-  queryClient.setQueryDefaults(queryKeys.books(), { queryFn: () => booksResponse })
-  // The finished cycle's state, as a mounted app would still be holding it.
+  // The finished cycle's state, as a mounted app would still be holding it. Note this
+  // query has no queryFn — the shape a persisted query is restored with.
   queryClient.setQueryData(queryKeys.books(), FINISHED_CYCLE_BOOKS)
   queryClient.setQueryData(queryKeys.cycles(), [{ cycle_id: 1, cycle_number: 1 }])
   queryClient.setQueryData(queryKeys.dashboard(TZ_OFFSET), { weekly_goal: 7 })
@@ -61,15 +53,24 @@ beforeEach(() => {
   logout = vi.fn<() => void>()
   deps = { queryClient, logout }
 
-  dispatchEvent = vi.fn<(e: Event) => boolean>().mockReturnValue(true)
-  vi.stubGlobal('window', { dispatchEvent, CustomEvent })
   vi.stubGlobal('localStorage', {
     getItem: vi.fn().mockReturnValue(null),
     setItem: vi.fn(),
     removeItem: vi.fn(),
   })
   vi.spyOn(console, 'error').mockImplementation(() => {})
+  stubFetch(jsonResponse({ cycle_id: 2, cycle_number: 2 }))
 })
+
+/** Routes the two endpoints this mutation touches; anything else is a test bug. */
+function stubFetch(cycleResponse: Response) {
+  vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+    if (url.includes('/api/books')) {
+      return { ok: true, status: 200, json: async () => await booksResponse } as Response
+    }
+    return cycleResponse
+  }))
+}
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -105,18 +106,18 @@ describe('createCycle', () => {
     expect(invalidated()).toEqual(['cycles', 'dashboard', 'stats'])
   })
 
-  // Without this the grid's first paint comes from the localStorage seed — i.e. the
-  // cycle the user just finished — whenever /profile was loaded directly, because then
-  // no books query exists in the cache for the refetch above to reach.
-  it('clears the legacy localStorage seed so it cannot paint the finished cycle', async () => {
+  // The books query has no observers here, which is the real case: the user is on
+  // Profile, so nothing is rendering the grid. A default invalidation only refetches
+  // *active* queries and would resolve without fetching, leaving the persisted finished
+  // cycle to paint when Tracker mounts. refetchType: 'all' is what prevents that.
+  it('refetches the book grid even though nothing is observing it', async () => {
     const options = createCreateCycleMutationOptions(deps)
+    expect(queryClient.getQueryCache().find({ queryKey: queryKeys.books() })?.getObserversCount())
+      .toBe(0)
 
     await options.onSuccess({ cycle_id: 2, cycle_number: 2 })
 
-    expect(invalidateCycle).toHaveBeenCalled()
-    expect(dispatchEvent).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'books-invalidated' }),
-    )
+    expect(cachedBooks()).toEqual(NEW_CYCLE_BOOKS)
   })
 
   // Profile navigates to Tracker as soon as this resolves, so the grid has to be fresh
@@ -154,7 +155,6 @@ describe('createCycle', () => {
     await options.onSuccess(data)
     expect(invalidated()).toEqual([])
     expect(cachedBooks()).toEqual(FINISHED_CYCLE_BOOKS)
-    expect(invalidateCycle).not.toHaveBeenCalled()
   })
 
   it('throws on a server error, leaving every view as it was', async () => {

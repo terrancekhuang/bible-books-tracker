@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import {
   invalidateProgressWrite,
@@ -23,9 +23,12 @@ const KEYS = {
   currentUser: queryKeys.currentUser(),
 } as const
 
-const FRESH_BOOKS = [{ name: 'Genesis', chapters_read: 0 }]
+const FINISHED_BOOKS = [{ name: 'Genesis', chapters_read: 50, chapters_read_list: [1], last_read_at: null }]
+// normalizeBook fills last_read_at in, so the expectation carries it too.
+const FRESH_BOOKS = [{ name: 'Genesis', chapters_read: 0, chapters_read_list: [], last_read_at: null }]
 
 let queryClient: QueryClient
+let logout: ReturnType<typeof vi.fn<() => void>>
 let booksResponse: Promise<unknown>
 let booksFetches: number
 
@@ -44,15 +47,25 @@ function invalidated(): string[] {
 
 beforeEach(() => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  logout = vi.fn<() => void>()
   booksResponse = Promise.resolve(FRESH_BOOKS)
   booksFetches = 0
-  // Defaults have to be registered before the query exists — a query binds its options
-  // when it's created, so a later setQueryDefaults would never reach it.
-  queryClient.setQueryDefaults(queryKeys.books(), {
-    queryFn: () => { booksFetches++; return booksResponse },
-  })
-  // Nothing observes any of these, so invalidation alone won't refetch them.
+  vi.stubGlobal('fetch', vi.fn(async () => {
+    booksFetches++
+    return { ok: true, status: 200, json: async () => await booksResponse } as Response
+  }))
+  vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} })
+
+  // Nothing observes any of these, so invalidation alone won't refetch them. Note these
+  // queries have no queryFn — which is exactly the shape a query restored from the
+  // persister has, and the reason cycle creation can't rely on invalidateQueries.
   for (const key of Object.values(KEYS)) queryClient.setQueryData(key, { seeded: true })
+  queryClient.setQueryData(queryKeys.books(), FINISHED_BOOKS)
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('invalidateProgressWrite', () => {
@@ -81,17 +94,18 @@ describe('invalidateProgressWrite', () => {
 
 describe('invalidateCycleCreated', () => {
   it('marks every cycle-derived view stale', async () => {
-    await invalidateCycleCreated(queryClient)
+    await invalidateCycleCreated(queryClient, logout)
 
     // Books is missing from this list precisely because it was refetched — see below.
     expect(invalidated()).toEqual(['cycles', 'dashboard', 'stats'])
   })
 
   // The reason this one is awaited at all: Profile navigates to Tracker the moment it
-  // resolves, and nothing on Profile observes `books`. Without refetchType: 'all' the
-  // await would resolve without fetching and Tracker would paint the finished cycle.
-  it('refetches the book grid even though nothing is observing it', async () => {
-    await invalidateCycleCreated(queryClient)
+  // resolves, and nothing on Profile observes `books`. An unobserved query also has no
+  // queryFn bound, so invalidateQueries — even with refetchType: 'all' — would resolve
+  // without issuing a request, and Tracker would paint the finished cycle.
+  it('fetches the book grid even though nothing is observing it', async () => {
+    await invalidateCycleCreated(queryClient, logout)
 
     expect(booksFetches).toBe(1)
     expect(queryClient.getQueryData(queryKeys.books())).toEqual(FRESH_BOOKS)
@@ -102,14 +116,25 @@ describe('invalidateCycleCreated', () => {
     booksResponse = new Promise(resolve => { deliverBooks = resolve })
 
     let settled = false
-    const pending = invalidateCycleCreated(queryClient).then(() => { settled = true })
+    const pending = invalidateCycleCreated(queryClient, logout).then(() => { settled = true })
 
     await Promise.resolve()
     expect(settled).toBe(false)
+    expect(queryClient.getQueryData(queryKeys.books())).toEqual(FINISHED_BOOKS)
 
     deliverBooks(FRESH_BOOKS)
     await pending
     expect(settled).toBe(true)
+    expect(queryClient.getQueryData(queryKeys.books())).toEqual(FRESH_BOOKS)
+  })
+
+  // An empty grid for one frame is recoverable; the cycle the user just finished is not.
+  it('drops the stale grid rather than keeping it when the fetch fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+
+    await expect(invalidateCycleCreated(queryClient, logout)).resolves.not.toThrow()
+
+    expect(queryClient.getQueryData(queryKeys.books())).toBeUndefined()
   })
 })
 

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState } from 'react'
 import { getToken, TOKEN_KEY } from './auth'
+import { clearPersistedCache } from './queryClient'
 
 interface AuthContextValue {
   jwt: string | null
@@ -19,6 +20,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY)
+    // The cache outlives the session otherwise — it is persisted to localStorage, so the
+    // next account to sign in on this browser would be shown the previous one's books,
+    // stats and name until its own requests came back.
+    clearPersistedCache()
     setJwt(null)
   }, [])
 

@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from './AuthContext'
 import { enqueueWrite, flushQueue, getPendingCount } from './offlineQueue'
-import { invalidateCycle } from './cache'
 import { invalidateQueueFlushed } from './invalidation'
 
 interface SyncContextValue {
@@ -28,13 +27,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     setPendingCount(n)
     // Only once the queue is fully drained — a partial flush (a 5xx stops the replay)
     // leaves writes outstanding, so the views would only go stale again.
-    if (n === 0) {
-      invalidateQueueFlushed(queryClient)
-      // LEGACY BRIDGE: keeps cache:books — the books query's reload seed — accurate,
-      // via the refetch this triggers in BooksProvider. Goes with cache.ts in milestone 4.
-      invalidateCycle()
-      window.dispatchEvent(new CustomEvent('books-invalidated'))
-    }
+    if (n === 0) invalidateQueueFlushed(queryClient)
   }, [logout, queryClient])
 
   // On mount: read queue depth; flush immediately if online and non-empty
@@ -57,16 +50,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     }
   }, [doFlush])
 
-  // Tab regains focus: another device may have written since we last fetched
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        window.dispatchEvent(new CustomEvent('books-invalidated'))
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-    return () => document.removeEventListener('visibilitychange', handleVisibility)
-  }, [])
+  // Nothing here refetches on focus any more: the query client's refetchOnWindowFocus
+  // and refetchOnReconnect cover "another device may have written since we last fetched"
+  // for every query at once, rather than only the ones that listened for a custom event.
 
   const enqueue = useCallback(async (
     url: string, method: string, headers: Record<string, string>, body: string,

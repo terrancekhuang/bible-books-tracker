@@ -9,13 +9,6 @@ import {
 import { queryKeys } from '../queryKeys'
 import type { Book } from '../trackerLogic'
 
-// cache.ts is a localStorage-backed legacy bridge — mock it wholesale so these tests
-// stay in the node environment, and so the bridge call is assertable.
-vi.mock('../cache', () => ({
-  invalidateProgress: vi.fn(),
-}))
-import { invalidateProgress } from '../cache'
-
 const TZ_OFFSET = -300
 
 const GENESIS: Book = {
@@ -35,7 +28,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 let queryClient: QueryClient
 let deps: MutationDeps
-let patchBook: ReturnType<typeof vi.fn<(name: string, book: Book) => void>>
 let logout: ReturnType<typeof vi.fn<() => void>>
 let enqueue: ReturnType<typeof vi.fn<(url: string, method: string, headers: Record<string, string>, body: string) => Promise<void>>>
 
@@ -66,11 +58,10 @@ beforeEach(() => {
   queryClient.setQueryData(queryKeys.dashboard(TZ_OFFSET), { weekly_goal: 7 })
   queryClient.setQueryData(queryKeys.stats(TZ_OFFSET), { total_chapters: 120 })
 
-  patchBook = vi.fn<(name: string, book: Book) => void>()
   logout = vi.fn<() => void>()
   enqueue = vi.fn<(url: string, method: string, headers: Record<string, string>, body: string) => Promise<void>>()
     .mockResolvedValue(undefined)
-  deps = { queryClient, patchBook, logout, enqueue }
+  deps = { queryClient, logout, enqueue }
 
   vi.stubGlobal('navigator', { onLine: true })
   vi.stubGlobal('localStorage', {
@@ -93,10 +84,9 @@ describe('submit', () => {
 
     const context = await options.onMutate(vars)
 
-    // Optimistic: union of existing and submitted chapters, written to both caches
+    // Optimistic: union of existing and submitted chapters
     expect(cachedBook()?.chapters_read_list).toEqual([1, 2, 3, 4])
     expect(cachedBook()?.chapters_read).toBe(4)
-    expect(patchBook).toHaveBeenCalledWith('Genesis', expect.objectContaining({ chapters_read: 4 }))
     expect(context.previousBook).toBe(GENESIS)
     expect(context.newlyLoggedOptimistic).toBe(2)
 
@@ -109,7 +99,6 @@ describe('submit', () => {
 
     await options.onSuccess(result, vars, context)
     expect(cachedBook()?.chapters_read_list).toEqual([1, 2, 3, 4, 5])
-    expect(invalidateProgress).toHaveBeenCalled()
     expect(invalidatedDashboard()).toBe(true)
     expect(invalidatedStats()).toBe(true)
   })
@@ -178,7 +167,6 @@ describe('submit', () => {
 
     options.onError(new Error('boom'), vars, context)
     expect(cachedBook()).toEqual(GENESIS)
-    expect(patchBook).toHaveBeenLastCalledWith('Genesis', GENESIS)
     expect(enqueue).not.toHaveBeenCalled()
   })
 
@@ -197,7 +185,6 @@ describe('submit', () => {
     // A non-confirmed result is a no-op for the cache
     await options.onSuccess(result, vars, context)
     expect(cachedBook()?.chapters_read_list).toEqual([1, 2, 3])
-    expect(invalidateProgress).not.toHaveBeenCalled()
     expect(invalidatedDashboard()).toBe(false)
     expect(invalidatedStats()).toBe(false)
   })
@@ -215,7 +202,6 @@ describe('submit', () => {
       context,
     )
 
-    expect(invalidateProgress).not.toHaveBeenCalled()
     expect(invalidatedDashboard()).toBe(false)
     expect(invalidatedStats()).toBe(false)
   })
@@ -239,8 +225,6 @@ describe.each([
 
     await options.onSuccess(data, vars)
     expect(cachedBook()?.chapters_read_list).toEqual([1])
-    expect(patchBook).toHaveBeenCalledWith('Genesis', expect.objectContaining({ chapters_read: 1 }))
-    expect(invalidateProgress).toHaveBeenCalled()
     expect(invalidatedDashboard()).toBe(true)
     expect(invalidatedStats()).toBe(true)
   })
@@ -253,8 +237,6 @@ describe.each([
     await options.onSuccess(data, { book: GENESIS })
 
     expect(cachedBook()).toEqual(GENESIS)
-    expect(patchBook).not.toHaveBeenCalled()
-    expect(invalidateProgress).not.toHaveBeenCalled()
     expect(invalidatedDashboard()).toBe(false)
     expect(invalidatedStats()).toBe(false)
   })
@@ -279,6 +261,5 @@ describe.each([
 
     options.onError(new Error('Failed to fetch'))
     expect(cachedBook()).toEqual(GENESIS)
-    expect(patchBook).not.toHaveBeenCalled()
   })
 })

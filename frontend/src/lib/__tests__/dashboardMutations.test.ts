@@ -4,8 +4,8 @@ import { createUpdateWeeklyGoalMutationOptions, type DashboardMutationDeps } fro
 import { queryKeys } from '../queryKeys'
 import type { DashboardData } from '../queries'
 
-// queries.ts pulls in React context and cache.ts; only its DashboardData type is
-// needed here, and types are erased at runtime, so nothing needs mocking for it.
+// queries.ts pulls in React context; only its DashboardData type is needed here, and
+// types are erased at runtime, so nothing needs mocking for it.
 
 const TZ_OFFSET = -300
 

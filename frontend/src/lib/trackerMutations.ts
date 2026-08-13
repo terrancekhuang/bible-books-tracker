@@ -1,6 +1,5 @@
 import { authHeaders } from './auth'
 import { api } from './api'
-import { invalidateProgress } from './cache'
 import { invalidateProgressWrite } from './invalidation'
 import { queryKeys } from './queryKeys'
 import type { QueryClient } from '@tanstack/react-query'
@@ -15,22 +14,14 @@ import type { Book } from './trackerLogic'
  */
 export interface MutationDeps {
   queryClient: QueryClient
-  /** LEGACY BRIDGE — see setBookEverywhere. */
-  patchBook: (name: string, book: Book) => void
   logout: () => void
   enqueue: (url: string, method: string, headers: Record<string, string>, body: string) => Promise<void>
 }
 
-// LEGACY BRIDGE: BooksContext is still the shared source of truth for Dashboard
-// (milestone 2) and Profile (milestone 3). Before this migration, Tracker's writes
-// patched it directly, so those pages saw Tracker's changes instantly. Keep
-// dual-writing until they read from TanStack Query too, then delete the patchBook
-// dependency along with cache.ts in milestone 4.
-function setBookEverywhere(deps: MutationDeps, name: string, book: Book): void {
+function setBook(deps: MutationDeps, name: string, book: Book): void {
   deps.queryClient.setQueryData<Book[]>(queryKeys.books(), (old) =>
     old?.map((b) => (b.name === name ? book : b))
   )
-  deps.patchBook(name, book)
 }
 
 interface SubmitVars {
@@ -100,7 +91,7 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
         chapters_read_list: optimisticList,
         last_read_at: now,
       }
-      setBookEverywhere(deps, book.name, optimisticBook)
+      setBook(deps, book.name, optimisticBook)
       return {
         previousBook: book,
         newlyLoggedOptimistic: optimisticList.length - book.chapters_read_list.length,
@@ -108,7 +99,7 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
     },
 
     onError: (error: unknown, { book }: SubmitVars, context: SubmitContext | undefined) => {
-      setBookEverywhere(deps, book.name, context?.previousBook ?? book)
+      setBook(deps, book.name, context?.previousBook ?? book)
       console.error('Error updating progress:', error)
     },
 
@@ -120,8 +111,7 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
         chapters_read_list: result.chapters_read_list,
         last_read_at: new Date().toISOString(),
       }
-      setBookEverywhere(deps, book.name, confirmed)
-      if (result.newly_logged > 0) invalidateProgress()
+      setBook(deps, book.name, confirmed)
       if (result.newly_logged > 0 || (context?.newlyLoggedOptimistic ?? 0) > 0) {
         invalidateProgressWrite(deps.queryClient)
       }
@@ -162,12 +152,11 @@ function createBookActionMutationOptions(
     onSuccess: (data: ActionResult | null, { book }: ActionVars) => {
       // `success: false` is the "nothing left to undo" case — not an error, just a no-op.
       if (!data?.success) return
-      setBookEverywhere(deps, book.name, {
+      setBook(deps, book.name, {
         ...book,
         chapters_read: data.chapters_read,
         chapters_read_list: data.chapters_read_list,
       })
-      invalidateProgress()
       invalidateProgressWrite(deps.queryClient)
     },
 

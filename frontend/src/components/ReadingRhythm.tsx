@@ -35,7 +35,9 @@ export default function ReadingRhythm({
 }) {
   const { isDark, colors } = useTheme()
   const { primaryText, dimText, bodyText, trackBg } = colors
-  const [windowKey, setWindowKey] = useState<RhythmWindowKey>('all_time')
+  // Opens on the recent window: a rhythm the reader still has is more use than one averaged
+  // over years they may have outgrown. All time is one click away, and costs no request.
+  const [windowKey, setWindowKey] = useState<RhythmWindowKey>('last_90_days')
   const { data, isPending, isError } = useRhythmQuery()
 
   const strongBar = isDark ? 'rgba(150,175,255,0.72)' : 'rgba(13,21,51,0.55)'

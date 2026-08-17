@@ -1,6 +1,17 @@
 from unittest.mock import patch
+from datetime import datetime, timezone, timedelta
 import psycopg2
 import os
+
+
+def _utc_at(days_ago: int, hour: int, minute: int = 0) -> datetime:
+    """A UTC instant N days back at a fixed wall-clock time.
+
+    Anchored to now rather than a literal date because /api/activity only looks back
+    365 days and /api/stats' streaks are measured relative to today.
+    """
+    return (datetime.now(timezone.utc) - timedelta(days=days_ago)).replace(
+        hour=hour, minute=minute, second=0, microsecond=0)
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -203,6 +214,35 @@ class TestStats:
         assert data['chapters_today'] == 2
         assert data['current_streak'] == 1
 
+    # logged_at is TIMESTAMPTZ, so grouping it by local day must pin the base to UTC first.
+    # Without that, Postgres resolves the timestamp in the *session* timezone and tz_offset
+    # lands on top of that shift — making the answer depend on where the server happens to be.
+    def test_total_days_groups_by_local_day_not_session_timezone(self, client, auth_headers, seed_chapter):
+        # 23:30 and 00:30 UTC are two days at UTC, but a single local day one hour east.
+        base = _utc_at(days_ago=3, hour=23, minute=30)
+        seed_chapter(base, chapter=1)
+        seed_chapter(base + timedelta(hours=1), chapter=2)
+
+        def total_days(tz_offset):
+            data = client.get(f'/api/stats?tz_offset={tz_offset}', headers=auth_headers).get_json()
+            return data['total_days']
+
+        assert total_days(0) == 2
+        assert total_days(60) == 1
+
+    def test_best_streak_groups_by_local_day_not_session_timezone(self, client, auth_headers, seed_chapter):
+        # Same two rows: consecutive local days at UTC (a 2-day streak), one day an hour east.
+        base = _utc_at(days_ago=3, hour=23, minute=30)
+        seed_chapter(base, chapter=1)
+        seed_chapter(base + timedelta(hours=1), chapter=2)
+
+        def best_streak(tz_offset):
+            data = client.get(f'/api/stats?tz_offset={tz_offset}', headers=auth_headers).get_json()
+            return data['best_streak']
+
+        assert best_streak(0) == 2
+        assert best_streak(60) == 1
+
     def test_requires_auth(self, client):
         assert client.get('/api/stats').status_code == 401
 
@@ -222,6 +262,20 @@ class TestActivity:
         assert len(data) == 1
         assert data[0]['chapters'] == 1
         assert 'logged_at' in data[0]
+
+    # See the note on TestStats: the local-day grouping must not depend on the session
+    # timezone. The heatmap is the most visible casualty when it does.
+    def test_local_date_follows_tz_offset_not_session_timezone(self, client, auth_headers, seed_chapter):
+        # 23:30 UTC belongs to that date at UTC, and to the next date one hour east.
+        when = _utc_at(days_ago=2, hour=23, minute=30)
+        seed_chapter(when, chapter=1)
+
+        def dates(tz_offset):
+            data = client.get(f'/api/activity?tz_offset={tz_offset}', headers=auth_headers).get_json()
+            return [row['logged_at'] for row in data]
+
+        assert dates(0) == [when.date().isoformat()]
+        assert dates(60) == [(when.date() + timedelta(days=1)).isoformat()]
 
     def test_requires_auth(self, client):
         assert client.get('/api/activity').status_code == 401
@@ -263,3 +317,85 @@ class TestSettings:
 
     def test_requires_auth(self, client):
         assert client.get('/api/settings').status_code == 401
+
+
+# ── Rhythm ────────────────────────────────────────────────────────────────────
+
+# 2024-01-01 was a Monday, so index 0 of by_weekday. Anchoring on a known weekday keeps
+# the expected index in these tests obvious rather than computed.
+MONDAY = datetime(2024, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+
+def _rhythm(client, auth_headers, tz_offset=0):
+    resp = client.get(f'/api/rhythm?tz_offset={tz_offset}', headers=auth_headers)
+    assert resp.status_code == 200
+    return resp.get_json()
+
+
+class TestRhythm:
+    def test_returns_both_windows_with_expected_shape(self, client, auth_headers):
+        data = _rhythm(client, auth_headers)
+        assert set(data) == {'all_time', 'last_90_days'}
+        for window in data.values():
+            assert len(window['by_weekday']) == 7
+            assert set(window['by_part_of_day']) == {'morning', 'afternoon', 'evening', 'night'}
+            assert 'total_chapters' in window and 'distinct_days' in window
+
+    def test_new_user_is_all_zeros(self, client, auth_headers):
+        for window in _rhythm(client, auth_headers).values():
+            assert window['by_weekday'] == [0] * 7
+            assert sum(window['by_part_of_day'].values()) == 0
+            assert window['total_chapters'] == 0
+            assert window['distinct_days'] == 0
+
+    def test_counts_land_on_the_local_weekday(self, client, auth_headers, seed_chapter):
+        seed_chapter(MONDAY, chapter=1)
+        seed_chapter(MONDAY + timedelta(days=2), chapter=2)  # Wednesday
+
+        window = _rhythm(client, auth_headers)['all_time']
+        assert window['by_weekday'] == [1, 0, 1, 0, 0, 0, 0]
+        assert window['total_chapters'] == 2
+
+    def test_tz_offset_shifts_a_late_entry_into_the_next_day(self, client, auth_headers, seed_chapter):
+        # 23:30 UTC Monday is still Monday at UTC, but 00:30 Tuesday an hour east.
+        seed_chapter(MONDAY.replace(hour=23, minute=30), chapter=1)
+
+        assert _rhythm(client, auth_headers, tz_offset=0)['all_time']['by_weekday'] == [1, 0, 0, 0, 0, 0, 0]
+        assert _rhythm(client, auth_headers, tz_offset=60)['all_time']['by_weekday'] == [0, 1, 0, 0, 0, 0, 0]
+
+    def test_buckets_hours_into_parts_of_day(self, client, auth_headers, seed_chapter):
+        for chapter, hour in enumerate([8, 14, 19, 23, 2], start=1):
+            seed_chapter(MONDAY.replace(hour=hour), chapter=chapter)
+
+        parts = _rhythm(client, auth_headers)['all_time']['by_part_of_day']
+        # 23:00 and 02:00 both belong to night, which wraps midnight.
+        assert parts == {'morning': 1, 'afternoon': 1, 'evening': 1, 'night': 2}
+
+    def test_recent_window_excludes_older_entries(self, client, auth_headers, seed_chapter):
+        now = datetime.now(timezone.utc)
+        seed_chapter(now - timedelta(days=200), chapter=1)
+        seed_chapter(now - timedelta(days=1), chapter=2)
+
+        data = _rhythm(client, auth_headers)
+        assert data['all_time']['total_chapters'] == 2
+        assert data['last_90_days']['total_chapters'] == 1
+
+    def test_distinct_days_counts_dates_not_rows(self, client, auth_headers, seed_chapter):
+        seed_chapter(MONDAY.replace(hour=9), chapter=1)
+        seed_chapter(MONDAY.replace(hour=21), chapter=2)  # same local day
+        seed_chapter(MONDAY + timedelta(days=1), chapter=3)
+
+        window = _rhythm(client, auth_headers)['all_time']
+        assert window['total_chapters'] == 3
+        assert window['distinct_days'] == 2
+
+    def test_weekday_counts_sum_to_total_chapters(self, client, auth_headers, seed_chapter):
+        for chapter in range(1, 6):
+            seed_chapter(MONDAY + timedelta(days=chapter), chapter=chapter)
+
+        window = _rhythm(client, auth_headers)['all_time']
+        assert sum(window['by_weekday']) == window['total_chapters']
+        assert sum(window['by_part_of_day'].values()) == window['total_chapters']
+
+    def test_requires_auth(self, client):
+        assert client.get('/api/rhythm').status_code == 401

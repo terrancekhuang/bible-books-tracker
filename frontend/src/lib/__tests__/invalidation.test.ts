@@ -17,9 +17,9 @@ const TZ_OFFSET = -300
 const KEYS = {
   books: queryKeys.books(),
   cycles: queryKeys.cycles(),
-  favorites: queryKeys.favorites(),
   dashboard: queryKeys.dashboard(TZ_OFFSET),
   stats: queryKeys.stats(TZ_OFFSET),
+  rhythm: queryKeys.rhythm(TZ_OFFSET),
   currentUser: queryKeys.currentUser(),
 } as const
 
@@ -74,19 +74,20 @@ describe('invalidateProgressWrite', () => {
 
     // Books is absent on purpose: submit/undo/reset patch the book straight into the
     // cache from the server's response, so refetching the grid would be wasted work.
-    expect(invalidated()).toEqual(['dashboard', 'stats'])
+    expect(invalidated()).toEqual(['dashboard', 'rhythm', 'stats'])
     expect(booksFetches).toBe(0)
   })
 
-  // Both keys carry a timezone offset, so a prefix match is what reaches whichever
+  // All three keys carry a timezone offset, so a prefix match is what reaches whichever
   // variant a mounted page is actually using.
   it('invalidates by prefix, matching every timezone variant', () => {
     queryClient.setQueryData(queryKeys.dashboard(60), { seeded: true })
     queryClient.setQueryData(queryKeys.stats(60), { seeded: true })
+    queryClient.setQueryData(queryKeys.rhythm(60), { seeded: true })
 
     invalidateProgressWrite(queryClient)
 
-    for (const key of [queryKeys.dashboard(60), queryKeys.stats(60)]) {
+    for (const key of [queryKeys.dashboard(60), queryKeys.stats(60), queryKeys.rhythm(60)]) {
       expect(queryClient.getQueryState(key)?.isInvalidated).toBe(true)
     }
   })
@@ -97,7 +98,7 @@ describe('invalidateCycleCreated', () => {
     await invalidateCycleCreated(queryClient, logout)
 
     // Books is missing from this list precisely because it was refetched — see below.
-    expect(invalidated()).toEqual(['cycles', 'dashboard', 'stats'])
+    expect(invalidated()).toEqual(['cycles', 'dashboard', 'rhythm', 'stats'])
   })
 
   // The reason this one is awaited at all: Profile navigates to Tracker the moment it
@@ -144,14 +145,13 @@ describe('invalidateQueueFlushed', () => {
 
     // Unlike cycle creation this doesn't force a refetch of an unobserved grid: whichever
     // page is mounted refetches its own queries, and Tracker picks the grid up on mount.
-    expect(invalidated()).toEqual(['books', 'cycles', 'dashboard', 'stats'])
+    expect(invalidated()).toEqual(['books', 'cycles', 'dashboard', 'rhythm', 'stats'])
   })
 
-  // Neither is written to anywhere in this redesign; refetching them would be noise.
-  it('leaves favorites and the current user alone', () => {
+  // Nothing writes to the user record here; refetching it would be noise.
+  it('leaves the current user alone', () => {
     invalidateQueueFlushed(queryClient)
 
-    expect(invalidated()).not.toContain('favorites')
     expect(invalidated()).not.toContain('currentUser')
   })
 })

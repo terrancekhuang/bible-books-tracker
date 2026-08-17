@@ -26,6 +26,11 @@ import type { QueryClient } from '@tanstack/react-query'
 export function invalidateProgressWrite(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll() })
   void queryClient.invalidateQueries({ queryKey: queryKeys.statsAll() })
+  // Reading Rhythm counts the same timestamps a write just added. Navigating to Profile
+  // would refetch it regardless (staleTime is 0), so what this actually buys is the
+  // already-mounted case: a queue flush on reconnect refreshes the section in place
+  // instead of leaving pre-write numbers on screen until the next navigation.
+  void queryClient.invalidateQueries({ queryKey: queryKeys.rhythmAll() })
 }
 
 /**

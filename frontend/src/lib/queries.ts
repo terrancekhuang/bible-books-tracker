@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext'
 import { fetchJson, UnauthorizedError } from './api'
 import { queryKeys } from './queryKeys'
 import type { Book, Stats } from './trackerLogic'
+import type { RhythmData } from './rhythmLogic'
 import type { ActivityDay } from '../components/ActivityHeatmap'
 
 /** The nav-bar slice of a user — all `/api/dashboard` embeds, and all NavBar needs. */
@@ -33,13 +34,6 @@ export interface Cycle {
   chapters_read: number
   total_chapters: number
   books_complete: number
-}
-
-/** A most-read book, from `/api/favorites` — `cycle_count` is how many cycles it appears in. */
-export interface FavoriteBook {
-  book_id: number
-  book_name: string
-  cycle_count: number
 }
 
 interface QueryDeps {
@@ -95,17 +89,18 @@ export function cyclesQueryOptions({ logout }: QueryDeps) {
   })
 }
 
-export function favoritesQueryOptions({ logout }: QueryDeps) {
-  return queryOptions({
-    queryKey: queryKeys.favorites(),
-    queryFn: (): Promise<FavoriteBook[]> => getJson<FavoriteBook[]>('/api/favorites', logout),
-  })
-}
-
 export function statsQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
   return queryOptions({
     queryKey: queryKeys.stats(tzOffset),
     queryFn: (): Promise<Stats> => getJson<Stats>(`/api/stats?tz_offset=${tzOffset}`, logout),
+  })
+}
+
+/** Both time windows arrive in one payload, so the Profile toggle never refetches. */
+export function rhythmQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
+  return queryOptions({
+    queryKey: queryKeys.rhythm(tzOffset),
+    queryFn: (): Promise<RhythmData> => getJson<RhythmData>(`/api/rhythm?tz_offset=${tzOffset}`, logout),
   })
 }
 
@@ -142,13 +137,14 @@ export function useCyclesQuery() {
   return useQuery(cyclesQueryOptions({ logout }))
 }
 
-export function useFavoritesQuery() {
-  const { logout } = useAuth()
-  return useQuery(favoritesQueryOptions({ logout }))
-}
-
 export function useStatsQuery() {
   const { logout } = useAuth()
   const tzOffset = useTzOffset()
   return useQuery(statsQueryOptions({ logout, tzOffset }))
+}
+
+export function useRhythmQuery() {
+  const { logout } = useAuth()
+  const tzOffset = useTzOffset()
+  return useQuery(rhythmQueryOptions({ logout, tzOffset }))
 }

@@ -88,3 +88,35 @@ def _clean_test_user_state(test_user):
 def auth_headers(test_user):
     _, jwt = test_user
     return {'Authorization': f'Bearer {jwt}'}
+
+
+@pytest.fixture
+def seed_chapter(test_user):
+    """Logs a chapter at an explicit time. Yields seed(when, chapter=N, book_id=N).
+
+    POSTing to /api/progress stamps logged_at = NOW(), so every row lands on today's
+    weekday and hour — useless for anything that reads a pattern out of the timestamps.
+    Rows are wiped by _clean_test_user_state, so callers need no teardown.
+    """
+    user_id, _ = test_user
+    conn = _raw_conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT cycle_id FROM reading_cycles WHERE user_id = %s AND cycle_number = 1",
+        (user_id,))
+    cycle_id = cur.fetchone()[0]
+
+    def seed(when, chapter=1, book_id=1):
+        # The primary key is (user_id, cycle_id, book_id, chapter_number), so callers
+        # vary `chapter` to log more than one row.
+        cur.execute("""
+            INSERT INTO chapter_progress
+                (user_id, cycle_id, book_id, chapter_number, logged_at)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (user_id, cycle_id, book_id, chapter, when))
+        conn.commit()
+
+    yield seed
+
+    cur.close()
+    conn.close()

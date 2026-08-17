@@ -4,7 +4,6 @@ export const queryKeys = {
   books: () => ['books'] as const,
   currentUser: () => ['auth', 'me'] as const,
   cycles: () => ['cycles'] as const,
-  favorites: () => ['favorites'] as const,
   // The dashboard is keyed by timezone offset, so writes invalidate by prefix to
   // catch every offset variant at once rather than guessing the active one.
   dashboardAll: () => ['dashboard'] as const,
@@ -12,4 +11,7 @@ export const queryKeys = {
   // Same prefix arrangement as the dashboard — /api/stats is timezone-dependent too.
   statsAll: () => ['stats'] as const,
   stats: (tzOffset: number) => ['stats', tzOffset] as const,
+  // And again for /api/rhythm, which groups by the reader's local weekday and hour.
+  rhythmAll: () => ['rhythm'] as const,
+  rhythm: (tzOffset: number) => ['rhythm', tzOffset] as const,
 } as const

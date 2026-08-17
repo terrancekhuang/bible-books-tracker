@@ -1,0 +1,181 @@
+import { useState, type CSSProperties } from 'react'
+import { useTheme } from '../lib/ThemeContext'
+import { useRhythmQuery } from '../lib/queries'
+import {
+  PART_LABELS,
+  PART_ORDER,
+  WEEKDAY_LABELS,
+  emphasizedWeekdays,
+  insightSentence,
+  type RhythmWindow,
+  type RhythmWindowKey,
+} from '../lib/rhythmLogic'
+
+const WINDOW_OPTIONS: { key: RhythmWindowKey; label: string }[] = [
+  { key: 'all_time', label: 'All time' },
+  { key: 'last_90_days', label: 'Last 90 days' },
+]
+
+const serifItalic = { fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 15 } as const
+const sans = { fontFamily: "'Raleway', sans-serif" } as const
+
+/**
+ * When the reader reads: chapters by local weekday, a smaller part-of-day strip, and one
+ * plain-language sentence so the charts never need interpreting.
+ *
+ * `glassCard` and `sectionHeadStyle` come from Profile rather than being redefined here, so
+ * this section stays visually identical to its neighbours without lifting them into a module.
+ */
+export default function ReadingRhythm({
+  glassCard,
+  sectionHeadStyle,
+}: {
+  glassCard: CSSProperties
+  sectionHeadStyle: CSSProperties
+}) {
+  const { isDark, colors } = useTheme()
+  const { primaryText, dimText, bodyText, trackBg } = colors
+  const [windowKey, setWindowKey] = useState<RhythmWindowKey>('all_time')
+  const { data, isPending, isError } = useRhythmQuery()
+
+  const strongBar = isDark ? 'rgba(150,175,255,0.72)' : 'rgba(13,21,51,0.55)'
+  const weakBar = isDark ? 'rgba(150,175,255,0.3)' : 'rgba(13,21,51,0.22)'
+  const partBar = isDark ? 'rgba(200,185,100,0.72)' : 'rgba(140,100,20,0.6)'
+
+  // The whole account is empty, not just the selected window — an invitation, not bars.
+  const noDataAtAll = !!data && data.all_time.total_chapters === 0
+  const active: RhythmWindow | null = data ? data[windowKey] : null
+
+  const heading = (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="mb-1" style={sectionHeadStyle}>Reading Rhythm</h2>
+        <p style={{ color: dimText, ...serifItalic }}>when you read</p>
+      </div>
+
+      {/* Hidden while there is nothing to compare between the two windows. */}
+      {data && !noDataAtAll && (
+        <div
+          className="flex shrink-0 rounded-lg p-0.5"
+          style={{
+            background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.45)',
+            border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(13,21,51,0.1)',
+          }}
+        >
+          {WINDOW_OPTIONS.map(({ key, label }) => {
+            const selected = key === windowKey
+            return (
+              <button
+                key={key}
+                onClick={() => setWindowKey(key)}
+                aria-pressed={selected}
+                className="text-xs px-2.5 py-1 rounded-md transition-all whitespace-nowrap"
+                style={{
+                  ...sans,
+                  background: selected ? (isDark ? 'rgba(150,175,255,0.2)' : 'rgba(13,21,51,0.1)') : 'transparent',
+                  color: selected ? primaryText : dimText,
+                  fontWeight: selected ? 600 : 400,
+                }}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="p-5" style={glassCard}>
+      {heading}
+
+      <div className="mt-3">
+        {isPending && <p className="text-sm" style={{ color: dimText, ...sans }}>Loading…</p>}
+
+        {!isPending && isError && (
+          <p className="text-sm" style={{ color: 'rgba(240,100,100,0.7)', ...sans }}>
+            Could not load your reading rhythm.
+          </p>
+        )}
+
+        {noDataAtAll && (
+          <p className="text-sm" style={{ color: dimText, ...sans }}>
+            Start logging chapters to see when you read.
+          </p>
+        )}
+
+        {/* All-time has data but this window doesn't — truthful, and clearer than seven zeros. */}
+        {active && !noDataAtAll && active.total_chapters === 0 && (
+          <p className="text-sm" style={{ color: dimText, ...sans }}>
+            Nothing logged in the last 90 days.
+          </p>
+        )}
+
+        {active && active.total_chapters > 0 && (() => {
+          const maxWeekday = Math.max(...active.by_weekday)
+          const sentence = insightSentence(active)
+          // The accent traces whatever the sentence claims — one day, the five weekdays, the
+          // two weekend days, or all seven when it claims none. The bars must not assert a
+          // pattern the prose won't.
+          const emphasized = emphasizedWeekdays(active)
+
+          return (
+            <>
+              <div className="flex flex-col gap-2">
+                {active.by_weekday.map((count, i) => (
+                  <div key={WEEKDAY_LABELS[i]} className="flex items-center gap-3">
+                    <span className="w-9 shrink-0 text-sm" style={{ color: bodyText, ...sans }}>
+                      {WEEKDAY_LABELS[i]}
+                    </span>
+                    <div className="flex-1 h-2 rounded-full overflow-hidden min-w-0" style={{ background: trackBg }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${(count / maxWeekday) * 100}%`,
+                          background: emphasized.has(i) ? strongBar : weakBar,
+                        }}
+                      />
+                    </div>
+                    <span className="w-9 shrink-0 text-xs text-right" style={{ color: dimText, ...sans }}>
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                className="flex flex-col gap-1.5 mt-4 pt-4"
+                style={{ borderTop: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.08)' }}
+              >
+                {PART_ORDER.map(part => {
+                  const count = active.by_part_of_day[part]
+                  const pct = Math.round((count / active.total_chapters) * 100)
+                  return (
+                    <div key={part} className="flex items-center gap-3">
+                      <span className="w-16 shrink-0 text-xs" style={{ color: dimText, ...sans }}>
+                        {PART_LABELS[part]}
+                      </span>
+                      <div className="flex-1 h-1.5 rounded-full overflow-hidden min-w-0" style={{ background: trackBg }}>
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: partBar }} />
+                      </div>
+                      <span className="w-9 shrink-0 text-xs text-right" style={{ color: dimText, ...sans }}>
+                        {pct}%
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {sentence && (
+                <p className="mt-4" style={{ color: bodyText, ...serifItalic }}>
+                  {sentence}
+                </p>
+              )}
+            </>
+          )
+        })()}
+      </div>
+    </div>
+  )
+}

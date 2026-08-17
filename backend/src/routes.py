@@ -366,16 +366,24 @@ def create_cycle():
     return jsonify({'cycle_id': cycle['cycle_id'], 'cycle_number': cycle['cycle_number']})
 
 
+# Timestamps are stored UTC and converted to the user's local time on read, with tz_offset
+# (minutes east of UTC) as the only shift. Getting that right needs `AT TIME ZONE 'UTC'`
+# first: logged_at is TIMESTAMPTZ, and ::date or EXTRACT on one resolves it in the *session*
+# timezone, so without the pin the result shifts by tz_offset **plus** wherever the server
+# happens to think it is. That silently reshapes the heatmap, streaks and rhythm for any
+# session that isn't UTC. Every query below that groups by local day or hour relies on this.
+
+
 def _compute_activity(cur, user_id: int, tz_offset: int) -> list[dict]:
     cutoff_utc = datetime.now(timezone.utc) - timedelta(days=365)
     cur.execute("""
-        SELECT (logged_at + INTERVAL '1 minute' * %s)::date AS local_date, COUNT(*) AS chapters
-        FROM chapter_progress
-        WHERE user_id = %s
-          AND logged_at >= %s
-        GROUP BY (logged_at + INTERVAL '1 minute' * %s)::date
+        SELECT lts::date AS local_date, COUNT(*) AS chapters
+        FROM (SELECT (logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %s AS lts
+              FROM chapter_progress
+              WHERE user_id = %s AND logged_at >= %s) t
+        GROUP BY local_date
         ORDER BY local_date
-    """, (tz_offset, user_id, cutoff_utc, tz_offset))
+    """, (tz_offset, user_id, cutoff_utc))
     rows = cur.fetchall()
     return [{'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']} for r in rows]
 
@@ -403,7 +411,7 @@ def _compute_stats(cur, user_id: int, tz_offset: int) -> dict:
     cur.execute("""
         SELECT
             COUNT(*) AS total_chapters,
-            COUNT(DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date) AS total_days,
+            COUNT(DISTINCT ((logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %s)::date) AS total_days,
             COUNT(CASE WHEN logged_at >= %s AND logged_at < %s THEN 1 END) AS chapters_today,
             COUNT(CASE WHEN logged_at >= %s THEN 1 END) AS chapters_this_week,
             COUNT(CASE WHEN logged_at >= %s THEN 1 END) AS chapters_last_7_days
@@ -413,7 +421,7 @@ def _compute_stats(cur, user_id: int, tz_offset: int) -> dict:
 
     cur.execute("""
         WITH local_dates AS (
-            SELECT DISTINCT (logged_at + INTERVAL '1 minute' * %s)::date AS read_date
+            SELECT DISTINCT ((logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %s)::date AS read_date
             FROM chapter_progress WHERE user_id = %s
         ),
         dates AS (
@@ -454,6 +462,90 @@ def get_stats():
         return jsonify(_compute_stats(cur, user_id, tz_offset))
 
 
+# Which part of the day each local hour belongs to. Night wraps midnight, so it's the
+# fallback rather than a range: hours 22-23 and 0-4 both land there.
+_PARTS_OF_DAY = (
+    ('morning', range(5, 12)),
+    ('afternoon', range(12, 17)),
+    ('evening', range(17, 22)),
+)
+
+
+def _part_of_day(hour: int) -> str:
+    for name, hours in _PARTS_OF_DAY:
+        if hour in hours:
+            return name
+    return 'night'
+
+
+def _empty_window() -> dict:
+    return {
+        'by_weekday': [0] * 7,
+        'by_part_of_day': {'morning': 0, 'afternoon': 0, 'evening': 0, 'night': 0},
+        'total_chapters': 0,
+        'distinct_days': 0,
+    }
+
+
+def _compute_rhythm(cur, user_id: int, tz_offset: int) -> dict:
+    """When the user reads: chapters by local weekday and part of day, for two windows.
+
+    Both windows come back in one payload so the Profile toggle can switch between them
+    without a refetch. `logged_at` records when a chapter was *logged*, not when it was
+    read — the weekday signal survives batched logging, the part-of-day signal is softer.
+    """
+    recent_cutoff_utc = datetime.now(timezone.utc) - timedelta(days=90)
+    windows = {'all_time': _empty_window(), 'last_90_days': _empty_window()}
+
+    # Grouping by (weekday, hour, recent) caps this at 7 * 24 * 2 rows, so one scan
+    # serves both windows and the bucketing happens over a handful of rows in Python.
+    cur.execute("""
+        SELECT EXTRACT(ISODOW FROM lts)::int AS weekday,
+               EXTRACT(HOUR FROM lts)::int   AS hour,
+               (logged_at >= %s)             AS recent,
+               COUNT(*)                      AS chapters
+        FROM (SELECT logged_at,
+                     (logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %s AS lts
+              FROM chapter_progress WHERE user_id = %s) t
+        GROUP BY weekday, hour, recent
+    """, (recent_cutoff_utc, tz_offset, user_id))
+
+    for row in cur.fetchall():
+        chapters = int(row['chapters'])
+        part = _part_of_day(int(row['hour']))
+        # ISODOW is Monday=1..Sunday=7, so weekday-1 indexes a Monday-first list directly.
+        weekday_index = int(row['weekday']) - 1
+        targets = [windows['all_time']] + ([windows['last_90_days']] if row['recent'] else [])
+        for target in targets:
+            target['by_weekday'][weekday_index] += chapters
+            target['by_part_of_day'][part] += chapters
+            target['total_chapters'] += chapters
+
+    # Distinct local dates, not row counts — a 10-chapter day is one day. Kept separate
+    # because it can't be summed out of the grouped counts above.
+    cur.execute("""
+        SELECT COUNT(DISTINCT lts::date)                                AS all_days,
+               COUNT(DISTINCT lts::date) FILTER (WHERE logged_at >= %s) AS recent_days
+        FROM (SELECT logged_at,
+                     (logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %s AS lts
+              FROM chapter_progress WHERE user_id = %s) t
+    """, (recent_cutoff_utc, tz_offset, user_id))
+    days = cur.fetchone()
+    windows['all_time']['distinct_days'] = int(days['all_days'] or 0)
+    windows['last_90_days']['distinct_days'] = int(days['recent_days'] or 0)
+
+    return windows
+
+
+@app.route('/api/rhythm', methods=['GET'])
+@jwt_required()
+def get_rhythm():
+    user_id = int(get_jwt_identity())
+    tz_offset = int(request.args.get('tz_offset', 0))
+    with db_cursor() as (conn, cur):
+        return jsonify(_compute_rhythm(cur, user_id, tz_offset))
+
+
 @app.route('/api/dashboard', methods=['GET'])
 @jwt_required()
 def get_dashboard():
@@ -474,31 +566,6 @@ def get_dashboard():
                 'picture_url': user_row['picture_url'] if user_row else None,
             },
         })
-
-
-@app.route('/api/favorites', methods=['GET'])
-@jwt_required()
-def get_favorites():
-    user_id = int(get_jwt_identity())
-    with db_cursor() as (conn, cur):
-        cur.execute("""
-            SELECT
-                bb.book_id,
-                bb.name AS book_name,
-                COUNT(DISTINCT cp.cycle_id) AS cycle_count
-            FROM chapter_progress cp
-            JOIN bible_books bb ON cp.book_id = bb.book_id
-            WHERE cp.user_id = %s
-            GROUP BY bb.book_id, bb.name
-            ORDER BY cycle_count DESC
-            LIMIT 5
-        """, (user_id,))
-        rows = cur.fetchall()
-        return jsonify([{
-            'book_id': r['book_id'],
-            'book_name': r['book_name'],
-            'cycle_count': int(r['cycle_count']),
-        } for r in rows])
 
 
 @app.route('/api/settings', methods=['GET'])

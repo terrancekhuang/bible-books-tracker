@@ -1,12 +1,13 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "./lib/ThemeContext";
-import { useCurrentUserQuery, useCyclesQuery, useFavoritesQuery, useStatsQuery } from "./lib/queries";
+import { useCurrentUserQuery, useCyclesQuery, useStatsQuery } from "./lib/queries";
 import { useCreateCycle } from "./lib/useCycleMutations";
 import { TOTAL_BOOKS, TOTAL_CHAPTERS } from "./lib/trackerLogic";
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
 import NavBar from "./components/NavBar";
+import ReadingRhythm from "./components/ReadingRhythm";
 
 type BadgeTier = "bronze" | "silver" | "gold" | "rainbow";
 
@@ -107,7 +108,6 @@ export default function Profile() {
   const { data: user } = useCurrentUserQuery()
   const { data: rawCycles } = useCyclesQuery()
   const { data: stats } = useStatsQuery()
-  const { data: favorites, isPending: favoritesLoading, isError: favoritesError } = useFavoritesQuery()
 
   const cycles = rawCycles ?? []
   const currentCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null;
@@ -277,42 +277,8 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Favorite Books */}
-        <div className="p-5" style={glassCard}>
-          <h2 className="mb-1" style={sectionHeadStyle}>Favorite Books</h2>
-          <p className="mb-3" style={{ color: dimText, fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 15 }}>most-read across all cycles</p>
-
-          {favoritesLoading && <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Loading…</p>}
-          {!favoritesLoading && favoritesError && <p className="text-sm" style={{ color: 'rgba(240,100,100,0.7)', fontFamily: "'Raleway', sans-serif" }}>Could not load favorites.</p>}
-          {!favoritesLoading && !favoritesError && (favorites ?? []).length === 0 && (
-            <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Start reading to see your favorites here.</p>
-          )}
-
-          {!favoritesLoading && !favoritesError && (favorites ?? []).length > 0 && (() => {
-            const maxCount = favorites![0].cycle_count;
-            return (
-              <div className="flex flex-col gap-3">
-                {favorites!.map(book => (
-                  <div key={book.book_id} className="flex items-center gap-3">
-                    <span className="w-28 shrink-0 text-sm font-medium truncate" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>{book.book_name}</span>
-                    <div className="flex-1 h-2 rounded-full overflow-hidden min-w-0" style={{ background: trackBg }}>
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${(book.cycle_count / maxCount) * 100}%`,
-                          background: isDark ? 'rgba(200,185,100,0.72)' : 'rgba(140,100,20,0.6)',
-                        }}
-                      />
-                    </div>
-                    <span className="text-xs shrink-0 w-14 text-right" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
-                      {book.cycle_count} {book.cycle_count === 1 ? "cycle" : "cycles"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            );
-          })()}
-        </div>
+        {/* Reading Rhythm */}
+        <ReadingRhythm glassCard={glassCard} sectionHeadStyle={sectionHeadStyle} />
       </div>
 
       {/* Confirmation dialog */}

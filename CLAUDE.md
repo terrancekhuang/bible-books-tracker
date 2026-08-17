@@ -148,6 +148,12 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
 - `POST /api/cycles` — create a new cycle (auto-increments cycle_number)
 - `GET /api/activity` — last 365 days of activity for the heatmap
 - `GET /api/stats?tz_offset=N` — streaks, chapters today/this week, total days/chapters
+- `GET /api/rhythm?tz_offset=N` — when the user reads: `by_weekday` (Monday-first, 7 entries), `by_part_of_day` (morning/afternoon/evening/night), `total_chapters` and `distinct_days`, returned for both an `all_time` and a `last_90_days` window in one payload
+
+`tz_offset` is minutes east of UTC (`-getTimezoneOffset()`). Since `logged_at` is `TIMESTAMPTZ`,
+any SQL that groups by local day or hour must pin the base to UTC first —
+`(logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %s` — otherwise Postgres resolves the
+timestamp in the *session* timezone and `tz_offset` is applied on top of that shift.
 
 ## Authentication flow
 
@@ -182,3 +188,9 @@ Configured via `VitePWA` in `vite.config.ts`. Workbox uses NetworkFirst for `/ap
 | `g` `p` | Go to Profile |
 | `Esc` | Deselect / clear search |
 | `?` | Toggle help modal |
+
+## `_build_plan/`
+
+The `_build_plan/` folder contains the initial PRD and per-milestone prompts used to scaffold this codebase during its initial build-out phase. These files are **temporary** — they exist for documentation and guidance only. They are **not** functional: no code, configuration, or runtime logic in this codebase should import, reference, or depend on anything inside `_build_plan/`.
+
+Do not treat `_build_plan/` as long-living documentation for the codebase. The codebase will evolve past the assumptions and decisions captured here. Once the initial milestones are complete, this folder is expected to be deleted.

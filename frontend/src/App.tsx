@@ -70,9 +70,9 @@ export default function App() {
         armGChord();
         return;
       }
-      if (!isInput && (e.key === 'd' || e.key === 't' || e.key === 'p') && consumeGChord()) {
+      if (!isInput && (e.key === 'h' || e.key === 't' || e.key === 'p') && consumeGChord()) {
         e.preventDefault();
-        if (e.key === 'd') navigate('/');
+        if (e.key === 'h') navigate('/');
         else if (e.key === 't') navigate('/tracker');
         else navigate('/profile');
         return;
@@ -179,7 +179,7 @@ export default function App() {
             </div>
             <div className="flex flex-col gap-2.5" style={{ fontFamily: "'Raleway', sans-serif" }}>
               {([
-                { keys: ['g', 'd'], description: 'Go to Dashboard' },
+                { keys: ['g', 'h'], description: 'Go to Dashboard' },
                 { keys: ['g', 't'], description: 'Go to Tracker' },
                 { keys: ['g', 'p'], description: 'Go to Profile' },
                 { keys: null, description: '' },

@@ -183,7 +183,7 @@ Configured via `VitePWA` in `vite.config.ts`. Workbox uses NetworkFirst for `/ap
 | `Tab` or `i` | Focus chapter input |
 | `Enter` | Submit progress |
 | `u` | Undo last entry |
-| `g` `d` | Go to Dashboard |
+| `g` `h` | Go to Dashboard |
 | `g` `t` | Go to Tracker |
 | `g` `p` | Go to Profile |
 | `Esc` | Deselect / clear search |

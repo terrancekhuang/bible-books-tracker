@@ -11,9 +11,10 @@ import {
   type RhythmWindowKey,
 } from '../lib/rhythmLogic'
 
+// Default first, widening to the right — the section opens on Last 90 days.
 const WINDOW_OPTIONS: { key: RhythmWindowKey; label: string }[] = [
-  { key: 'all_time', label: 'All time' },
   { key: 'last_90_days', label: 'Last 90 days' },
+  { key: 'all_time', label: 'All time' },
 ]
 
 const serifItalic = { fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 15 } as const

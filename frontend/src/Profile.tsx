@@ -7,7 +7,6 @@ import { TOTAL_BOOKS, TOTAL_CHAPTERS } from "./lib/trackerLogic";
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon } from "./components/Icons";
 import StatCard from "./components/StatCard";
 import NavBar from "./components/NavBar";
-import ReadingRhythm from "./components/ReadingRhythm";
 
 type BadgeTier = "bronze" | "silver" | "gold" | "rainbow";
 
@@ -276,9 +275,6 @@ export default function Profile() {
             </div>
           </div>
         )}
-
-        {/* Reading Rhythm */}
-        <ReadingRhythm glassCard={glassCard} sectionHeadStyle={sectionHeadStyle} />
       </div>
 
       {/* Confirmation dialog */}

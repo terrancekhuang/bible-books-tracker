@@ -10,6 +10,7 @@ import Skeleton from './components/Skeleton'
 import ActivityHeatmap from './components/ActivityHeatmap'
 import CircularProgress from './components/CircularProgress'
 import NavBar from './components/NavBar'
+import ReadingRhythm from './components/ReadingRhythm'
 import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, type Book } from './lib/trackerLogic'
 
 const CATEGORY_ORDER = [
@@ -137,6 +138,21 @@ export default function Dashboard() {
     letterSpacing: '0.3em',
     textTransform: 'uppercase',
     color: isDark ? 'rgba(150,175,255,0.65)' : 'rgba(13,21,51,0.5)',
+  }
+  // Matches Profile's card chrome so ReadingRhythm looks the same in both places.
+  const glassCard: CSSProperties = {
+    background: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.88)',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    border: isDark ? '1px solid rgba(150,175,255,0.22)' : '1px solid rgba(100,130,255,0.14)',
+    borderRadius: '1rem',
+  }
+  const sectionHeadStyle: CSSProperties = {
+    fontFamily: "'Cinzel', serif",
+    fontSize: 13,
+    fontWeight: 600,
+    color: primaryText,
+    letterSpacing: '0.06em',
   }
 
   return (
@@ -411,9 +427,14 @@ export default function Dashboard() {
           <span style={secLabel} className="block mb-4">Reading Activity</span>
           <ActivityHeatmap activity={activity ?? []} />
         </div>
+
+        {/* Reading Rhythm */}
+        <div style={fadeUp(410)}>
+          <ReadingRhythm glassCard={glassCard} sectionHeadStyle={sectionHeadStyle} />
+        </div>
       </div>
 
-      <footer className="text-center text-sm py-3" style={{ color: dimText, ...fadeUp(410) }}>
+      <footer className="text-center text-sm py-3" style={{ color: dimText, ...fadeUp(460) }}>
         Made by Terrance Huang
       </footer>
     </div>

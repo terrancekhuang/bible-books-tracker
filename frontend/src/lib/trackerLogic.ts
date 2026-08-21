@@ -43,6 +43,35 @@ export function parseChapters(input: string, max: number): number[] {
   return [...result].sort((a, b) => a - b)
 }
 
+export interface ChapterSplit {
+  /** Chapters that would actually be logged — the parsed input minus what's already read. */
+  newChapters: number[]
+  /** Chapters in the parsed input that this book has already logged. */
+  alreadyRead: number[]
+}
+
+/**
+ * Splits a parsed chapter list against a book's existing progress.
+ *
+ * The backend already dedupes on write, so re-submitting a read chapter is a silent
+ * no-op. Splitting here lets the UI say so before the user presses Submit.
+ */
+export function splitAlreadyRead(parsed: number[], chaptersReadList: number[]): ChapterSplit {
+  const read = new Set(chaptersReadList)
+  const newChapters: number[] = []
+  const alreadyRead: number[] = []
+  for (const chapter of parsed) {
+    if (read.has(chapter)) alreadyRead.push(chapter)
+    else newChapters.push(chapter)
+  }
+  return { newChapters, alreadyRead }
+}
+
+/** Renders a chapter list for the hint under the input, truncating past 8 entries. */
+export function formatChapterList(chapters: number[], limit = 8): string {
+  return `${chapters.slice(0, limit).join(', ')}${chapters.length > limit ? '…' : ''}`
+}
+
 export function calculateProgress(book: Pick<Book, 'chapters_read' | 'num_chapters'>): number {
   if (!book.chapters_read) return 0
   return Math.round((book.chapters_read / book.num_chapters) * 100)

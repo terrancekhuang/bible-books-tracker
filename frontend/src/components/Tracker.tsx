@@ -5,13 +5,16 @@ import { useBooksQuery, useCurrentUserQuery } from '../lib/queries'
 import { useTrackerMutations } from '../lib/useTrackerMutations'
 import { useKeyChord } from '../lib/useKeyChord'
 import { useConfirm } from '../lib/useConfirm'
-import { parseChapters, sortBooks, filterBooks, availableFilterOptions, calculateProgress, type SortKey, type SortDir } from '../lib/trackerLogic'
+import { parseChapters, splitAlreadyRead, formatChapterList, sortBooks, filterBooks, availableFilterOptions, calculateProgress, type SortKey, type SortDir } from '../lib/trackerLogic'
 import { CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import NavBar from './NavBar'
 import BookCard from './BookCard'
 import { getCategoryPalette } from '../lib/categoryColors'
+
+/** Amber used for "already read" hints — the offline banner's warning tone, at hint-text weight. */
+const ALREADY_READ_COLOR = 'rgba(240,200,80,0.8)'
 
 export default function Tracker() {
   const { isDark, colors } = useTheme()
@@ -87,11 +90,16 @@ export default function Tracker() {
 
   const parsedChapters = selectedBook ? parseChapters(chaptersInput, selectedBook.num_chapters) : [];
   const inputIsInvalid = chaptersInput.trim() !== '' && parsedChapters.length === 0;
+  // Chapters already logged are a server-side no-op, so only the new ones are submitted —
+  // and when nothing is new, Submit is disabled rather than firing a write that does nothing.
+  const { newChapters, alreadyRead } = splitAlreadyRead(parsedChapters, selectedBook?.chapters_read_list ?? []);
+  const nothingNewToLog = parsedChapters.length > 0 && newChapters.length === 0;
+  const canSubmit = newChapters.length > 0;
 
   const handleSubmit = async () => {
-    if (!selectedBook || parsedChapters.length === 0) return;
+    if (!selectedBook || !canSubmit) return;
     setChaptersInput('');
-    await submit(selectedBook, parsedChapters);
+    await submit(selectedBook, newChapters);
   };
 
   const handleMarkAllRead = async () => {
@@ -473,20 +481,33 @@ export default function Tracker() {
                                 onFocus={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.6)' : (isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)'))}
                                 onBlur={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.4)' : (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)'))}
                               />
-                              <p className="text-xs mt-1 min-h-[1rem]" style={{ color: inputIsInvalid ? 'rgba(240,100,100,0.75)' : dimText, fontFamily: "'Raleway', sans-serif" }}>
+                              <p
+                                className="text-xs mt-1 min-h-[1rem]"
+                                style={{
+                                  color: inputIsInvalid ? 'rgba(240,100,100,0.75)' : nothingNewToLog ? ALREADY_READ_COLOR : dimText,
+                                  fontFamily: "'Raleway', sans-serif",
+                                }}
+                              >
                                 {inputIsInvalid
                                   ? 'Invalid format — try "1-5" or "3, 7, 12"'
-                                  : parsedChapters.length > 0
-                                    ? `Will log: ${parsedChapters.length} chapter${parsedChapters.length !== 1 ? 's' : ''} (${parsedChapters.slice(0, 8).join(', ')}${parsedChapters.length > 8 ? '…' : ''})`
-                                    : ''}
+                                  : nothingNewToLog
+                                    ? `Already read — nothing new to log (${formatChapterList(alreadyRead)})`
+                                    : canSubmit
+                                      ? <>
+                                          {`Will log: ${newChapters.length} chapter${newChapters.length !== 1 ? 's' : ''} (${formatChapterList(newChapters)})`}
+                                          {alreadyRead.length > 0 && (
+                                            <span style={{ color: ALREADY_READ_COLOR }}> · {alreadyRead.length} already read</span>
+                                          )}
+                                        </>
+                                      : ''}
                               </p>
                             </div>
                             <button
                               onClick={handleSubmit}
-                              disabled={parsedChapters.length === 0}
+                              disabled={!canSubmit}
                               className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               style={{
-                                background: parsedChapters.length > 0
+                                background: canSubmit
                                   ? (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.1)')
                                   : 'transparent',
                                 border: isDark ? '1px solid rgba(150,175,255,0.24)' : '1px solid rgba(13,21,51,0.16)',

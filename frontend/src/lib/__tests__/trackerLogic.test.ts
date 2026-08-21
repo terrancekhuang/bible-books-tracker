@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import {
   parseChapters,
+  splitAlreadyRead,
+  formatChapterList,
   calculateProgress,
   sortBooks,
   filterBooks,
@@ -233,5 +235,69 @@ describe('availableFilterOptions', () => {
     expect(opts.testaments.sort()).toEqual(['New Testament'])
     // categories are not filtered by the active category filter
     expect(opts.categories.sort()).toEqual(['Gospels', 'Law', "Paul's Epistles", 'Poetry'])
+  })
+})
+
+describe('splitAlreadyRead', () => {
+  it('treats everything as new when the book has no progress', () => {
+    expect(splitAlreadyRead([1, 2, 3], [])).toEqual({ newChapters: [1, 2, 3], alreadyRead: [] })
+  })
+
+  it('splits a partial overlap into new and already-read', () => {
+    expect(splitAlreadyRead([1, 2, 3, 4, 5], [1, 2, 3])).toEqual({
+      newChapters: [4, 5],
+      alreadyRead: [1, 2, 3],
+    })
+  })
+
+  it('returns no new chapters when every chapter is already read', () => {
+    expect(splitAlreadyRead([1, 2, 3], [1, 2, 3])).toEqual({
+      newChapters: [],
+      alreadyRead: [1, 2, 3],
+    })
+  })
+
+  it('handles a non-contiguous overlap', () => {
+    expect(splitAlreadyRead([1, 3, 5, 7], [3, 7, 9])).toEqual({
+      newChapters: [1, 5],
+      alreadyRead: [3, 7],
+    })
+  })
+
+  it('ignores read chapters absent from the input', () => {
+    expect(splitAlreadyRead([10], [1, 2, 3])).toEqual({ newChapters: [10], alreadyRead: [] })
+  })
+
+  it('returns two empty lists for empty input', () => {
+    expect(splitAlreadyRead([], [1, 2])).toEqual({ newChapters: [], alreadyRead: [] })
+  })
+
+  it('preserves the input order in both lists', () => {
+    expect(splitAlreadyRead([1, 2, 3, 4], [2, 4])).toEqual({
+      newChapters: [1, 3],
+      alreadyRead: [2, 4],
+    })
+  })
+})
+
+describe('formatChapterList', () => {
+  it('joins chapters with commas', () => {
+    expect(formatChapterList([1, 2, 3])).toBe('1, 2, 3')
+  })
+
+  it('returns an empty string for an empty list', () => {
+    expect(formatChapterList([])).toBe('')
+  })
+
+  it('does not truncate at exactly the limit', () => {
+    expect(formatChapterList([1, 2, 3, 4, 5, 6, 7, 8])).toBe('1, 2, 3, 4, 5, 6, 7, 8')
+  })
+
+  it('truncates past the limit with an ellipsis', () => {
+    expect(formatChapterList([1, 2, 3, 4, 5, 6, 7, 8, 9])).toBe('1, 2, 3, 4, 5, 6, 7, 8…')
+  })
+
+  it('honours a custom limit', () => {
+    expect(formatChapterList([1, 2, 3], 2)).toBe('1, 2…')
   })
 })

@@ -88,12 +88,14 @@ export default function Profile() {
 
   const { primaryText, dimText, bodyText, trackBg } = colors
 
+  // Matches Dashboard's card-section label exactly, so the same role reads identically on both pages.
   const sectionHeadStyle = {
-    fontFamily: "'Cinzel', serif",
-    fontSize: 13,
+    fontFamily: "'Raleway', sans-serif",
+    fontSize: 10,
     fontWeight: 600,
-    color: primaryText,
-    letterSpacing: '0.06em',
+    letterSpacing: '0.3em',
+    textTransform: 'uppercase' as const,
+    color: isDark ? 'rgba(150,175,255,0.65)' : 'rgba(13,21,51,0.5)',
   }
 
   const glassCard = {
@@ -150,7 +152,7 @@ export default function Profile() {
     <div className="flex flex-col min-h-screen pb-20 md:pb-0">
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
 
-      <div className="flex flex-col gap-4 px-5 py-5 max-w-3xl mx-auto w-full">
+      <div className="flex flex-col gap-5 px-4 py-6 max-w-4xl mx-auto w-full">
 
         {/* User info */}
         <div className="p-5 flex items-center gap-4 min-w-0" style={glassCard}>
@@ -159,13 +161,13 @@ export default function Profile() {
           ) : (
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
-              style={{ background: isDark ? 'rgba(150,175,255,0.15)' : 'rgba(13,21,51,0.08)', color: isDark ? '#aabfff' : '#0d1533', fontFamily: "'Cinzel', serif" }}
+              style={{ background: isDark ? 'rgba(150,175,255,0.15)' : 'rgba(13,21,51,0.08)', color: isDark ? '#aabfff' : '#0d1533', fontFamily: "'Raleway', sans-serif" }}
             >
               {user?.name?.[0] ?? "?"}
             </div>
           )}
           <div className="min-w-0">
-            <p className="text-lg font-semibold truncate" style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.04em' }}>
+            <p className="text-lg font-semibold truncate" style={{ fontFamily: "'Raleway', sans-serif", color: primaryText }}>
               {user?.name ?? "—"}
             </p>
             <p className="text-sm truncate" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
@@ -243,7 +245,7 @@ export default function Profile() {
               background: isDark ? 'rgba(150,175,255,0.16)' : 'rgba(13,21,51,0.1)',
               border: isDark ? '1px solid rgba(150,175,255,0.25)' : '1px solid rgba(13,21,51,0.18)',
               color: primaryText,
-              fontFamily: "'Cinzel', serif",
+              fontFamily: "'Raleway', sans-serif",
               letterSpacing: '0.06em',
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
@@ -308,7 +310,7 @@ export default function Profile() {
                 background: isDark ? 'rgba(150,175,255,0.2)' : 'rgba(13,21,51,0.1)',
                 border: isDark ? '1px solid rgba(150,175,255,0.28)' : '1px solid rgba(13,21,51,0.2)',
                 color: primaryText,
-                fontFamily: "'Cinzel', serif",
+                fontFamily: "'Raleway', sans-serif",
                 letterSpacing: '0.05em',
               }}
               onClick={handleNewCycle}

@@ -147,14 +147,6 @@ export default function Dashboard() {
     border: isDark ? '1px solid rgba(150,175,255,0.22)' : '1px solid rgba(100,130,255,0.14)',
     borderRadius: '1rem',
   }
-  const sectionHeadStyle: CSSProperties = {
-    fontFamily: "'Cinzel', serif",
-    fontSize: 13,
-    fontWeight: 600,
-    color: primaryText,
-    letterSpacing: '0.06em',
-  }
-
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0">
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
@@ -430,7 +422,7 @@ export default function Dashboard() {
 
         {/* Reading Rhythm */}
         <div style={fadeUp(410)}>
-          <ReadingRhythm glassCard={glassCard} sectionHeadStyle={sectionHeadStyle} />
+          <ReadingRhythm glassCard={glassCard} sectionHeadStyle={secLabel} />
         </div>
       </div>
 

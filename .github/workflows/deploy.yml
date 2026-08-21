@@ -4,6 +4,13 @@ on:
   push:
     branches: [master]
 
+# One deploy at a time. Overlapping runs race on `docker compose up`, and the loser
+# fails recreating a container the winner is already replacing. Queue rather than
+# cancel: a cancelled run can leave the server mid-recreate.
+concurrency:
+  group: deploy-master
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest

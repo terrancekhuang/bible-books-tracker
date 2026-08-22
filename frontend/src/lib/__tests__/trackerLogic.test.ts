@@ -329,6 +329,37 @@ describe('buildChapterRuns', () => {
     expect(buildChapterRuns(1, [], [1])).toEqual([{ start: 1, end: 1, state: 'pending' }])
   })
 
+  it('splits logging chapters out of the read run while they animate', () => {
+    expect(buildChapterRuns(6, [1, 2, 3, 4], [], [3, 4])).toEqual([
+      { start: 1, end: 2, state: 'read' },
+      { start: 3, end: 4, state: 'logging' },
+      { start: 5, end: 6, state: 'unread' },
+    ])
+  })
+
+  it('outranks read, pending and unread, so the fill never blinks through another state', () => {
+    expect(buildChapterRuns(4, [1], [4], [2, 3])).toEqual([
+      { start: 1, end: 1, state: 'read' },
+      { start: 2, end: 3, state: 'logging' },
+      { start: 4, end: 4, state: 'pending' },
+    ])
+  })
+
+  it('holds logging on chapters the read list has not caught up to yet', () => {
+    expect(buildChapterRuns(4, [1], [], [2, 3])).toEqual([
+      { start: 1, end: 1, state: 'read' },
+      { start: 2, end: 3, state: 'logging' },
+      { start: 4, end: 4, state: 'unread' },
+    ])
+  })
+
+  it('merges logging back into read once the caller clears it', () => {
+    expect(buildChapterRuns(6, [1, 2, 3, 4], [], [])).toEqual([
+      { start: 1, end: 4, state: 'read' },
+      { start: 5, end: 6, state: 'unread' },
+    ])
+  })
+
   it('ignores pending chapters beyond the book length', () => {
     expect(buildChapterRuns(3, [], [2, 99])).toEqual([
       { start: 1, end: 1, state: 'unread' },

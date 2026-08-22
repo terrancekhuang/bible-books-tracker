@@ -67,7 +67,7 @@ export function splitAlreadyRead(parsed: number[], chaptersReadList: number[]): 
   return { newChapters, alreadyRead }
 }
 
-export type SegmentState = 'read' | 'pending' | 'unread'
+export type SegmentState = 'read' | 'logging' | 'pending' | 'unread'
 
 export interface ChapterRun {
   start: number
@@ -80,13 +80,26 @@ export interface ChapterRun {
  *
  * `read` wins over `pending`: a chapter that's already logged stays solid even when the
  * user types it again, because re-submitting it is a no-op.
+ *
+ * `logging` is the read state mid-animation — chapters the bar is still filling in after a
+ * write. It outranks the rest: the optimistic cache write lands a frame or two after the
+ * caller sets it, and gating on `read` would let those chapters blink through unread first.
+ * The caller is what bounds it, by clearing the set once the fill has run.
  */
-export function buildChapterRuns(total: number, read: number[], pending: number[] = []): ChapterRun[] {
+export function buildChapterRuns(
+  total: number,
+  read: number[],
+  pending: number[] = [],
+  logging: number[] = [],
+): ChapterRun[] {
   const readSet = new Set(read)
   const pendingSet = new Set(pending)
+  const loggingSet = new Set(logging)
   const runs: ChapterRun[] = []
   for (let i = 1; i <= total; i++) {
-    const state: SegmentState = readSet.has(i) ? 'read' : pendingSet.has(i) ? 'pending' : 'unread'
+    const state: SegmentState = loggingSet.has(i) ? 'logging'
+      : readSet.has(i) ? 'read'
+      : pendingSet.has(i) ? 'pending' : 'unread'
     const last = runs[runs.length - 1]
     if (!last || last.state !== state) runs.push({ start: i, end: i, state })
     else last.end = i

@@ -13,6 +13,34 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Chapter bar — light travelling through a pending run, waiting to be committed. */
+@keyframes chapter-sweep {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* Chapter bar — the read fill arriving left to right once a write lands, and the pending
+   shade retreating ahead of it. The two are complementary halves of one wipe rather than
+   stacked layers, because both colours are translucent and overlapping them composites
+   darker than a finished read segment. The -1px keeps a sub-pixel seam from opening up. */
+@keyframes chapter-fill {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 -1px 0 0); }
+}
+
+@keyframes chapter-drain {
+  from { clip-path: inset(0 0 0 0); }
+  to   { clip-path: inset(0 0 0 100%); }
+}
+
+/* Chapter bar — one breath of light around what was just logged. Colour comes from
+   --chapter-bloom, set inline so the run stays theme-aware. */
+@keyframes chapter-bloom {
+  0%   { box-shadow: 0 0 0 0 transparent; }
+  35%  { box-shadow: 0 0 10px 1px var(--chapter-bloom); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
 @keyframes nebulaDrift1 {
   0%, 100% { transform: translate(0,0) scale(1) rotate(0deg); }
   33%       { transform: translate(50px,-40px) scale(1.12) rotate(18deg); }

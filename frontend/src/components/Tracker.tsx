@@ -8,7 +8,7 @@ import { useConfirm } from '../lib/useConfirm'
 import { parseChapters, splitAlreadyRead, formatChapterList, sortBooks, filterBooks, availableFilterOptions, calculateProgress, type SortKey, type SortDir } from '../lib/trackerLogic'
 import { CategoryIcon, BookOpenIcon } from './Icons'
 import FilterSelect from './FilterSelect'
-import SegmentedProgressBar from './SegmentedProgressBar'
+import SegmentedProgressBar, { FILL_MS } from './SegmentedProgressBar'
 import NavBar from './NavBar'
 import BookCard from './BookCard'
 import { getCategoryPalette } from '../lib/categoryColors'
@@ -88,6 +88,13 @@ export default function Tracker() {
   const anyFilterActive = filterTestament !== '' || filterCategory !== '' || filterStatus !== '';
   const clearFilters = () => { setFilterTestament(''); setFilterCategory(''); setFilterStatus(''); };
 
+  // Chapters whose write just landed, kept only for the length of the bar's fill animation
+  // and scoped to the book they belong to, so switching book can't replay it elsewhere.
+  const [justLogged, setJustLogged] = useState<{ book: string; chapters: number[] } | null>(null);
+  const fillTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (fillTimer.current) window.clearTimeout(fillTimer.current); }, []);
+  const loggingChapters = justLogged?.book === selectedBookName ? justLogged.chapters : undefined;
+
   const parsedChapters = selectedBook ? parseChapters(chaptersInput, selectedBook.num_chapters) : [];
   const inputIsInvalid = chaptersInput.trim() !== '' && parsedChapters.length === 0;
   // Chapters already logged are a server-side no-op, so only the new ones are submitted —
@@ -98,8 +105,14 @@ export default function Tracker() {
 
   const handleSubmit = async () => {
     if (!selectedBook || !canSubmit) return;
+    const logged = newChapters;
     setChaptersInput('');
-    await submit(selectedBook, newChapters);
+    // Hold the just-logged chapters apart from the solid fill while the bar wipes them in.
+    // Submitting again mid-wipe restarts it on the new chapters rather than stacking.
+    if (fillTimer.current) window.clearTimeout(fillTimer.current);
+    setJustLogged({ book: selectedBook.name, chapters: logged });
+    fillTimer.current = window.setTimeout(() => setJustLogged(null), FILL_MS);
+    await submit(selectedBook, logged);
   };
 
   const handleMarkAllRead = async () => {
@@ -428,6 +441,7 @@ export default function Tracker() {
                               total={selectedBook.num_chapters}
                               readChapters={selectedBook.chapters_read_list}
                               pendingChapters={newChapters}
+                              loggingChapters={loggingChapters}
                             />
                           </div>
                         )}

@@ -1,7 +1,0 @@
-flask
-flask-cors
-flask-jwt-extended
-psycopg2-binary
-python-dotenv
-google-auth
-requests

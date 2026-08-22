@@ -28,7 +28,7 @@ Track your progress through all 66 books of the Bible — chapters read, reading
 | Database   | PostgreSQL 17                                        |
 | Dev infra  | Docker Compose                                       |
 | Production | Hetzner Cloud VM, Docker, nginx, Let's Encrypt       |
-| CI/CD      | GitHub Actions (rsync + SSH deploy on push to master)|
+| CI/CD      | GitHub Actions (test gate, then rsync + SSH deploy on master)|
 | Infra-as-code | Terraform                                         |
 
 ---

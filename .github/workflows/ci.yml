@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# One run at a time per ref.
+#
+# On master this queues rather than cancels, which is what the deploy needs: overlapping
+# runs race on `docker compose up` and the loser fails recreating a container the winner is
+# already replacing, while a cancelled run can leave the server mid-recreate.
+#
+# On every other ref a superseded run is worth nothing, so cancel it.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Matches frontend/Dockerfile's node:20-alpine.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # tsc + vite. The deploy rebuilds this on the server anyway, so failing here is
+      # strictly faster than failing there.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_GOOGLE_CLIENT_ID: ci-build-placeholder
+
+      - name: Test
+        run: npm test
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    services:
+      # postgres:17 and python 3.11 match docker-compose.prod.yml and backend/Dockerfile.
+      # The suite talks to a real database — see backend/tests/conftest.py, which loads
+      # schema.sql into it once per session.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: bible-books-tracker
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      # requirements-dev.txt pulls in the pinned production set and adds pytest.
+      - run: pip install -r backend/requirements-dev.txt
+
+      - name: Test
+        run: pytest backend/tests -q
+        env:
+          # conftest.py uses os.environ.setdefault, and config.py's load_dotenv does not
+          # override real environment variables, so these win. No .env exists on a runner.
+          DATABASE_URL: postgresql://postgres:pass@localhost:5432/bible-books-tracker
+          JWT_SECRET_KEY: ci-test-secret-key-not-used-anywhere-real
+          GOOGLE_CLIENT_ID: ci-test-client-id
+          FRONTEND_URL: http://localhost:3000
+
+  deploy:
+    name: Deploy
+    needs: [frontend, backend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Sync code to server
+        run: |
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='.env' \
+            --exclude='node_modules' \
+            --exclude='frontend/node_modules' \
+            --exclude='venv' \
+            --exclude='dist' \
+            --exclude='infra/.terraform' \
+            --exclude='infra/terraform.tfstate*' \
+            --exclude='infra/deploy_key' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/srv/apps/bible-books-tracker/
+
+      - name: Build and restart containers
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} << 'EOF'
+            set -e
+            cd /srv/apps/bible-books-tracker
+            docker compose -f docker-compose.prod.yml up -d --build
+            nginx -t && systemctl reload nginx
+          EOF

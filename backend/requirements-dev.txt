@@ -1,0 +1,5 @@
+# Test-only dependencies. The production image installs requirements.txt alone,
+# so nothing here ships — see backend/Dockerfile.
+-r requirements.txt
+
+pytest==9.0.3

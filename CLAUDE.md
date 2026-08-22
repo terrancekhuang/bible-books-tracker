@@ -10,7 +10,7 @@ Full-stack Bible reading progress tracker:
 - **Backend**: Python Flask + psycopg2 + gunicorn
 - **Database**: PostgreSQL 17 (self-hosted in Docker)
 - **Infra**: Hetzner Cloud VM (`cpx22`, `nbg1`), Terraform, host nginx + Let's Encrypt
-- **CI/CD**: GitHub Actions — rsync + SSH deploy on push to `master`
+- **CI/CD**: GitHub Actions — lint/build/test on every push and PR; rsync + SSH deploy on `master` once they pass
 - **Live URL**: `https://bible.terrancehuang.dev` (server IP: `5.78.233.181`)
 
 ### Backend modules (`backend/src/`)
@@ -77,9 +77,28 @@ BACKUP_S3_BUCKET=...        # from `terraform output backup_bucket_name`
 
 `VITE_GOOGLE_CLIENT_ID` is a Vite build-time variable. It gets embedded in the JS bundle when the frontend Docker image is built. Changing it requires rebuilding the frontend container.
 
-## Deployment
+## CI/CD
 
-Pushing to `master` triggers `.github/workflows/deploy.yml`, which:
+`.github/workflows/ci.yml` runs on every push and pull request:
+
+| Job | Runs | Environment |
+|-----|------|-------------|
+| `frontend` | `npm run lint`, `npm run build`, `npm test` | Node 20 — matches `frontend/Dockerfile` |
+| `backend` | `pytest backend/tests` | Python 3.11 + a `postgres:17` service — matches `backend/Dockerfile` and `docker-compose.prod.yml` |
+| `deploy` | rsync + `docker compose up -d --build` + nginx reload | only on a push to `master`, and only if both test jobs passed |
+
+The backend suite needs a real database — `conftest.py` loads `schema.sql` into it once per
+session — which is why CI runs a Postgres service container rather than mocking.
+
+`make test` runs the same two suites locally. Test-only dependencies live in
+`backend/requirements-dev.txt`, which pulls in the pinned production set and adds pytest;
+the production image installs `backend/requirements.txt` alone, so pytest never ships.
+
+Concurrency is per-ref. On `master` runs queue rather than cancel — overlapping deploys race
+on `docker compose up` and a cancelled one can leave the server mid-recreate. On every other
+ref a superseded run is cancelled.
+
+The deploy step itself:
 1. rsyncs the repo to `/srv/apps/bible-books-tracker/` on the server (excluding `.env`, `.git`, `node_modules`, Terraform state)
 2. SSHs in and runs `docker compose -f docker-compose.prod.yml up -d --build`
 3. Reloads nginx

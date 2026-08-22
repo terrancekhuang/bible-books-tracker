@@ -5,7 +5,7 @@ SERVER      ?= root@5.78.233.181
 
 .DEFAULT_GOAL := help
 .PHONY: all install install-frontend install-backend dev dev-frontend dev-backend \
-        db db-stop db-tunnel test lint build help
+        db db-stop db-tunnel test test-frontend test-backend lint build help
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -18,8 +18,8 @@ install: install-frontend install-backend ## Install all dependencies
 install-frontend: ## npm install
 	npm install
 
-install-backend: $(VENV)/bin/activate ## pip install -r requirements.txt into venv
-	$(PIP) install -r requirements.txt
+install-backend: $(VENV)/bin/activate ## pip install backend deps + pytest into venv
+	$(PIP) install -r backend/requirements-dev.txt
 
 $(VENV)/bin/activate:
 	python3 -m venv $(VENV)
@@ -50,8 +50,13 @@ dev: db ## Start db + backend + frontend together (Ctrl-C stops all)
 
 # ── Quality ───────────────────────────────────────────────────────────────────
 
-test: ## Run vitest
+test: test-frontend test-backend ## Run both suites — the same two CI gates the deploy on
+
+test-frontend: ## vitest
 	npm test
+
+test-backend: ## pytest — needs PostgreSQL reachable at $$DATABASE_URL (see `make db`)
+	$(PYTHON) -m pytest backend/tests -q
 
 lint: ## Run ESLint
 	npm run lint

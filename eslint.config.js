@@ -6,7 +6,10 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // ds-bundle/ is generated design-sync output, not source. It carries inline
+  // eslint-disable comments for rules this config doesn't load, which ESLint reports
+  // as errors — so linting it fails the run over vendored code nobody edits.
+  globalIgnores(['dist', 'ds-bundle', '.design-sync']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [

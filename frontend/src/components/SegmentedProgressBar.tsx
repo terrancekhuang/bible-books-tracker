@@ -1,25 +1,40 @@
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTheme } from '../lib/ThemeContext'
+import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
+import { buildChapterRuns, type SegmentState } from '../lib/trackerLogic'
 
-export default function SegmentedProgressBar({ total, readChapters }: { total: number; readChapters: number[] }) {
+interface SegmentedProgressBarProps {
+  total: number
+  readChapters: number[]
+  /** Chapters about to be submitted — drawn as a ghost fill between unread and read. */
+  pendingChapters?: number[]
+}
+
+const EMPTY: number[] = [];
+
+export default function SegmentedProgressBar({
+  total,
+  readChapters,
+  pendingChapters = EMPTY,
+}: SegmentedProgressBarProps) {
   const { isDark } = useTheme()
+  const reducedMotion = usePrefersReducedMotion()
   const readSet = useMemo(() => new Set(readChapters), [readChapters]);
   const barRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ chapter: number; x: number; y: number } | null>(null);
 
-  const runs = useMemo(() => {
-    const result: { start: number; end: number; read: boolean }[] = [];
-    for (let i = 1; i <= total; i++) {
-      const read = readSet.has(i);
-      if (result.length === 0 || result[result.length - 1].read !== read) {
-        result.push({ start: i, end: i, read });
-      } else {
-        result[result.length - 1].end = i;
-      }
-    }
-    return result;
-  }, [total, readSet]);
+  // Not memoised: Tracker rebuilds the pending list on every keystroke, so a reference-keyed
+  // memo would miss anyway, and this is one pass over at most 150 chapters.
+  const runs = buildChapterRuns(total, readChapters, pendingChapters);
+
+  // One hue throughout — pending is the read fill at roughly half strength, so it reads as
+  // "this much, not yet committed" rather than as a separate kind of thing.
+  const background: Record<SegmentState, string> = {
+    read: isDark ? 'rgba(150,175,255,0.85)' : 'rgba(13,21,51,0.65)',
+    pending: isDark ? 'rgba(150,175,255,0.38)' : 'rgba(13,21,51,0.28)',
+    unread: isDark ? 'rgba(150,175,255,0.1)' : 'rgba(13,21,51,0.08)',
+  };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!barRef.current) return;
@@ -42,9 +57,10 @@ export default function SegmentedProgressBar({ total, readChapters }: { total: n
             className="rounded-[3px]"
             style={{
               flex: run.end - run.start + 1,
-              background: run.read
-                ? (isDark ? 'rgba(150,175,255,0.85)' : 'rgba(13,21,51,0.65)')
-                : (isDark ? 'rgba(150,175,255,0.1)' : 'rgba(13,21,51,0.08)'),
+              background: background[run.state],
+              // Colour only — transitioning `flex` too would make the segments slither
+              // sideways on every keystroke.
+              transition: reducedMotion ? undefined : 'background-color 150ms ease',
             }}
           />
         ))}

@@ -67,6 +67,33 @@ export function splitAlreadyRead(parsed: number[], chaptersReadList: number[]): 
   return { newChapters, alreadyRead }
 }
 
+export type SegmentState = 'read' | 'pending' | 'unread'
+
+export interface ChapterRun {
+  start: number
+  end: number
+  state: SegmentState
+}
+
+/**
+ * Collapses chapters 1..total into runs of a single state, for the segmented bar.
+ *
+ * `read` wins over `pending`: a chapter that's already logged stays solid even when the
+ * user types it again, because re-submitting it is a no-op.
+ */
+export function buildChapterRuns(total: number, read: number[], pending: number[] = []): ChapterRun[] {
+  const readSet = new Set(read)
+  const pendingSet = new Set(pending)
+  const runs: ChapterRun[] = []
+  for (let i = 1; i <= total; i++) {
+    const state: SegmentState = readSet.has(i) ? 'read' : pendingSet.has(i) ? 'pending' : 'unread'
+    const last = runs[runs.length - 1]
+    if (!last || last.state !== state) runs.push({ start: i, end: i, state })
+    else last.end = i
+  }
+  return runs
+}
+
 /** Renders a chapter list for the hint under the input, truncating past 8 entries. */
 export function formatChapterList(chapters: number[], limit = 8): string {
   return `${chapters.slice(0, limit).join(', ')}${chapters.length > limit ? '…' : ''}`

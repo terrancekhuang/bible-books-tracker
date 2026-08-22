@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   parseChapters,
   splitAlreadyRead,
+  buildChapterRuns,
   formatChapterList,
   calculateProgress,
   sortBooks,
@@ -277,6 +278,63 @@ describe('splitAlreadyRead', () => {
       newChapters: [1, 3],
       alreadyRead: [2, 4],
     })
+  })
+})
+
+describe('buildChapterRuns', () => {
+  it('collapses an all-unread book into a single run', () => {
+    expect(buildChapterRuns(5, [])).toEqual([{ start: 1, end: 5, state: 'unread' }])
+  })
+
+  it('splits read from unread without a pending list', () => {
+    expect(buildChapterRuns(5, [1, 2])).toEqual([
+      { start: 1, end: 2, state: 'read' },
+      { start: 3, end: 5, state: 'unread' },
+    ])
+  })
+
+  it('carves a pending run out of the middle of an unread stretch', () => {
+    expect(buildChapterRuns(10, [1, 2], [5, 6, 7])).toEqual([
+      { start: 1, end: 2, state: 'read' },
+      { start: 3, end: 4, state: 'unread' },
+      { start: 5, end: 7, state: 'pending' },
+      { start: 8, end: 10, state: 'unread' },
+    ])
+  })
+
+  it('keeps pending adjacent to read as two distinct runs', () => {
+    expect(buildChapterRuns(6, [1, 2], [3, 4])).toEqual([
+      { start: 1, end: 2, state: 'read' },
+      { start: 3, end: 4, state: 'pending' },
+      { start: 5, end: 6, state: 'unread' },
+    ])
+  })
+
+  it('lets read win over pending so an already-logged chapter stays solid', () => {
+    expect(buildChapterRuns(4, [1, 2], [2, 3])).toEqual([
+      { start: 1, end: 2, state: 'read' },
+      { start: 3, end: 3, state: 'pending' },
+      { start: 4, end: 4, state: 'unread' },
+    ])
+  })
+
+  it('handles pending covering every remaining chapter', () => {
+    expect(buildChapterRuns(4, [1], [2, 3, 4])).toEqual([
+      { start: 1, end: 1, state: 'read' },
+      { start: 2, end: 4, state: 'pending' },
+    ])
+  })
+
+  it('handles a single-chapter book', () => {
+    expect(buildChapterRuns(1, [], [1])).toEqual([{ start: 1, end: 1, state: 'pending' }])
+  })
+
+  it('ignores pending chapters beyond the book length', () => {
+    expect(buildChapterRuns(3, [], [2, 99])).toEqual([
+      { start: 1, end: 1, state: 'unread' },
+      { start: 2, end: 2, state: 'pending' },
+      { start: 3, end: 3, state: 'unread' },
+    ])
   })
 })
 

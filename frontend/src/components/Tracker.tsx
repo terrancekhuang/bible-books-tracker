@@ -424,7 +424,11 @@ export default function Tracker() {
                             >
                               Chapter progress
                             </span>
-                            <SegmentedProgressBar total={selectedBook.num_chapters} readChapters={selectedBook.chapters_read_list} />
+                            <SegmentedProgressBar
+                              total={selectedBook.num_chapters}
+                              readChapters={selectedBook.chapters_read_list}
+                              pendingChapters={newChapters}
+                            />
                           </div>
                         )}
 

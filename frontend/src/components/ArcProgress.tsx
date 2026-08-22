@@ -31,7 +31,6 @@ export default function ArcProgress({ total, read, size, strokeWidth, isDark }: 
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        fontFamily: "'Raleway', sans-serif",
         color: isDark ? 'rgba(220,230,255,0.85)' : 'rgba(13,21,51,0.75)',
         textAlign: 'center', lineHeight: 1.1,
         pointerEvents: 'none',

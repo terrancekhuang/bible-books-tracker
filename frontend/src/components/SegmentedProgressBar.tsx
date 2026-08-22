@@ -59,7 +59,6 @@ export default function SegmentedProgressBar({ total, readChapters }: { total: n
             WebkitBackdropFilter: 'blur(12px)',
             border: '1px solid rgba(150,175,255,0.18)',
             color: 'rgba(195,210,255,0.9)',
-            fontFamily: "'Raleway', sans-serif",
           }}
         >
           Ch. {tooltip.chapter} {readSet.has(tooltip.chapter) ? '· ✓' : ''}

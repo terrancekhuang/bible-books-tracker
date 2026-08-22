@@ -28,11 +28,11 @@ const mobileNavDark  = { ...BLUR, background: 'rgba(6,12,30,0.8)',      borderTo
 
 export default function NavBar({ pictureUrl, userName }: NavBarProps) {
   const { pathname } = useLocation()
-  const { theme, isDark, toggle } = useTheme()
+  const { theme, isDark, toggle, colors } = useTheme()
+  const { primaryText } = colors
   const style = isDark ? navStyleDark : navStyleLight
 
   const secondaryText = isDark ? 'rgba(195,210,255,0.6)' : 'rgba(13,21,51,0.5)'
-  const activeText = isDark ? '#dde6ff' : '#0d1533'
   const activeBg = isDark ? 'rgba(150,175,255,0.1)' : 'rgba(100,130,255,0.1)'
 
   return (
@@ -41,8 +41,8 @@ export default function NavBar({ pictureUrl, userName }: NavBarProps) {
         <div className="flex md:grid md:grid-cols-3 items-center px-5 py-3 max-w-7xl mx-auto w-full">
           <Link
             to="/"
-            className="text-base md:text-xl font-semibold tracking-widest shrink-0 whitespace-nowrap md:justify-self-start"
-            style={{ fontFamily: "'Cinzel', serif", color: isDark ? '#dde6ff' : '#0d1533' }}
+            className="font-cinzel text-base md:text-xl font-semibold tracking-widest shrink-0 whitespace-nowrap md:justify-self-start"
+            style={{ color: primaryText }}
           >
             Bible Books Tracker
           </Link>
@@ -56,8 +56,7 @@ export default function NavBar({ pictureUrl, userName }: NavBarProps) {
                   to={to}
                   className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150"
                   style={{
-                    fontFamily: "'Raleway', sans-serif",
-                    color: isActive ? activeText : secondaryText,
+                    color: isActive ? primaryText : secondaryText,
                     background: isActive ? activeBg : 'transparent',
                     letterSpacing: '0.04em',
                   }}
@@ -100,10 +99,10 @@ export default function NavBar({ pictureUrl, userName }: NavBarProps) {
                 key={to}
                 to={to}
                 className="flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors"
-                style={{ color: isActive ? (isDark ? '#dde6ff' : '#0d1533') : secondaryText }}
+                style={{ color: isActive ? primaryText : secondaryText }}
               >
                 <Icon size={20} />
-                <span className="text-[10px] font-medium" style={{ fontFamily: "'Raleway', sans-serif", letterSpacing: '0.05em' }}>{label}</span>
+                <span className="text-[10px] font-medium" style={{ letterSpacing: '0.05em' }}>{label}</span>
               </Link>
             )
           })}

@@ -14,13 +14,12 @@ export default function StatCard({ label, value, icon }: { label: string; value:
       <div>
         <p
           className="text-xs font-medium uppercase tracking-widest text-[rgba(13,21,51,0.48)] dark:text-[rgba(150,175,255,0.58)]"
-          style={{ fontFamily: "'Raleway', sans-serif" }}
         >
           {label}
         </p>
         <p
-          className="text-2xl font-bold mt-0.5 text-[#0d1533] dark:text-[#dde6ff]"
-          style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.02em' }}
+          className="font-cinzel text-2xl font-bold mt-0.5 text-[#0d1533] dark:text-[#dde6ff]"
+          style={{ letterSpacing: '0.02em' }}
         >
           {value}
         </p>

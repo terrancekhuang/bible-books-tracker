@@ -90,7 +90,6 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
           <div>
             <p style={{
               margin: 0,
-              fontFamily: "'Raleway', sans-serif",
               fontWeight: 600,
               fontSize: '1rem',
               color: '#dde6ff',
@@ -100,7 +99,6 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
             </p>
             <p style={{
               margin: '0.25rem 0 0',
-              fontFamily: "'Raleway', sans-serif",
               fontWeight: 300,
               fontSize: '0.8rem',
               color: 'rgba(150,175,255,0.55)',
@@ -130,7 +128,6 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
             <>
               <p style={{
                 margin: '0 0 0.1rem',
-                fontFamily: "'Raleway', sans-serif",
                 fontWeight: 400,
                 fontSize: '0.75rem',
                 color: 'rgba(150,175,255,0.5)',
@@ -154,7 +151,6 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
                 border: '1px solid rgba(150,175,255,0.25)',
                 background: 'rgba(70,100,255,0.18)',
                 color: '#c8d8ff',
-                fontFamily: "'Raleway', sans-serif",
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 letterSpacing: '0.04em',
@@ -173,7 +169,6 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
               border: '1px solid rgba(150,175,255,0.1)',
               background: 'rgba(255,255,255,0.03)',
               color: 'rgba(150,175,255,0.5)',
-              fontFamily: "'Raleway', sans-serif",
               fontWeight: 400,
               fontSize: '0.85rem',
               cursor: 'pointer',
@@ -200,7 +195,6 @@ function Step({ n, text }: { n: number; text: React.ReactNode }) {
         background: 'rgba(100,130,255,0.15)',
         border: '1px solid rgba(150,175,255,0.2)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontFamily: "'Raleway', sans-serif",
         fontSize: '0.65rem',
         fontWeight: 700,
         color: 'rgba(150,175,255,0.7)',
@@ -209,7 +203,6 @@ function Step({ n, text }: { n: number; text: React.ReactNode }) {
         {n}
       </div>
       <span style={{
-        fontFamily: "'Raleway', sans-serif",
         fontSize: '0.82rem',
         color: 'rgba(160,185,255,0.65)',
         lineHeight: 1.5,

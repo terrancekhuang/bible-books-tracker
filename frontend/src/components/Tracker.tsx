@@ -208,17 +208,7 @@ export default function Tracker() {
     borderRadius: '1.25rem',
   }
 
-  const inputStyle = {
-    background: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.75)',
-    border: `1px solid ${isDark ? 'rgba(150,175,255,0.22)' : 'rgba(100,130,255,0.2)'}`,
-    borderRadius: '0.5rem',
-    color: primaryText,
-    fontFamily: "'Raleway', sans-serif",
-    outline: 'none',
-  }
-
   const filterStyle = (active: boolean) => ({
-    fontFamily: "'Raleway', sans-serif",
     fontSize: 12,
     color: active ? primaryText : dimText,
     background: active ? (isDark ? 'rgba(150,175,255,0.14)' : 'rgba(13,21,51,0.08)') : 'transparent',
@@ -235,7 +225,7 @@ export default function Tracker() {
       {!isOnline && (
         <div
           className="text-xs font-medium text-center py-1.5 px-4"
-          style={{ background: 'rgba(200,160,40,0.2)', color: 'rgba(240,200,80,0.9)', fontFamily: "'Raleway', sans-serif", backdropFilter: 'blur(8px)' }}
+          style={{ background: 'rgba(200,160,40,0.2)', color: 'rgba(240,200,80,0.9)', backdropFilter: 'blur(8px)' }}
         >
           Offline{pendingCount > 0 ? ` — ${pendingCount} change${pendingCount > 1 ? 's' : ''} will sync when reconnected` : ''}
         </div>
@@ -243,7 +233,7 @@ export default function Tracker() {
       {isOnline && pendingCount > 0 && (
         <div
           className="text-xs font-medium text-center py-1.5 px-4"
-          style={{ background: 'rgba(100,130,255,0.18)', color: 'rgba(170,195,255,0.9)', fontFamily: "'Raleway', sans-serif", backdropFilter: 'blur(8px)' }}
+          style={{ background: 'rgba(100,130,255,0.18)', color: 'rgba(170,195,255,0.9)', backdropFilter: 'blur(8px)' }}
         >
           Syncing {pendingCount} pending change{pendingCount > 1 ? 's' : ''}…
         </div>
@@ -272,8 +262,8 @@ export default function Tracker() {
                     searchInputRef.current?.blur();
                   }
                 }}
-                className="flex-1 text-sm px-3 py-2"
-                style={{ ...inputStyle, transition: 'border-color 0.15s' }}
+                className="glass-input flex-1 text-sm px-3 py-2"
+                style={{ transition: 'border-color 0.15s' }}
                 onFocus={e => (e.target.style.borderColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)')}
                 onBlur={e => (e.target.style.borderColor = isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)')}
               />
@@ -294,7 +284,7 @@ export default function Tracker() {
               <FilterSelect value={filterCategory} onChange={v => { setFilterCategory(v); if (v && filterTestament) { const valid = new Set(books.filter(b => b.category === v).map(b => b.testament)); if (!valid.has(filterTestament)) setFilterTestament(''); } }} placeholder="Category" options={availableCategoryOptions} />
               <FilterSelect value={filterStatus} onChange={setFilterStatus} placeholder="Status" options={[{ value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'complete', label: 'Complete' }]} />
               {anyFilterActive && (
-                <button onClick={clearFilters} className="text-xs px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap" style={{ color: 'rgba(240,100,100,0.7)', fontFamily: "'Raleway', sans-serif" }}>
+                <button onClick={clearFilters} className="text-xs px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap" style={{ color: 'rgba(240,100,100,0.7)' }}>
                   Clear filters
                 </button>
               )}
@@ -351,7 +341,7 @@ export default function Tracker() {
                   {isMobile && (
                     <button
                       className="self-start text-sm font-medium mb-1 transition-colors"
-                      style={{ color: isDark ? 'rgba(170,195,255,0.7)' : 'rgba(13,21,51,0.5)', fontFamily: "'Raleway', sans-serif" }}
+                      style={{ color: isDark ? 'rgba(170,195,255,0.7)' : 'rgba(13,21,51,0.5)' }}
                       onClick={() => { if (openedFromNav) { setOpenedFromNav(false); navigate(-1); } else { setSelectedBookName(null); setChaptersInput(''); } }}
                     >
                       ← Back
@@ -371,7 +361,7 @@ export default function Tracker() {
                         {/* Category row */}
                         <div className="flex items-center gap-2" style={{ color: cat.dim }}>
                           <CategoryIcon category={selectedBook.category} size={16} />
-                          <span className="text-sm font-medium" style={{ fontFamily: "'Raleway', sans-serif", letterSpacing: '0.04em' }}>
+                          <span className="text-sm font-medium" style={{ letterSpacing: '0.04em' }}>
                             {selectedBook.category}
                           </span>
                           <span
@@ -379,7 +369,6 @@ export default function Tracker() {
                             style={{
                               background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.05)',
                               color: isDark ? 'rgba(195,210,255,0.6)' : 'rgba(13,21,51,0.5)',
-                              fontFamily: "'Raleway', sans-serif",
                               letterSpacing: '0.05em',
                               border: isDark ? '1px solid rgba(150,175,255,0.14)' : '1px solid rgba(13,21,51,0.1)',
                             }}
@@ -391,8 +380,8 @@ export default function Tracker() {
                         {/* Book name — LARGE Cinzel with category glow */}
                         <div>
                           <h2
+                            className="font-cinzel"
                             style={{
-                              fontFamily: "'Cinzel', serif",
                               fontSize: 'clamp(1.6rem, 4vw, 2.4rem)',
                               fontWeight: 700,
                               color: primaryText,
@@ -408,18 +397,18 @@ export default function Tracker() {
                         {/* Progress stats */}
                         <div className="flex items-baseline gap-3">
                           <span
-                            className="text-4xl font-bold tabular-nums"
-                            style={{ fontFamily: "'Cinzel', serif", color: arcColor, letterSpacing: '-0.01em' }}
+                            className="font-cinzel text-4xl font-bold tabular-nums"
+                            style={{ color: arcColor, letterSpacing: '-0.01em' }}
                           >
                             {pct}%
                           </span>
-                          <p className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                          <p className="text-sm" style={{ color: dimText }}>
                             {selectedBook.chapters_read} of {selectedBook.num_chapters} chapters
                           </p>
                           {isComplete && (
                             <span
                               className="text-xs px-2 py-0.5 rounded-full w-fit ml-auto"
-                              style={{ background: `${cat.glow}`, color: cat.color, fontFamily: "'Raleway', sans-serif", border: `1px solid ${cat.color.replace(',1)', ',0.3)')}` }}
+                              style={{ background: `${cat.glow}`, color: cat.color, border: `1px solid ${cat.color.replace(',1)', ',0.3)')}` }}
                             >
                               Complete
                             </span>
@@ -431,7 +420,7 @@ export default function Tracker() {
                           <div>
                             <span
                               className="text-xs font-medium uppercase"
-                              style={{ color: cat.dim, fontFamily: "'Raleway', sans-serif", letterSpacing: '0.08em' }}
+                              style={{ color: cat.dim, letterSpacing: '0.08em' }}
                             >
                               Chapter progress
                             </span>
@@ -445,15 +434,15 @@ export default function Tracker() {
                         {/* Actions */}
                         {selectedBook.chapters_read >= selectedBook.num_chapters ? (
                           <div className="flex flex-col gap-3">
-                            <p className="text-sm font-semibold text-center" style={{ color: cat.color, fontFamily: "'Raleway', sans-serif" }}>
+                            <p className="text-sm font-semibold text-center" style={{ color: cat.color }}>
                               All {selectedBook.num_chapters} chapters read ✓
                             </p>
                             <button
                               onClick={handleReset}
                               className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors"
                               style={resetConfirm.confirming
-                                ? { background: 'rgba(220,60,60,0.18)', border: '1px solid rgba(220,60,60,0.35)', color: 'rgba(240,100,100,0.9)', fontFamily: "'Raleway', sans-serif" }
-                                : { background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(13,21,51,0.12)', color: dimText, fontFamily: "'Raleway', sans-serif" }
+                                ? { background: 'rgba(220,60,60,0.18)', border: '1px solid rgba(220,60,60,0.35)', color: 'rgba(240,100,100,0.9)' }
+                                : { background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(13,21,51,0.12)', color: dimText }
                               }
                             >
                               {resetConfirm.confirming ? 'Confirm reset?' : 'Reset progress'}
@@ -462,7 +451,7 @@ export default function Tracker() {
                         ) : (
                           <div className="flex flex-col gap-3">
                             <div>
-                              <label className="text-sm font-medium block mb-1.5" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>
+                              <label className="text-sm font-medium block mb-1.5" style={{ color: bodyText }}>
                                 Chapters read
                               </label>
                               <input
@@ -473,11 +462,8 @@ export default function Tracker() {
                                 value={chaptersInput}
                                 onChange={e => setChaptersInput(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
-                                className="w-full px-3 py-2"
-                                style={{
-                                  ...inputStyle,
-                                  borderColor: inputIsInvalid ? 'rgba(220,80,80,0.4)' : undefined,
-                                }}
+                                className="glass-input w-full px-3 py-2"
+                                style={{ borderColor: inputIsInvalid ? 'rgba(220,80,80,0.4)' : undefined }}
                                 onFocus={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.6)' : (isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)'))}
                                 onBlur={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.4)' : (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)'))}
                               />
@@ -485,7 +471,6 @@ export default function Tracker() {
                                 className="text-xs mt-1 min-h-[1rem]"
                                 style={{
                                   color: inputIsInvalid ? 'rgba(240,100,100,0.75)' : nothingNewToLog ? ALREADY_READ_COLOR : dimText,
-                                  fontFamily: "'Raleway', sans-serif",
                                 }}
                               >
                                 {inputIsInvalid
@@ -512,7 +497,6 @@ export default function Tracker() {
                                   : 'transparent',
                                 border: isDark ? '1px solid rgba(150,175,255,0.24)' : '1px solid rgba(13,21,51,0.16)',
                                 color: primaryText,
-                                fontFamily: "'Raleway', sans-serif",
                                 letterSpacing: '0.06em',
                               }}
                             >
@@ -521,7 +505,7 @@ export default function Tracker() {
 
                             <div className="flex items-center gap-2 pt-1">
                               <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
-                              <span className="text-xs select-none" style={{ color: isDark ? 'rgba(150,175,255,0.25)' : 'rgba(13,21,51,0.22)', fontFamily: "'Raleway', sans-serif" }}>other actions</span>
+                              <span className="text-xs select-none" style={{ color: isDark ? 'rgba(150,175,255,0.25)' : 'rgba(13,21,51,0.22)' }}>other actions</span>
                               <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
                             </div>
 
@@ -540,7 +524,6 @@ export default function Tracker() {
                                       background: confirm ? 'rgba(220,60,60,0.18)' : 'transparent',
                                       border: confirm ? '1px solid rgba(220,60,60,0.35)' : isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)',
                                       color: confirm ? 'rgba(240,100,100,0.9)' : dimText,
-                                      fontFamily: "'Raleway', sans-serif",
                                     }}
                                   >
                                     {label}
@@ -554,14 +537,14 @@ export default function Tracker() {
                                 <button
                                   onClick={handleMarkAllRead}
                                   className="flex-1 py-2 rounded-xl font-semibold text-sm transition-colors"
-                                  style={{ background: `${cat.glow}`, border: `1px solid ${cat.color.replace(',1)', ',0.3)')}`, color: cat.color, fontFamily: "'Raleway', sans-serif" }}
+                                  style={{ background: `${cat.glow}`, border: `1px solid ${cat.color.replace(',1)', ',0.3)')}`, color: cat.color }}
                                 >
                                   Confirm — all {selectedBook.num_chapters} chapters
                                 </button>
                                 <button
                                   onClick={() => confirmMarkAll.cancel()}
                                   className="px-3.5 py-2 rounded-xl text-sm transition-colors"
-                                  style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
+                                  style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText }}
                                 >
                                   Cancel
                                 </button>
@@ -570,7 +553,7 @@ export default function Tracker() {
                               <button
                                 onClick={() => confirmMarkAll.request()}
                                 className="w-full py-2 rounded-xl text-sm transition-colors"
-                                style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText, fontFamily: "'Raleway', sans-serif" }}
+                                style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText }}
                               >
                                 Mark all as read
                               </button>
@@ -587,14 +570,13 @@ export default function Tracker() {
                     <BookOpenIcon size={48} />
                   </span>
                   <div className="text-center">
-                    <p className="text-sm mb-2" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                    <p className="text-sm mb-2" style={{ color: dimText }}>
                       Select a book to begin
                     </p>
                     <p
+                      className="font-cormorant italic"
                       style={{
                         color: isDark ? 'rgba(170,195,255,0.45)' : 'rgba(13,21,51,0.4)',
-                        fontFamily: "'Cormorant Garamond', serif",
-                        fontStyle: 'italic',
                         fontSize: 16,
                         lineHeight: 1.5,
                         maxWidth: '18rem',

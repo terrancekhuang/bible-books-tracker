@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import { useTheme } from '../lib/ThemeContext'
 import { useRhythmQuery } from '../lib/queries'
 import {
@@ -17,23 +17,15 @@ const WINDOW_OPTIONS: { key: RhythmWindowKey; label: string }[] = [
   { key: 'all_time', label: 'All time' },
 ]
 
-const serifItalic = { fontFamily: "'Cormorant Garamond', serif", fontStyle: 'italic', fontSize: 15 } as const
-const sans = { fontFamily: "'Raleway', sans-serif" } as const
-
 /**
  * When the reader reads: chapters by local weekday, a smaller part-of-day strip, and one
  * plain-language sentence so the charts never need interpreting.
  *
- * `glassCard` and `sectionHeadStyle` come from Profile rather than being redefined here, so
- * this section stays visually identical to its neighbours without lifting them into a module.
+ * Card chrome and the section label come from `.glass-card` / `.section-label` in index.css,
+ * the same classes every other card section uses — so this stays visually identical to its
+ * neighbours without either side passing styles to the other.
  */
-export default function ReadingRhythm({
-  glassCard,
-  sectionHeadStyle,
-}: {
-  glassCard: CSSProperties
-  sectionHeadStyle: CSSProperties
-}) {
+export default function ReadingRhythm() {
   const { isDark, colors } = useTheme()
   const { primaryText, dimText, bodyText, trackBg } = colors
   // Opens on the recent window: a rhythm the reader still has is more use than one averaged
@@ -52,8 +44,8 @@ export default function ReadingRhythm({
   const heading = (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="mb-1" style={sectionHeadStyle}>Reading Rhythm</h2>
-        <p style={{ color: dimText, ...serifItalic }}>when you read</p>
+        <h2 className="section-label mb-1">Reading Rhythm</h2>
+        <p className="serif-note" style={{ color: dimText }}>when you read</p>
       </div>
 
       {/* Hidden while there is nothing to compare between the two windows. */}
@@ -74,7 +66,6 @@ export default function ReadingRhythm({
                 aria-pressed={selected}
                 className="text-xs px-2.5 py-1 rounded-md transition-all whitespace-nowrap"
                 style={{
-                  ...sans,
                   background: selected ? (isDark ? 'rgba(150,175,255,0.2)' : 'rgba(13,21,51,0.1)') : 'transparent',
                   color: selected ? primaryText : dimText,
                   fontWeight: selected ? 600 : 400,
@@ -90,27 +81,27 @@ export default function ReadingRhythm({
   )
 
   return (
-    <div className="p-5" style={glassCard}>
+    <div className="glass-card p-5">
       {heading}
 
       <div className="mt-3">
-        {isPending && <p className="text-sm" style={{ color: dimText, ...sans }}>Loading…</p>}
+        {isPending && <p className="text-sm" style={{ color: dimText }}>Loading…</p>}
 
         {!isPending && isError && (
-          <p className="text-sm" style={{ color: 'rgba(240,100,100,0.7)', ...sans }}>
+          <p className="text-sm" style={{ color: 'rgba(240,100,100,0.7)' }}>
             Could not load your reading rhythm.
           </p>
         )}
 
         {noDataAtAll && (
-          <p className="text-sm" style={{ color: dimText, ...sans }}>
+          <p className="text-sm" style={{ color: dimText }}>
             Start logging chapters to see when you read.
           </p>
         )}
 
         {/* All-time has data but this window doesn't — truthful, and clearer than seven zeros. */}
         {active && !noDataAtAll && active.total_chapters === 0 && (
-          <p className="text-sm" style={{ color: dimText, ...sans }}>
+          <p className="text-sm" style={{ color: dimText }}>
             Nothing logged in the last 90 days.
           </p>
         )}
@@ -128,7 +119,7 @@ export default function ReadingRhythm({
               <div className="flex flex-col gap-2">
                 {active.by_weekday.map((count, i) => (
                   <div key={WEEKDAY_LABELS[i]} className="flex items-center gap-3">
-                    <span className="w-9 shrink-0 text-sm" style={{ color: bodyText, ...sans }}>
+                    <span className="w-9 shrink-0 text-sm" style={{ color: bodyText }}>
                       {WEEKDAY_LABELS[i]}
                     </span>
                     <div className="flex-1 h-2 rounded-full overflow-hidden min-w-0" style={{ background: trackBg }}>
@@ -140,7 +131,7 @@ export default function ReadingRhythm({
                         }}
                       />
                     </div>
-                    <span className="w-9 shrink-0 text-xs text-right" style={{ color: dimText, ...sans }}>
+                    <span className="w-9 shrink-0 text-xs text-right" style={{ color: dimText }}>
                       {count}
                     </span>
                   </div>
@@ -156,13 +147,13 @@ export default function ReadingRhythm({
                   const pct = Math.round((count / active.total_chapters) * 100)
                   return (
                     <div key={part} className="flex items-center gap-3">
-                      <span className="w-16 shrink-0 text-xs" style={{ color: dimText, ...sans }}>
+                      <span className="w-16 shrink-0 text-xs" style={{ color: dimText }}>
                         {PART_LABELS[part]}
                       </span>
                       <div className="flex-1 h-1.5 rounded-full overflow-hidden min-w-0" style={{ background: trackBg }}>
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: partBar }} />
                       </div>
-                      <span className="w-9 shrink-0 text-xs text-right" style={{ color: dimText, ...sans }}>
+                      <span className="w-9 shrink-0 text-xs text-right" style={{ color: dimText }}>
                         {pct}%
                       </span>
                     </div>
@@ -171,7 +162,7 @@ export default function ReadingRhythm({
               </div>
 
               {sentence && (
-                <p className="mt-4" style={{ color: bodyText, ...serifItalic }}>
+                <p className="serif-note mt-4" style={{ color: bodyText }}>
                   {sentence}
                 </p>
               )}

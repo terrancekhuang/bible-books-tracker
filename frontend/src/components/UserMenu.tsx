@@ -47,7 +47,6 @@ export default function UserMenu({ pictureUrl, userName, showProfileLink = true 
             style={{
               background: isDark ? 'rgba(150,175,255,0.15)' : 'rgba(13,21,51,0.1)',
               color: isDark ? '#aabfff' : '#0d1533',
-              fontFamily: "'Raleway', sans-serif",
             }}
           >
             {initials}
@@ -70,7 +69,6 @@ export default function UserMenu({ pictureUrl, userName, showProfileLink = true 
             <button
               className="w-full text-left px-4 py-2 text-sm transition-colors"
               style={{
-                fontFamily: "'Raleway', sans-serif",
                 color: isDark ? 'rgba(195,210,255,0.8)' : 'rgba(13,21,51,0.8)',
               }}
               onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.05)')}
@@ -83,7 +81,6 @@ export default function UserMenu({ pictureUrl, userName, showProfileLink = true 
           <button
             className="w-full text-left px-4 py-2 text-sm transition-colors"
             style={{
-              fontFamily: "'Raleway', sans-serif",
               color: isDark ? 'rgba(195,210,255,0.8)' : 'rgba(13,21,51,0.8)',
             }}
             onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.05)')}

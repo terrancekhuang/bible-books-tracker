@@ -43,19 +43,52 @@
   border-color: rgba(150, 175, 255, 0.22);
 }
 
-/* Subtle input inside glass */
+/* Subtle input inside glass.
+   Tracker sets borderColor inline on focus/blur and for the invalid state; an inline
+   style beats a class, so those keep working without !important anywhere. */
 .glass-input {
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(100, 130, 255, 0.18);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(100, 130, 255, 0.2);
   border-radius: 0.5rem;
+  color: #0d1533;
+  font-family: 'Raleway', sans-serif;
+  outline: none;
 }
 .dark .glass-input {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(150, 175, 255, 0.18);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(150, 175, 255, 0.22);
+  color: #dde6ff;
 }
 
-/* Celestial font helpers */
-.font-cinzel    { font-family: 'Cinzel', serif; }
+/* The label above a card section — "WEEKLY GOAL", "ACHIEVEMENTS", "READING RHYTHM".
+   One definition; Dashboard, Profile and ReadingRhythm all read the same role from it. */
+.section-label {
+  font-family: 'Raleway', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(13, 21, 51, 0.5);
+}
+.dark .section-label {
+  color: rgba(150, 175, 255, 0.65);
+}
+
+/* Raleway is the app's voice. It was named explicitly at 75 of 91 font declarations
+   before it became the default here; the two exceptions below say so for themselves. */
+body {
+  font-family: 'Raleway', sans-serif;
+}
+
+/* Cinzel: hero and decorative type only — page headings, the percentage in the ring,
+   book names, stat values. Not for body copy. */
+.font-cinzel { font-family: 'Cinzel', serif; }
+
+/* Cormorant Garamond, italic: the quiet aside — "when you read", the pace projection. */
 .font-cormorant { font-family: 'Cormorant Garamond', serif; }
-.font-raleway   { font-family: 'Raleway', sans-serif; }
+.serif-note {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-size: 15px;
+}
 

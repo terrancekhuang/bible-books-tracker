@@ -8,7 +8,8 @@ export default function FilterSelect({
   placeholder: string;
   options: string[] | { value: string; label: string }[];
 }) {
-  const { isDark } = useTheme()
+  const { isDark, colors } = useTheme()
+  const { primaryText } = colors
   const active = value !== '';
 
   return (
@@ -17,7 +18,6 @@ export default function FilterSelect({
       onChange={e => onChange(e.target.value)}
       className="text-xs px-2 py-1.5 rounded-lg cursor-pointer outline-none transition-all"
       style={{
-        fontFamily: "'Raleway', sans-serif",
         background: active
           ? (isDark ? 'rgba(150,175,255,0.2)' : 'rgba(13,21,51,0.1)')
           : (isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.45)'),
@@ -25,7 +25,7 @@ export default function FilterSelect({
           ? (isDark ? '1px solid rgba(170,195,255,0.35)' : '1px solid rgba(13,21,51,0.28)')
           : (isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(13,21,51,0.1)'),
         color: active
-          ? (isDark ? '#dde6ff' : '#0d1533')
+          ? primaryText
           : (isDark ? 'rgba(195,210,255,0.5)' : 'rgba(13,21,51,0.45)'),
       }}
     >

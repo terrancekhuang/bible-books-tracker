@@ -494,7 +494,7 @@ export default function Login() {
               {signInError && (
                 <p
                   className="text-sm text-center"
-                  style={{ color: 'rgba(240,100,100,0.8)', fontFamily: "'Raleway', sans-serif" }}
+                  style={{ color: 'rgba(240,100,100,0.8)' }}
                   role="alert"
                 >
                   {signInError}

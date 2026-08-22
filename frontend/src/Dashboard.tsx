@@ -131,22 +131,6 @@ export default function Dashboard() {
   const firstName = user?.name?.split(' ')[0] ?? 'friend'
 
   const { primaryText, dimText, bodyText, trackBg } = colors
-  const secLabel: CSSProperties = {
-    fontFamily: "'Raleway', sans-serif",
-    fontSize: 10,
-    fontWeight: 600,
-    letterSpacing: '0.3em',
-    textTransform: 'uppercase',
-    color: isDark ? 'rgba(150,175,255,0.65)' : 'rgba(13,21,51,0.5)',
-  }
-  // Matches Profile's card chrome so ReadingRhythm looks the same in both places.
-  const glassCard: CSSProperties = {
-    background: isDark ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.88)',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-    border: isDark ? '1px solid rgba(150,175,255,0.22)' : '1px solid rgba(100,130,255,0.14)',
-    borderRadius: '1rem',
-  }
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0">
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
@@ -170,12 +154,12 @@ export default function Dashboard() {
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span
-                    className="text-5xl md:text-6xl font-bold leading-none tabular-nums"
-                    style={{ fontFamily: "'Cinzel', serif", color: primaryText }}
+                    className="font-cinzel text-5xl md:text-6xl font-bold leading-none tabular-nums"
+                    style={{ color: primaryText }}
                   >
                     {displayPct}%
                   </span>
-                  <span className="text-[11px] mt-1.5 uppercase tracking-widest" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>complete</span>
+                  <span className="text-[11px] mt-1.5 uppercase tracking-widest" style={{ color: dimText }}>complete</span>
                 </div>
               </>
             )}
@@ -183,17 +167,17 @@ export default function Dashboard() {
 
           {/* Hero text */}
           <div className="flex flex-col gap-3 text-center md:text-left" style={fadeUp(80)}>
-            <p className="text-sm tracking-wide" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>{formatDate()}</p>
+            <p className="text-sm tracking-wide" style={{ color: dimText }}>{formatDate()}</p>
             <h1
-              className="text-3xl md:text-4xl font-semibold leading-tight"
-              style={{ fontFamily: "'Cinzel', serif", color: primaryText, letterSpacing: '0.04em' }}
+              className="font-cinzel text-3xl md:text-4xl font-semibold leading-tight"
+              style={{ color: primaryText, letterSpacing: '0.04em' }}
             >
               {getGreeting()},<br />{firstName}.
             </h1>
             {isInitialLoading ? (
               <Skeleton className="h-5 w-64 max-w-full self-center md:self-start" />
             ) : (
-              <p className="text-sm" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>
+              <p className="text-sm" style={{ color: bodyText }}>
                 <span className="font-semibold" style={{ color: primaryText }}>{totalRead.toLocaleString()}</span> of{' '}
                 <span className="font-semibold" style={{ color: primaryText }}>{TOTAL_CHAPTERS.toLocaleString()}</span> chapters ·{' '}
                 <span className="font-semibold" style={{ color: primaryText }}>{booksComplete}</span> of {TOTAL_BOOKS} books complete
@@ -220,7 +204,7 @@ export default function Dashboard() {
                   }}
                 >
                   <span style={{ color: isDark ? 'rgba(200,185,110,0.9)' : 'rgba(140,100,20,0.8)' }}>{icon}</span>
-                  <span className="text-sm font-semibold" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>{label}</span>
+                  <span className="text-sm font-semibold" style={{ color: primaryText }}>{label}</span>
                 </div>
               ))}
             </div>
@@ -237,7 +221,7 @@ export default function Dashboard() {
           {/* Weekly goal */}
           <div className="glass-card p-5" style={fadeUp(160)}>
             <div className="flex items-center justify-between mb-4">
-              <span style={secLabel}>Weekly Goal</span>
+              <span className="section-label">Weekly Goal</span>
               {!editingGoal && !isInitialLoading && (
                 <button
                   onClick={() => { setGoalInput(String(weeklyGoal)); setGoalError(null); setEditingGoal(true) }}
@@ -272,20 +256,19 @@ export default function Dashboard() {
                       background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.06)',
                       border: goalError ? '1px solid rgba(240,100,100,0.6)' : '1px solid rgba(150,175,255,0.25)',
                       color: primaryText,
-                      fontFamily: "'Raleway', sans-serif",
                     }}
                   />
-                  <span className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>chapters / week</span>
+                  <span className="text-sm" style={{ color: dimText }}>chapters / week</span>
                   <button
                     onClick={() => saveGoal(goalInput)}
                     className="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors"
-                    style={{ background: 'rgba(150,175,255,0.18)', color: isDark ? '#dde6ff' : '#0d1533', fontFamily: "'Raleway', sans-serif" }}
+                    style={{ background: 'rgba(150,175,255,0.18)', color: primaryText }}
                   >
                     Save
                   </button>
                 </div>
                 {goalError && (
-                  <p className="text-xs mt-1.5" style={{ color: 'rgba(240,100,100,0.8)', fontFamily: "'Raleway', sans-serif" }} role="alert">
+                  <p className="text-xs mt-1.5" style={{ color: 'rgba(240,100,100,0.8)' }} role="alert">
                     {goalError}
                   </p>
                 )}
@@ -293,15 +276,15 @@ export default function Dashboard() {
             ) : (
               <div className="mb-4">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-4xl font-bold tabular-nums" style={{ fontFamily: "'Cinzel', serif", color: primaryText }}>
+                  <span className="font-cinzel text-4xl font-bold tabular-nums" style={{ color: primaryText }}>
                     {weekChapters}
                   </span>
-                  <span className="text-sm" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                  <span className="text-sm" style={{ color: dimText }}>
                     / {weeklyGoal} chapters this week
                   </span>
                 </div>
                 {goalError && (
-                  <p className="text-xs mt-1.5" style={{ color: 'rgba(240,100,100,0.8)', fontFamily: "'Raleway', sans-serif" }} role="alert">
+                  <p className="text-xs mt-1.5" style={{ color: 'rgba(240,100,100,0.8)' }} role="alert">
                     {goalError}
                   </p>
                 )}
@@ -324,7 +307,7 @@ export default function Dashboard() {
               </div>
             )}
             {!isInitialLoading && (
-              <p className="text-xs mt-2" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+              <p className="text-xs mt-2" style={{ color: dimText }}>
                 {atGoal
                   ? `Goal reached!${weekChapters - weeklyGoal > 0 ? ` +${weekChapters - weeklyGoal} bonus` : ''}`
                   : `${weeklyGoal - weekChapters} more to reach your goal`}
@@ -334,7 +317,7 @@ export default function Dashboard() {
 
           {/* Continue reading */}
           <div className="glass-card p-5" style={fadeUp(210)}>
-            <span style={secLabel} className="block mb-3">Continue Reading</span>
+            <span className="section-label block mb-3">Continue Reading</span>
             {continueBooks.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {continueBooks.map(book => (
@@ -349,11 +332,11 @@ export default function Dashboard() {
             ) : (
               <div className="flex flex-col items-center justify-center py-6 gap-2">
                 <span style={{ color: dimText }}><BookOpenIcon size={32} /></span>
-                <p className="text-sm text-center" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>Start reading to see books here</p>
+                <p className="text-sm text-center" style={{ color: dimText }}>Start reading to see books here</p>
                 <button
                   onClick={() => navigate('/tracker')}
                   className="text-xs font-medium hover:underline mt-1"
-                  style={{ color: isDark ? 'rgba(170,195,255,0.7)' : 'rgba(13,21,51,0.55)', fontFamily: "'Raleway', sans-serif" }}
+                  style={{ color: isDark ? 'rgba(170,195,255,0.7)' : 'rgba(13,21,51,0.55)' }}
                 >
                   Open Tracker →
                 </button>
@@ -364,7 +347,7 @@ export default function Dashboard() {
 
         {/* Testament breakdown */}
         <div className="glass-card p-5" style={fadeUp(260)}>
-          <span style={secLabel} className="block mb-4">Testament Progress</span>
+          <span className="section-label block mb-4">Testament Progress</span>
           <div className="flex flex-col gap-4">
             {[
               { label: 'Old Testament', read: otRead, total: otTotal, color: 'rgba(240,180,60,0.85)' },
@@ -374,8 +357,8 @@ export default function Dashboard() {
               return (
                 <div key={label}>
                   <div className="flex items-center justify-between text-sm mb-1.5">
-                    <span className="font-medium" style={{ color: primaryText, fontFamily: "'Raleway', sans-serif" }}>{label}</span>
-                    <span className="tabular-nums text-xs" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>
+                    <span className="font-medium" style={{ color: primaryText }}>{label}</span>
+                    <span className="tabular-nums text-xs" style={{ color: dimText }}>
                       {read.toLocaleString()} / {total.toLocaleString()} · {pct}%
                     </span>
                   </div>
@@ -390,7 +373,7 @@ export default function Dashboard() {
 
         {/* Category breakdown */}
         <div className="glass-card p-5" style={fadeUp(310)}>
-          <span style={secLabel} className="block mb-4">Category Progress</span>
+          <span className="section-label block mb-4">Category Progress</span>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
             {categoryProgress.map(({ cat, read, total, pct }) => (
               <div key={cat}>
@@ -399,9 +382,9 @@ export default function Dashboard() {
                     <span className="shrink-0" style={{ color: dimText }}>
                       <CategoryIcon category={cat} size={13} />
                     </span>
-                    <span className="text-xs font-medium truncate" style={{ color: bodyText, fontFamily: "'Raleway', sans-serif" }}>{cat}</span>
+                    <span className="text-xs font-medium truncate" style={{ color: bodyText }}>{cat}</span>
                   </div>
-                  <span className="text-xs shrink-0 ml-2 tabular-nums" style={{ color: dimText, fontFamily: "'Raleway', sans-serif" }}>{read}/{total}</span>
+                  <span className="text-xs shrink-0 ml-2 tabular-nums" style={{ color: dimText }}>{read}/{total}</span>
                 </div>
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: trackBg }}>
                   <div
@@ -416,13 +399,13 @@ export default function Dashboard() {
 
         {/* Activity heatmap */}
         <div className="glass-card p-5" style={fadeUp(360)}>
-          <span style={secLabel} className="block mb-4">Reading Activity</span>
+          <span className="section-label block mb-4">Reading Activity</span>
           <ActivityHeatmap activity={activity ?? []} />
         </div>
 
         {/* Reading Rhythm */}
         <div style={fadeUp(410)}>
-          <ReadingRhythm glassCard={glassCard} sectionHeadStyle={secLabel} />
+          <ReadingRhythm />
         </div>
       </div>
 

@@ -76,7 +76,6 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
 
   const labelStyle: CSSProperties = {
     fontSize: 10,
-    fontFamily: "'Raleway', sans-serif",
     color: labelColor,
     letterSpacing: '0.04em',
   }

@@ -165,8 +165,8 @@ export default function App() {
           >
             <div className="flex items-center justify-between mb-5">
               <h2
-                className="text-base font-semibold text-[#dde6ff]"
-                style={{ fontFamily: "'Cinzel', serif", letterSpacing: '0.06em' }}
+                className="font-cinzel text-base font-semibold text-[#dde6ff]"
+                style={{ letterSpacing: '0.06em' }}
               >
                 Keyboard Shortcuts
               </h2>
@@ -177,7 +177,7 @@ export default function App() {
                 ×
               </button>
             </div>
-            <div className="flex flex-col gap-2.5" style={{ fontFamily: "'Raleway', sans-serif" }}>
+            <div className="flex flex-col gap-2.5">
               {([
                 { keys: ['g', 'h'], description: 'Go to Dashboard' },
                 { keys: ['g', 't'], description: 'Go to Tracker' },

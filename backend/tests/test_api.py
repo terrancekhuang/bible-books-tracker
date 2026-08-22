@@ -399,3 +399,41 @@ class TestRhythm:
 
     def test_requires_auth(self, client):
         assert client.get('/api/rhythm').status_code == 401
+
+
+# ── Dashboard ─────────────────────────────────────────────────────────────────
+#
+# The one endpoint that composes rather than delegating: reading history plus the two
+# user fields the nav bar needs, in a single request.
+
+class TestDashboard:
+    def test_returns_stats_activity_goal_and_user(self, client, auth_headers):
+        resp = client.get('/api/dashboard', headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert set(data) == {'stats', 'activity', 'weekly_goal', 'user'}
+        assert set(data['user']) == {'name', 'picture_url'}
+        assert isinstance(data['weekly_goal'], int)
+        assert isinstance(data['activity'], list)
+
+    def test_embedded_stats_match_the_stats_endpoint(self, client, auth_headers, seed_chapter):
+        seed_chapter(MONDAY, chapter=1)
+        seed_chapter(MONDAY + timedelta(days=1), chapter=2)
+
+        dashboard = client.get('/api/dashboard', headers=auth_headers).get_json()
+        assert dashboard['stats'] == client.get('/api/stats', headers=auth_headers).get_json()
+        assert dashboard['activity'] == client.get('/api/activity', headers=auth_headers).get_json()
+
+    def test_tz_offset_reaches_the_embedded_activity(self, client, auth_headers, seed_chapter):
+        when = datetime.now(timezone.utc).replace(hour=23, minute=30) - timedelta(days=2)
+        seed_chapter(when, chapter=1)
+
+        def dates(tz_offset):
+            data = client.get(f'/api/dashboard?tz_offset={tz_offset}', headers=auth_headers).get_json()
+            return [row['logged_at'] for row in data['activity']]
+
+        assert dates(0) == [when.date().isoformat()]
+        assert dates(60) == [(when.date() + timedelta(days=1)).isoformat()]
+
+    def test_requires_auth(self, client):
+        assert client.get('/api/dashboard').status_code == 401

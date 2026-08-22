@@ -13,6 +13,19 @@ Full-stack Bible reading progress tracker:
 - **CI/CD**: GitHub Actions — rsync + SSH deploy on push to `master`
 - **Live URL**: `https://bible.terrancehuang.dev` (server IP: `5.78.233.181`)
 
+### Backend modules (`backend/src/`)
+
+| Module | Owns |
+|--------|------|
+| `routes.py` | HTTP only — auth, parse, delegate, serialise |
+| `reading_history.py` | Activity, stats and rhythm. Takes `(user_id, tz_offset)`, opens its own cursor |
+| `db.py` | The connection pool and the `db_cursor()` context manager |
+| `config.py` | Environment |
+
+Route handlers never compute over reading history themselves. If a handler needs streaks,
+heatmap data or rhythm, it calls `reading_history` — see the `tz_offset` note under
+**API endpoints** for why that boundary matters.
+
 ## Local development
 
 **Database**:
@@ -151,9 +164,12 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
 - `GET /api/rhythm?tz_offset=N` — when the user reads: `by_weekday` (Monday-first, 7 entries), `by_part_of_day` (morning/afternoon/evening/night), `total_chapters` and `distinct_days`, returned for both an `all_time` and a `last_90_days` window in one payload
 
 `tz_offset` is minutes east of UTC (`-getTimezoneOffset()`). Since `logged_at` is `TIMESTAMPTZ`,
-any SQL that groups by local day or hour must pin the base to UTC first —
-`(logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %s` — otherwise Postgres resolves the
-timestamp in the *session* timezone and `tz_offset` is applied on top of that shift.
+any SQL that groups by local day or hour must pin the base to UTC first — otherwise Postgres
+resolves the timestamp in the *session* timezone and `tz_offset` is applied on top of that shift.
+
+That rule has exactly one definition: `reading_history.LOCAL_TS`. Don't retype the fragment —
+interpolate it, and bind parameters **by name** (`%(tz)s`, `%(user)s`), which is what lets it
+appear more than once in a query without positional bookkeeping.
 
 ## Authentication flow
 

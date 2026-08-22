@@ -8,7 +8,7 @@
 
 - **PKG_DIR = repo root**: We pass `--entry ./frontend-dist/index.js` (a non-existent file) so the directory walk stops at the repo root and synthesis uses `frontend/src/components`. If you ever create `frontend-dist/index.js`, the build will try to use it as the real entry — delete it or update the `--entry` flag.
 
-- **`frontend/package.json` name clash**: Both repo root and `frontend/` have `name: "bible-books-tracker"`. The fake `--entry` approach works around this; a real entry file inside `frontend/` would make PKG_DIR stop at `frontend/` instead of root, breaking `cssEntry` and `tsconfig` paths.
+- ~~**`frontend/package.json` name clash**~~: resolved. `frontend/` no longer has its own `package.json` — the whole dead scaffold there (package.json, vite.config.ts, index.html, tsconfig\*, eslint.config.js) was deleted, since the build has always run from the repo root. The fake `--entry` workaround above is still what pins PKG_DIR to the root, but it no longer has a competing `package.json` to contend with.
 
 - **`virtual:pwa-register`**: Keep `srcDir` pointed at `frontend/src/components` (not `frontend/src`) to exclude `App.tsx` which imports this Vite-only virtual module.
 

@@ -55,12 +55,11 @@ GOOGLE_CLIENT_ID=...
 JWT_SECRET_KEY=...
 DATABASE_URL=postgresql://postgres:pass@localhost:5432/bible-books-tracker
 FRONTEND_URL=http://localhost:3000
-```
-
-### Local — `frontend/.env`:
-```
 VITE_GOOGLE_CLIENT_ID=...   # same value as GOOGLE_CLIENT_ID, exposed to Vite at build time
 ```
+
+This is the only local env file. Vite's project root is the repo root, so it reads
+`./.env` and nothing else — a `frontend/.env` is never loaded.
 
 ### Production — `/srv/apps/bible-books-tracker/.env` on server:
 ```
@@ -113,6 +112,12 @@ TLS via Let's Encrypt certbot (auto-renews via systemd timer).
 
 **Frontend Docker build** uses the repo root as context (not `frontend/`) because all npm dependencies live in the root `package.json`.
 
+There is exactly one frontend build config, and it is at the repo root: `package.json`,
+`vite.config.ts`, `index.html`, `tsconfig*.json`, `eslint.config.js`, `public/`.
+`frontend/` holds only `src/`, `Dockerfile` and `nginx.conf`. It used to carry a second,
+diverged copy of every one of those files, left over from the original Vite scaffold and
+built by nothing — don't recreate them.
+
 ## Infrastructure (Terraform)
 
 ```bash
@@ -132,16 +137,18 @@ admin_ssh_key = "..."   # your personal public key for emergency access
 
 ## Database schema
 
-Six tables:
+Four tables:
 
 | Table | Purpose |
 |-------|---------|
 | `bible_books` | Static seed — 66 books with testament/category/num_chapters |
-| `users` | Google OAuth users (google_id, email, name, picture_url) |
+| `users` | Google OAuth users (google_id, email, name, picture_url, weekly_goal) |
 | `reading_cycles` | Per-user cycles (cycle_number, unique per user) |
-| `progress` | Chapters read per (user_id, cycle_id, book_id) |
-| `reading_log` | Timestamped entries (user_id, logged_at TIMESTAMPTZ, chapters_count) — powers the heatmap |
-| `chapter_progress` | Granular per-chapter tracking (user_id, cycle_id, book_id, chapter_number, logged_at) |
+| `chapter_progress` | Every chapter read: (user_id, cycle_id, book_id, chapter_number, logged_at) |
+
+`chapter_progress` is the only progress table. It is the single source for the book
+grid, the heatmap, streaks and rhythm alike — `progress` and `reading_log` were
+superseded by it and are dropped at the end of `schema.sql`.
 
 Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` container first initializes (via `docker-entrypoint-initdb.d`). Uses `INSERT ... ON CONFLICT DO NOTHING` for safe re-runs.
 
@@ -155,12 +162,18 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
 - `GET /api/books` — 66 books with `chapters_read` + `chapters_read_list` for active cycle
 - `POST /api/progress` — body: `{ book_name, chapters }` — upserts progress, returns `{ success, chapters_read, newly_logged, chapters_read_list }`
 - `POST /api/progress/undo` — body: `{ book_name }` — removes the latest logged entry for a book
+- `POST /api/progress/reset` — body: `{ book_name }` — clears every chapter logged for a book in the active cycle
 
 **Cycles & stats**:
 - `GET /api/cycles` — all cycles for the user with aggregate stats
 - `POST /api/cycles` — create a new cycle (auto-increments cycle_number)
-- `GET /api/activity` — last 365 days of activity for the heatmap
+- `GET /api/activity?tz_offset=N` — last 365 days of activity for the heatmap
 - `GET /api/stats?tz_offset=N` — streaks, chapters today/this week, total days/chapters
+- `GET /api/dashboard?tz_offset=N` — what Dashboard loads in one request: `stats`, `activity`, `weekly_goal` and the nav-bar `user` (name, picture_url)
+
+**Settings**:
+- `GET /api/settings` — `{ weekly_goal }`
+- `PUT /api/settings` — body: `{ weekly_goal }` — must be a positive integer
 - `GET /api/rhythm?tz_offset=N` — when the user reads: `by_weekday` (Monday-first, 7 entries), `by_part_of_day` (morning/afternoon/evening/night), `total_chapters` and `distinct_days`, returned for both an `all_time` and a `last_90_days` window in one payload
 
 `tz_offset` is minutes east of UTC (`-getTimezoneOffset()`). Since `logged_at` is `TIMESTAMPTZ`,

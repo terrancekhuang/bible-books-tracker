@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, MouseEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useTheme } from '../lib/ThemeContext'
 
 export interface ActivityDay {
@@ -104,9 +105,9 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
   function handleCellTap(e: MouseEvent<HTMLDivElement>, day: { dateStr: string; label: string; chapters: number; isFuture: boolean }) {
     if (day.isFuture) return
     e.stopPropagation()
+    const rect = e.currentTarget.getBoundingClientRect()
     setTapped(prev => {
       if (prev?.key === day.dateStr) return null
-      const rect = e.currentTarget.getBoundingClientRect()
       return {
         key: day.dateStr,
         text: `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`,
@@ -160,7 +161,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
         </div>
       </div>
 
-      {tapped && (
+      {tapped && createPortal(
         <div
           className="rounded-md shadow-lg"
           style={{
@@ -179,7 +180,8 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
           }}
         >
           {tapped.text}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

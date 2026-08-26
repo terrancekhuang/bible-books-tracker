@@ -3,6 +3,17 @@
 
 @variant dark (&:is(.dark *));
 
+/* Tailwind v4's preflight dropped v3's default `cursor: pointer` on <button>, so every
+   native button in the app needs it restored here rather than one utility class at a time. */
+@layer base {
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
 @keyframes ring-ripple {
   0%   { opacity: 0.55; transform: scale(1); }
   100% { opacity: 0;    transform: scale(1.22); }

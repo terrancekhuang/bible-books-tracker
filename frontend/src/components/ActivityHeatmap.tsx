@@ -42,7 +42,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
   const labelColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(60,90,180,0.45)'
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const [tapped, setTapped] = useState<{ wi: number; di: number } | null>(null)
+  const [tapped, setTapped] = useState<{ wi: number; di: number; placement: 'top' | 'bottom' } | null>(null)
 
   useEffect(() => {
     if (!tapped) return
@@ -130,7 +130,9 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                           className="rounded shadow-lg"
                           style={{
                             position: 'absolute',
-                            bottom: 'calc(100% + 6px)',
+                            ...(tapped.placement === 'top'
+                              ? { bottom: 'calc(100% + 6px)' }
+                              : { top: 'calc(100% + 6px)' }),
                             left: '50%',
                             transform: 'translateX(-50%)',
                             zIndex: 10,
@@ -149,9 +151,11 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                         className="rounded-sm"
                         style={{ width: cellSize, height: cellSize, ...intensityStyle(day.chapters, day.isFuture, legendStyles) }}
                         title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
-                        onClick={() => {
+                        onClick={e => {
                           if (day.isFuture || !isTouchDevice()) return
-                          setTapped(prev => (prev?.wi === wi && prev?.di === di ? null : { wi, di }))
+                          const rect = e.currentTarget.getBoundingClientRect()
+                          const placement = rect.top < 40 ? 'bottom' : 'top'
+                          setTapped(prev => (prev?.wi === wi && prev?.di === di ? null : { wi, di, placement }))
                         }}
                       />
                     </div>

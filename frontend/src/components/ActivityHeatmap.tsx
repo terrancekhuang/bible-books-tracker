@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
 import { useTheme } from '../lib/ThemeContext'
 
@@ -42,7 +43,15 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
   const labelColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(60,90,180,0.45)'
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const [tapped, setTapped] = useState<{ wi: number; di: number; placement: 'top' | 'bottom' } | null>(null)
+  const [tapped, setTapped] = useState<{
+    wi: number
+    di: number
+    x: number
+    top: number
+    bottom: number
+    placement: 'top' | 'bottom'
+    text: string
+  } | null>(null)
 
   useEffect(() => {
     if (!tapped) return
@@ -51,8 +60,15 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
         setTapped(null)
       }
     }
+    function handleScroll() {
+      setTapped(null)
+    }
     document.addEventListener('click', handleOutsideClick)
-    return () => document.removeEventListener('click', handleOutsideClick)
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true })
+    return () => {
+      document.removeEventListener('click', handleOutsideClick)
+      window.removeEventListener('scroll', handleScroll, { capture: true })
+    }
   }, [tapped])
 
   const weeks = useMemo(() => {
@@ -121,46 +137,25 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
           <div className="grid" style={{ gridTemplateColumns: `repeat(${weeks.length}, ${cellSize}px)`, gap: 2 }}>
             {weeks.map((week, wi) => (
               <div key={wi} className="flex flex-col" style={{ gap: 2 }}>
-                {week.map((day, di) => {
-                  const isTapped = tapped?.wi === wi && tapped?.di === di
-                  return (
-                    <div key={di} style={{ position: 'relative' }}>
-                      {isTapped && !day.isFuture && (
-                        <div
-                          className="rounded shadow-lg"
-                          style={{
-                            position: 'absolute',
-                            ...(tapped.placement === 'top'
-                              ? { bottom: 'calc(100% + 6px)' }
-                              : { top: 'calc(100% + 6px)' }),
-                            left: '50%',
-                            transform: 'translateX(-50%)',
-                            zIndex: 10,
-                            whiteSpace: 'nowrap',
-                            padding: '4px 8px',
-                            fontSize: 11,
-                            background: isDark ? '#1f2430' : '#ffffff',
-                            color: isDark ? '#e5e9f5' : '#1f2430',
-                            border: isDark ? '1px solid rgba(150,175,255,0.2)' : '1px solid rgba(60,90,180,0.15)',
-                          }}
-                        >
-                          {day.label}: {day.chapters} chapter{day.chapters !== 1 ? 's' : ''}
-                        </div>
-                      )}
-                      <div
-                        className="rounded-sm"
-                        style={{ width: cellSize, height: cellSize, ...intensityStyle(day.chapters, day.isFuture, legendStyles) }}
-                        title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
-                        onClick={e => {
-                          if (day.isFuture || !isTouchDevice()) return
-                          const rect = e.currentTarget.getBoundingClientRect()
-                          const placement = rect.top < 40 ? 'bottom' : 'top'
-                          setTapped(prev => (prev?.wi === wi && prev?.di === di ? null : { wi, di, placement }))
-                        }}
-                      />
-                    </div>
-                  )
-                })}
+                {week.map((day, di) => (
+                  <div
+                    key={di}
+                    className="rounded-sm"
+                    style={{ width: cellSize, height: cellSize, ...intensityStyle(day.chapters, day.isFuture, legendStyles) }}
+                    title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
+                    onClick={e => {
+                      if (day.isFuture || !isTouchDevice()) return
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      const placement = rect.top < 40 ? 'bottom' : 'top'
+                      const text = `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`
+                      setTapped(prev =>
+                        prev?.wi === wi && prev?.di === di
+                          ? null
+                          : { wi, di, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, placement, text },
+                      )
+                    }}
+                  />
+                ))}
               </div>
             ))}
           </div>
@@ -174,6 +169,29 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
           <span style={labelStyle}>More</span>
         </div>
       </div>
+
+      {tapped &&
+        createPortal(
+          <div
+            className="rounded shadow-lg"
+            style={{
+              position: 'fixed',
+              left: tapped.x,
+              ...(tapped.placement === 'top' ? { top: tapped.top - 6 } : { top: tapped.bottom + 6 }),
+              transform: tapped.placement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+              zIndex: 50,
+              whiteSpace: 'nowrap',
+              padding: '4px 8px',
+              fontSize: 11,
+              background: isDark ? '#1f2430' : '#ffffff',
+              color: isDark ? '#e5e9f5' : '#1f2430',
+              border: isDark ? '1px solid rgba(150,175,255,0.2)' : '1px solid rgba(60,90,180,0.15)',
+            }}
+          >
+            {tapped.text}
+          </div>,
+          document.body,
+        )}
     </div>
   )
 }

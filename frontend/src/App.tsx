@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import { useAuth } from './lib/AuthContext'
 import { useKeyChord } from './lib/useKeyChord'
@@ -17,6 +17,7 @@ export default function App() {
   const [showUpdateBanner, setShowUpdateBanner] = useState(false)
   const updateSwRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null)
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [showHelp, setShowHelp] = useState(false);
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -39,6 +40,10 @@ export default function App() {
     window.addEventListener('resize', handler);
     return () => window.removeEventListener('resize', handler);
   }, []);
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname]);
 
   // Show PWA prompt on first login (not on page refresh)
   const prevJwtRef = useRef<string | null>(jwt)

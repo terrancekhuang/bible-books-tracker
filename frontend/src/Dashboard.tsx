@@ -365,7 +365,12 @@ export default function Dashboard() {
           <span className="section-label block mb-4">Category Progress</span>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
             {categoryProgress.map(({ cat, read, total, pct }) => (
-              <div key={cat}>
+              <button
+                key={cat}
+                type="button"
+                onClick={() => navigate('/tracker', { state: { filterCategory: cat } })}
+                className="text-left rounded-md -m-1 p-1 transition-colors hover:bg-[rgba(150,175,255,0.08)]"
+              >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="shrink-0" style={{ color: dimText }}>
@@ -381,7 +386,7 @@ export default function Dashboard() {
                     style={{ width: `${pct}%`, background: getCategoryPalette(cat).color }}
                   />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </div>

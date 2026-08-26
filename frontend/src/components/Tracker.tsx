@@ -65,6 +65,16 @@ export default function Tracker() {
     return () => clearTimeout(t)
   }, [books, location.state]);
 
+  useEffect(() => {
+    const state = location.state as { filterCategory?: string } | null;
+    if (!state?.filterCategory) return;
+    window.history.replaceState({}, '');
+    setSearch('');
+    setFilterTestament('');
+    setFilterStatus('');
+    setFilterCategory(state.filterCategory);
+  }, [location.state]);
+
   const handleSort = (key: SortKey) => {
     if (key === sortKey) setSortDir(sortDir === "asc" ? "desc" : "asc");
     else { setSortKey(key); setSortDir("asc"); }

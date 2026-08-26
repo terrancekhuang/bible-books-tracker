@@ -1,6 +1,10 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useTheme } from '../lib/ThemeContext'
+
+function isTouchDevice() {
+  return typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
+}
 
 export interface ActivityDay {
   logged_at: string
@@ -36,6 +40,20 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
   const { isDark } = useTheme()
   const legendStyles = isDark ? LEGEND_STYLES_DARK : LEGEND_STYLES_LIGHT
   const labelColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(60,90,180,0.45)'
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [tapped, setTapped] = useState<{ wi: number; di: number } | null>(null)
+
+  useEffect(() => {
+    if (!tapped) return
+    function handleOutsideClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setTapped(null)
+      }
+    }
+    document.addEventListener('click', handleOutsideClick)
+    return () => document.removeEventListener('click', handleOutsideClick)
+  }, [tapped])
 
   const weeks = useMemo(() => {
     const chaptersByDate = new Map<string, number>()
@@ -83,7 +101,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
   const cellSize = 11
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" ref={containerRef}>
       <div className="flex flex-col" style={{ gap: 2, minWidth: weeks.length * (cellSize + 2) + 22 }}>
         <div className="flex" style={{ gap: 2 }}>
           <div style={{ width: 20, flexShrink: 0 }} />
@@ -103,14 +121,42 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
           <div className="grid" style={{ gridTemplateColumns: `repeat(${weeks.length}, ${cellSize}px)`, gap: 2 }}>
             {weeks.map((week, wi) => (
               <div key={wi} className="flex flex-col" style={{ gap: 2 }}>
-                {week.map((day, di) => (
-                  <div
-                    key={di}
-                    className="rounded-sm"
-                    style={{ width: cellSize, height: cellSize, ...intensityStyle(day.chapters, day.isFuture, legendStyles) }}
-                    title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
-                  />
-                ))}
+                {week.map((day, di) => {
+                  const isTapped = tapped?.wi === wi && tapped?.di === di
+                  return (
+                    <div key={di} style={{ position: 'relative' }}>
+                      {isTapped && !day.isFuture && (
+                        <div
+                          className="rounded shadow-lg"
+                          style={{
+                            position: 'absolute',
+                            bottom: 'calc(100% + 6px)',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            zIndex: 10,
+                            whiteSpace: 'nowrap',
+                            padding: '4px 8px',
+                            fontSize: 11,
+                            background: isDark ? '#1f2430' : '#ffffff',
+                            color: isDark ? '#e5e9f5' : '#1f2430',
+                            border: isDark ? '1px solid rgba(150,175,255,0.2)' : '1px solid rgba(60,90,180,0.15)',
+                          }}
+                        >
+                          {day.label}: {day.chapters} chapter{day.chapters !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                      <div
+                        className="rounded-sm"
+                        style={{ width: cellSize, height: cellSize, ...intensityStyle(day.chapters, day.isFuture, legendStyles) }}
+                        title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
+                        onClick={() => {
+                          if (day.isFuture || !isTouchDevice()) return
+                          setTapped(prev => (prev?.wi === wi && prev?.di === di ? null : { wi, di }))
+                        }}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             ))}
           </div>

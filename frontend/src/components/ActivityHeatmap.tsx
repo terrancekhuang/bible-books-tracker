@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import type { CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties, MouseEvent } from 'react'
 import { useTheme } from '../lib/ThemeContext'
 
 export interface ActivityDay {
@@ -32,10 +32,29 @@ function intensityStyle(chapters: number, isFuture: boolean, styles: CSSProperti
   return styles[4]
 }
 
+interface TappedTooltip {
+  key: string
+  text: string
+  x: number
+  y: number
+}
+
 export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
   const { isDark } = useTheme()
   const legendStyles = isDark ? LEGEND_STYLES_DARK : LEGEND_STYLES_LIGHT
   const labelColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(60,90,180,0.45)'
+  const [tapped, setTapped] = useState<TappedTooltip | null>(null)
+
+  useEffect(() => {
+    if (!tapped) return
+    const close = () => setTapped(null)
+    document.addEventListener('click', close)
+    document.addEventListener('scroll', close, true)
+    return () => {
+      document.removeEventListener('click', close)
+      document.removeEventListener('scroll', close, true)
+    }
+  }, [tapped])
 
   const weeks = useMemo(() => {
     const chaptersByDate = new Map<string, number>()
@@ -82,6 +101,21 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
 
   const cellSize = 11
 
+  function handleCellTap(e: MouseEvent<HTMLDivElement>, day: { dateStr: string; label: string; chapters: number; isFuture: boolean }) {
+    if (day.isFuture) return
+    e.stopPropagation()
+    setTapped(prev => {
+      if (prev?.key === day.dateStr) return null
+      const rect = e.currentTarget.getBoundingClientRect()
+      return {
+        key: day.dateStr,
+        text: `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`,
+        x: rect.left + rect.width / 2,
+        y: rect.top,
+      }
+    })
+  }
+
   return (
     <div className="overflow-x-auto">
       <div className="flex flex-col" style={{ gap: 2, minWidth: weeks.length * (cellSize + 2) + 22 }}>
@@ -109,6 +143,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                     className="rounded-sm"
                     style={{ width: cellSize, height: cellSize, ...intensityStyle(day.chapters, day.isFuture, legendStyles) }}
                     title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
+                    onClick={e => handleCellTap(e, day)}
                   />
                 ))}
               </div>
@@ -124,6 +159,28 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
           <span style={labelStyle}>More</span>
         </div>
       </div>
+
+      {tapped && (
+        <div
+          className="rounded-md shadow-lg"
+          style={{
+            position: 'fixed',
+            left: tapped.x,
+            top: tapped.y - 8,
+            transform: 'translate(-50%, -100%)',
+            padding: '4px 8px',
+            fontSize: 11,
+            whiteSpace: 'nowrap',
+            background: isDark ? 'rgba(30,35,55,0.95)' : 'rgba(255,255,255,0.97)',
+            color: isDark ? 'rgba(230,235,255,0.95)' : 'rgba(30,40,70,0.95)',
+            border: isDark ? '1px solid rgba(150,175,255,0.25)' : '1px solid rgba(60,90,220,0.2)',
+            zIndex: 50,
+            pointerEvents: 'none',
+          }}
+        >
+          {tapped.text}
+        </div>
+      )}
     </div>
   )
 }

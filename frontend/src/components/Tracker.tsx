@@ -53,8 +53,18 @@ export default function Tracker() {
   }, []);
 
   useEffect(() => {
-    const state = location.state as { selectBook?: string } | null;
-    if (!state?.selectBook || books.length === 0) return;
+    const state = location.state as { selectBook?: string; filterTestament?: string; filterCategory?: string } | null;
+    if (!state) return;
+
+    if (state.filterTestament || state.filterCategory) {
+      window.history.replaceState({}, '');
+      setFilterStatus('');
+      setFilterTestament(state.filterTestament ?? '');
+      setFilterCategory(state.filterCategory ?? '');
+      return;
+    }
+
+    if (!state.selectBook || books.length === 0) return;
     const book = books.find(b => b.name === state.selectBook);
     if (!book) return;
     window.history.replaceState({}, '');

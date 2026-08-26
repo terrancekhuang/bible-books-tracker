@@ -344,7 +344,11 @@ export default function Dashboard() {
             ].map(({ label, read, total, color }) => {
               const pct = total > 0 ? Math.round((read / total) * 100) : 0
               return (
-                <div key={label}>
+                <div
+                  key={label}
+                  onClick={() => navigate('/tracker', { state: { filterTestament: label } })}
+                  className="cursor-pointer transition-opacity duration-150 hover:opacity-70"
+                >
                   <div className="flex items-center justify-between text-sm mb-1.5">
                     <span className="font-medium" style={{ color: primaryText }}>{label}</span>
                     <span className="tabular-nums text-xs" style={{ color: dimText }}>
@@ -365,7 +369,11 @@ export default function Dashboard() {
           <span className="section-label block mb-4">Category Progress</span>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
             {categoryProgress.map(({ cat, read, total, pct }) => (
-              <div key={cat}>
+              <div
+                key={cat}
+                onClick={() => navigate('/tracker', { state: { filterCategory: cat } })}
+                className="cursor-pointer transition-opacity duration-150 hover:opacity-70"
+              >
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="shrink-0" style={{ color: dimText }}>

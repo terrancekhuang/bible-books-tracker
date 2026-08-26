@@ -5,6 +5,7 @@ import { useTheme } from './lib/ThemeContext'
 import { useBooksQuery, useDashboardQuery } from './lib/queries'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
+import { getCategoryPalette } from './lib/categoryColors'
 import BookCard from './components/BookCard'
 import Skeleton from './components/Skeleton'
 import ActivityHeatmap from './components/ActivityHeatmap'
@@ -20,18 +21,6 @@ const CATEGORY_ORDER = [
 
 function sumChapters(books: Book[]): number {
   return books.reduce((s, b) => s + b.num_chapters, 0)
-}
-
-const CATEGORY_BAR_COLORS: Record<string, string> = {
-  'Law':             'rgba(240,170,60,0.82)',
-  'History':         'rgba(80,200,140,0.82)',
-  'Poetry':          'rgba(170,120,255,0.82)',
-  'Major Prophets':  'rgba(240,120,60,0.82)',
-  'Minor Prophets':  'rgba(240,210,60,0.82)',
-  'Gospels':         'rgba(240,80,100,0.82)',
-  'Church History':  'rgba(60,175,230,0.82)',
-  "Paul's Epistles": 'rgba(100,130,255,0.82)',
-  'General Epistles':'rgba(60,200,185,0.82)',
 }
 
 function getGreeting(): string {
@@ -389,7 +378,7 @@ export default function Dashboard() {
                 <div className="h-1.5 rounded-full overflow-hidden" style={{ background: trackBg }}>
                   <div
                     className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${pct}%`, background: CATEGORY_BAR_COLORS[cat] }}
+                    style={{ width: `${pct}%`, background: getCategoryPalette(cat).color }}
                   />
                 </div>
               </div>

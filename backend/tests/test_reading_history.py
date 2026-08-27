@@ -164,6 +164,69 @@ class TestWindows:
             assert result[window]['distinct_days'] == 0
 
 
+# ── Bulk session exclusion (rhythm only) ────────────────────────────────────────
+#
+# A catch-up or import dump shouldn't be able to pass itself off as "when this reader
+# reads." reading_history.BULK_SESSION_CHAPTERS / SESSION_GAP_SECONDS control that: chapters
+# logged within SESSION_GAP_SECONDS of each other are one session, and any session totalling
+# BULK_SESSION_CHAPTERS or more is excluded from rhythm — only that session, not its whole
+# calendar day, and not activity/streaks/stats, which still see everything logged.
+
+class TestBulkSessionExclusion:
+    def test_single_bulk_event_excluded(self, test_user, seed_chapter):
+        user_id, _ = test_user
+        when = _utc_at(days_ago=10, hour=12)
+        for chapter in range(1, reading_history.BULK_SESSION_CHAPTERS + 1):
+            seed_chapter(when, chapter=chapter)
+
+        result = reading_history.rhythm(user_id, 0)['all_time']
+        assert result['total_chapters'] == 0
+        assert result['distinct_days'] == 0
+
+    def test_small_events_within_gap_merge_into_bulk(self, test_user, seed_chapter):
+        user_id, _ = test_user
+        first = reading_history.BULK_SESSION_CHAPTERS - 13  # under threshold alone
+        second = 13                                         # combined, over threshold
+        when = _utc_at(days_ago=10, hour=12)
+        gap = timedelta(seconds=reading_history.SESSION_GAP_SECONDS - 5)
+
+        for chapter in range(1, first + 1):
+            seed_chapter(when, chapter=chapter, book_id=1)
+        for chapter in range(1, second + 1):
+            seed_chapter(when + gap, chapter=chapter, book_id=2)
+
+        result = reading_history.rhythm(user_id, 0)['all_time']
+        assert first + second >= reading_history.BULK_SESSION_CHAPTERS
+        assert result['total_chapters'] == 0
+
+    def test_events_past_the_gap_stay_separate_and_real(self, test_user, seed_chapter):
+        user_id, _ = test_user
+        each = reading_history.BULK_SESSION_CHAPTERS - 5  # under threshold alone or combined
+        when = _utc_at(days_ago=10, hour=12)
+        gap = timedelta(seconds=reading_history.SESSION_GAP_SECONDS + 5)
+
+        for chapter in range(1, each + 1):
+            seed_chapter(when, chapter=chapter, book_id=1)
+        for chapter in range(1, each + 1):
+            seed_chapter(when + gap, chapter=chapter, book_id=2)
+
+        result = reading_history.rhythm(user_id, 0)['all_time']
+        assert result['total_chapters'] == each * 2
+
+    def test_real_session_survives_a_bulk_session_the_same_day(self, test_user, seed_chapter):
+        user_id, _ = test_user
+        bulk_at = _utc_at(days_ago=10, hour=9)
+        real_at = _utc_at(days_ago=10, hour=20)  # same day, far outside the session gap
+
+        for chapter in range(1, reading_history.BULK_SESSION_CHAPTERS + 1):
+            seed_chapter(bulk_at, chapter=chapter, book_id=1)
+        seed_chapter(real_at, chapter=1, book_id=2)
+
+        result = reading_history.rhythm(user_id, 0)['all_time']
+        assert result['total_chapters'] == 1
+        assert result['distinct_days'] == 1
+
+
 # ── Part of day ───────────────────────────────────────────────────────────────
 
 class TestPartOfDay:

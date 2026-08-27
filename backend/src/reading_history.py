@@ -25,6 +25,53 @@ LOCAL_TS = "((logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %(tz)s)"
 ACTIVITY_WINDOW_DAYS = 365
 RECENT_WINDOW_DAYS = 90
 
+# Rhythm-only: a burst of submissions with no gap over SESSION_GAP_SECONDS between them is
+# one continuous logging session, whether that's a single request or many fired back-to-back
+# (a bulk import fires lots of small requests in a few seconds, not one giant one). A session
+# that totals BULK_SESSION_CHAPTERS or more is catch-up/import logging, not log-as-you-read,
+# so it's excluded from rhythm — only that session, not its whole calendar day, so a real
+# reading burst logged the same day still counts. Doesn't touch activity, streaks or stats:
+# those should reflect everything that was actually logged.
+#
+# SESSION_GAP_SECONDS is 5 minutes, not 1: two submissions a couple of minutes apart still
+# aren't far enough apart to have had a chapter read in between, so they're the same burst
+# even if the requests themselves were seconds apart. Validated against a real account where
+# a 154- and an 1824-chapter import both landed as single sessions, and a later 17+20-chapter
+# pair 123 seconds apart correctly merged into one 37-chapter bulk session instead of hiding
+# as two sub-threshold ones — while every other real session in that account's history (all
+# well under 30 chapters, spread across dozens of days) stayed untouched by the wider window.
+SESSION_GAP_SECONDS = 300
+BULK_SESSION_CHAPTERS = 30
+
+# `logged_at` is shared exactly across every row a single request inserts (one NOW() per
+# statement), so grouping by it recovers each original submission. new_session flags the
+# start of a run (first event, or a gap past SESSION_GAP_SECONDS); a running SUM of that flag
+# turns those runs into session ids without a recursive query.
+BULK_SESSION_CTE = f"""
+    bulk_logged_at AS (
+        SELECT logged_at FROM (
+            SELECT logged_at, SUM(chapters) OVER (PARTITION BY session_id) AS session_chapters
+            FROM (
+                SELECT logged_at, chapters,
+                       SUM(new_session) OVER (ORDER BY logged_at) AS session_id
+                FROM (
+                    SELECT logged_at, COUNT(*) AS chapters,
+                           CASE
+                               WHEN LAG(logged_at) OVER (ORDER BY logged_at) IS NULL
+                                 OR logged_at - LAG(logged_at) OVER (ORDER BY logged_at)
+                                      > INTERVAL '{SESSION_GAP_SECONDS} seconds'
+                               THEN 1 ELSE 0
+                           END AS new_session
+                    FROM chapter_progress
+                    WHERE user_id = %(user)s
+                    GROUP BY logged_at
+                ) events
+            ) sessioned
+        ) totals
+        WHERE session_chapters >= {BULK_SESSION_CHAPTERS}
+    )
+"""
+
 
 # ── Activity ──────────────────────────────────────────────────────────────────
 
@@ -158,12 +205,14 @@ def _rhythm(cur, user_id: int, tz_offset: int) -> dict:
     # Grouping by (weekday, hour, recent) caps this at 7 * 24 * 2 rows, so one scan
     # serves both windows and the bucketing happens over a handful of rows in Python.
     cur.execute(f"""
+        WITH {BULK_SESSION_CTE}
         SELECT EXTRACT(ISODOW FROM {LOCAL_TS})::int AS weekday,
                EXTRACT(HOUR  FROM {LOCAL_TS})::int  AS hour,
                (logged_at >= %(cutoff)s)            AS recent,
                COUNT(*)                             AS chapters
         FROM chapter_progress
         WHERE user_id = %(user)s
+          AND logged_at NOT IN (SELECT logged_at FROM bulk_logged_at)
         GROUP BY weekday, hour, recent
     """, params)
 
@@ -179,13 +228,16 @@ def _rhythm(cur, user_id: int, tz_offset: int) -> dict:
             target['total_chapters'] += chapters
 
     # Distinct local dates, not row counts — a 10-chapter day is one day. Kept separate
-    # because it can't be summed out of the grouped counts above.
+    # because it can't be summed out of the grouped counts above. Same bulk-session exclusion
+    # as above, so a day that was only ever a catch-up dump doesn't count as a reading day.
     cur.execute(f"""
+        WITH {BULK_SESSION_CTE}
         SELECT COUNT(DISTINCT {LOCAL_TS}::date) AS all_days,
                COUNT(DISTINCT {LOCAL_TS}::date)
                    FILTER (WHERE logged_at >= %(cutoff)s) AS recent_days
         FROM chapter_progress
         WHERE user_id = %(user)s
+          AND logged_at NOT IN (SELECT logged_at FROM bulk_logged_at)
     """, params)
     days = cur.fetchone()
     windows['all_time']['distinct_days'] = int(days['all_days'] or 0)

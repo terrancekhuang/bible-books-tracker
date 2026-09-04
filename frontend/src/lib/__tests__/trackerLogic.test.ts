@@ -5,9 +5,9 @@ import {
   buildChapterRuns,
   formatChapterList,
   calculateProgress,
-  sortBooks,
   filterBooks,
-  availableFilterOptions,
+  invalidChaptersMessage,
+  defaultBookForCategory,
   type Book,
 } from '../trackerLogic'
 
@@ -109,55 +109,6 @@ describe('calculateProgress', () => {
   })
 })
 
-describe('sortBooks', () => {
-  const books: Book[] = [
-    makeBook({ book_id: 1, name: 'Genesis', chapters_read: 5, num_chapters: 50 }),
-    makeBook({ book_id: 2, name: 'Revelation', chapters_read: 22, num_chapters: 22 }),
-    makeBook({ book_id: 3, name: 'Psalms', chapters_read: 0, num_chapters: 150 }),
-  ]
-
-  it('returns the same order when sortKey is null', () => {
-    const result = sortBooks(books, null, 'asc')
-    expect(result.map(b => b.name)).toEqual(['Genesis', 'Revelation', 'Psalms'])
-  })
-
-  it('does not mutate the original array', () => {
-    const original = books.map(b => b.name)
-    sortBooks(books, 'name', 'asc')
-    expect(books.map(b => b.name)).toEqual(original)
-  })
-
-  it('sorts by name ascending', () => {
-    expect(sortBooks(books, 'name', 'asc').map(b => b.name)).toEqual(['Genesis', 'Psalms', 'Revelation'])
-  })
-
-  it('sorts by name descending', () => {
-    expect(sortBooks(books, 'name', 'desc').map(b => b.name)).toEqual(['Revelation', 'Psalms', 'Genesis'])
-  })
-
-  it('sorts by chapters_read ascending', () => {
-    expect(sortBooks(books, 'chapters_read', 'asc').map(b => b.chapters_read)).toEqual([0, 5, 22])
-  })
-
-  it('sorts by chapters_read descending', () => {
-    expect(sortBooks(books, 'chapters_read', 'desc').map(b => b.chapters_read)).toEqual([22, 5, 0])
-  })
-
-  it('sorts by percent ascending', () => {
-    // Genesis: 5/50=10%, Revelation: 22/22=100%, Psalms: 0/150=0%
-    expect(sortBooks(books, 'percent', 'asc').map(b => b.name)).toEqual(['Psalms', 'Genesis', 'Revelation'])
-  })
-
-  it('sorts by status ascending (not_started < in_progress < complete)', () => {
-    // Psalms: 0 (not started), Genesis: 1 (in progress), Revelation: 2 (complete)
-    expect(sortBooks(books, 'status', 'asc').map(b => b.name)).toEqual(['Psalms', 'Genesis', 'Revelation'])
-  })
-
-  it('sorts by status descending (complete first)', () => {
-    expect(sortBooks(books, 'status', 'desc').map(b => b.name)).toEqual(['Revelation', 'Genesis', 'Psalms'])
-  })
-})
-
 describe('filterBooks', () => {
   const books: Book[] = [
     makeBook({ book_id: 1, name: 'Genesis', testament: 'Old Testament', category: 'Law', chapters_read: 0, num_chapters: 50 }),
@@ -166,7 +117,7 @@ describe('filterBooks', () => {
     makeBook({ book_id: 4, name: 'Romans', testament: 'New Testament', category: "Paul's Epistles", chapters_read: 5, num_chapters: 16 }),
   ]
 
-  const noFilter = { search: '', filterTestament: '', filterCategory: '', filterStatus: '' }
+  const noFilter = { search: '', filterTestament: '', filterStatus: '' }
 
   it('returns all books when no filters applied', () => {
     expect(filterBooks(books, noFilter)).toHaveLength(4)
@@ -184,10 +135,6 @@ describe('filterBooks', () => {
     expect(filterBooks(books, { ...noFilter, filterTestament: 'Old Testament' }).map(b => b.name)).toEqual(['Genesis', 'Psalms'])
   })
 
-  it('filters by category', () => {
-    expect(filterBooks(books, { ...noFilter, filterCategory: 'Gospels' }).map(b => b.name)).toEqual(['Matthew'])
-  })
-
   it('filters by status: not_started', () => {
     expect(filterBooks(books, { ...noFilter, filterStatus: 'not_started' }).map(b => b.name)).toEqual(['Genesis'])
   })
@@ -201,41 +148,8 @@ describe('filterBooks', () => {
     expect(filterBooks(books, { ...noFilter, filterStatus: 'complete' }).map(b => b.name)).toEqual(['Matthew'])
   })
 
-  it('combines testament and category filters', () => {
-    expect(filterBooks(books, { ...noFilter, filterTestament: 'New Testament', filterCategory: "Paul's Epistles" }).map(b => b.name)).toEqual(['Romans'])
-  })
-
   it('combines search with status filter', () => {
     expect(filterBooks(books, { ...noFilter, search: 'ro', filterStatus: 'in_progress' }).map(b => b.name)).toEqual(['Romans'])
-  })
-})
-
-describe('availableFilterOptions', () => {
-  const books: Book[] = [
-    makeBook({ book_id: 1, name: 'Genesis', testament: 'Old Testament', category: 'Law' }),
-    makeBook({ book_id: 2, name: 'Psalms', testament: 'Old Testament', category: 'Poetry' }),
-    makeBook({ book_id: 3, name: 'Matthew', testament: 'New Testament', category: 'Gospels' }),
-    makeBook({ book_id: 4, name: 'Romans', testament: 'New Testament', category: "Paul's Epistles" }),
-  ]
-
-  it('returns all testaments and categories when no filters active', () => {
-    const opts = availableFilterOptions(books, { filterTestament: '', filterCategory: '' })
-    expect(opts.testaments.sort()).toEqual(['New Testament', 'Old Testament'])
-    expect(opts.categories.sort()).toEqual(['Gospels', 'Law', "Paul's Epistles", 'Poetry'])
-  })
-
-  it('limits categories to those within the active testament', () => {
-    const opts = availableFilterOptions(books, { filterTestament: 'Old Testament', filterCategory: '' })
-    expect(opts.categories.sort()).toEqual(['Law', 'Poetry'])
-    // testaments are not filtered by the active testament filter
-    expect(opts.testaments.sort()).toEqual(['New Testament', 'Old Testament'])
-  })
-
-  it('limits testaments to those within the active category', () => {
-    const opts = availableFilterOptions(books, { filterTestament: '', filterCategory: 'Gospels' })
-    expect(opts.testaments.sort()).toEqual(['New Testament'])
-    // categories are not filtered by the active category filter
-    expect(opts.categories.sort()).toEqual(['Gospels', 'Law', "Paul's Epistles", 'Poetry'])
   })
 })
 
@@ -388,5 +302,33 @@ describe('formatChapterList', () => {
 
   it('honours a custom limit', () => {
     expect(formatChapterList([1, 2, 3], 2)).toBe('1, 2…')
+  })
+})
+
+describe('invalidChaptersMessage', () => {
+  it('names the book and its real chapter count', () => {
+    expect(invalidChaptersMessage('Romans', 16)).toBe('Romans has 16 chapters — try "1-5" or "3, 7, 12"')
+  })
+})
+
+describe('defaultBookForCategory', () => {
+  const books: Book[] = [
+    makeBook({ book_id: 1, name: 'Romans', category: "Paul's Epistles", chapters_read: 16, num_chapters: 16 }),
+    makeBook({ book_id: 2, name: '1 Corinthians', category: "Paul's Epistles", chapters_read: 3, num_chapters: 16 }),
+    makeBook({ book_id: 3, name: '2 Corinthians', category: "Paul's Epistles", chapters_read: 0, num_chapters: 13 }),
+    makeBook({ book_id: 4, name: 'Genesis', category: 'Law', chapters_read: 0, num_chapters: 50 }),
+  ]
+
+  it('picks the first book in the category with unread chapters', () => {
+    expect(defaultBookForCategory(books, "Paul's Epistles")?.name).toBe('1 Corinthians')
+  })
+
+  it('falls back to the first book when the whole category is complete', () => {
+    const allRead = books.map(b => b.category === "Paul's Epistles" ? { ...b, chapters_read: b.num_chapters } : b)
+    expect(defaultBookForCategory(allRead, "Paul's Epistles")?.name).toBe('Romans')
+  })
+
+  it('returns null for a category with no books', () => {
+    expect(defaultBookForCategory(books, 'Poetry')).toBeNull()
   })
 })

@@ -20,9 +20,6 @@ export interface Stats {
   total_days: number
 }
 
-export type SortKey = 'name' | 'chapters_read' | 'percent' | 'status'
-export type SortDir = 'asc' | 'desc'
-
 export const TOTAL_CHAPTERS = 1189
 export const TOTAL_BOOKS = 66
 
@@ -112,6 +109,13 @@ export function formatChapterList(chapters: number[], limit = 8): string {
   return `${chapters.slice(0, limit).join(', ')}${chapters.length > limit ? '…' : ''}`
 }
 
+/** The hint shown under the chapter-entry field when its input doesn't parse. Names the
+ *  book's real chapter count so "out of range" reads as a fact about the book, not a
+ *  generic syntax complaint. */
+export function invalidChaptersMessage(bookName: string, numChapters: number): string {
+  return `${bookName} has ${numChapters} chapters — try "1-5" or "3, 7, 12"`
+}
+
 export function calculateProgress(book: Pick<Book, 'chapters_read' | 'num_chapters'>): number {
   if (!book.chapters_read) return 0
   return Math.round((book.chapters_read / book.num_chapters) * 100)
@@ -122,36 +126,24 @@ export function calculateOverallProgress(books: Book[]): { totalRead: number; ov
   return { totalRead, overallPct: Math.round((totalRead / TOTAL_CHAPTERS) * 100) }
 }
 
-function statusRank(book: Book): number {
-  if (book.chapters_read >= book.num_chapters) return 2
-  if (book.chapters_read > 0) return 1
-  return 0
-}
-
-export function sortBooks(books: Book[], sortKey: SortKey | null, sortDir: SortDir): Book[] {
-  if (sortKey === null) return books
-  return [...books].sort((a, b) => {
-    let cmp = 0
-    if (sortKey === 'name') cmp = a.name.localeCompare(b.name)
-    else if (sortKey === 'chapters_read') cmp = a.chapters_read - b.chapters_read
-    else if (sortKey === 'percent') cmp = calculateProgress(a) - calculateProgress(b)
-    else if (sortKey === 'status') cmp = statusRank(a) - statusRank(b)
-    return sortDir === 'asc' ? cmp : -cmp
-  })
+/** The book a volume opens to by default: the first with unread chapters, or the first
+ *  book if the whole volume is already complete. Mirrors the approved Volumes prototype's
+ *  spine-click behaviour, so opening a volume is fast to log straight into. */
+export function defaultBookForCategory(books: Book[], category: string): Book | null {
+  const inCategory = books.filter(b => b.category === category)
+  return inCategory.find(b => b.chapters_read < b.num_chapters) ?? inCategory[0] ?? null
 }
 
 export interface FilterOpts {
   search: string
   filterTestament: string
-  filterCategory: string
   filterStatus: string
 }
 
-export function filterBooks(books: Book[], { search, filterTestament, filterCategory, filterStatus }: FilterOpts): Book[] {
+export function filterBooks(books: Book[], { search, filterTestament, filterStatus }: FilterOpts): Book[] {
   return books.filter(b => {
     if (search && !b.name.toLowerCase().includes(search.toLowerCase())) return false
     if (filterTestament && b.testament !== filterTestament) return false
-    if (filterCategory && b.category !== filterCategory) return false
     if (filterStatus) {
       const isComplete = b.chapters_read >= b.num_chapters
       const inProgress = b.chapters_read > 0 && !isComplete
@@ -161,14 +153,4 @@ export function filterBooks(books: Book[], { search, filterTestament, filterCate
     }
     return true
   })
-}
-
-export function availableFilterOptions(
-  books: Book[],
-  { filterTestament, filterCategory }: { filterTestament: string; filterCategory: string }
-): { testaments: string[]; categories: string[] } {
-  return {
-    testaments: [...new Set(books.filter(b => !filterCategory || b.category === filterCategory).map(b => b.testament))],
-    categories: [...new Set(books.filter(b => !filterTestament || b.testament === filterTestament).map(b => b.category))],
-  }
 }

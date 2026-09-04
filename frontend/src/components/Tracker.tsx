@@ -2,22 +2,22 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useBooksQuery, useCurrentUserQuery } from '../lib/queries'
 import { useTrackerMutations } from '../lib/useTrackerMutations'
-import { useKeyChord } from '../lib/useKeyChord'
 import { useConfirm } from '../lib/useConfirm'
-import { parseChapters, splitAlreadyRead, formatChapterList, sortBooks, filterBooks, availableFilterOptions, calculateProgress, type SortKey, type SortDir } from '../lib/trackerLogic'
-import { CategoryIcon, BookOpenIcon } from './Icons'
-import FilterSelect from './FilterSelect'
-import SegmentedProgressBar, { FILL_MS } from './SegmentedProgressBar'
+import {
+  parseChapters, splitAlreadyRead, formatChapterList, filterBooks, invalidChaptersMessage,
+  defaultBookForCategory,
+} from '../lib/trackerLogic'
+import { CATEGORY_ORDER, CLOTH, ROMAN } from '../lib/volumesTokens'
 import NavBar from './NavBar'
-import BookCard from './BookCard'
-import { getCategoryPalette } from '../lib/categoryColors'
+import VolumeShelf from './VolumeShelf'
+import ContentsLeaf from './ContentsLeaf'
+import TrackerEntryLine from './TrackerEntryLine'
+import { FILL_MS } from './SegmentedProgressBar'
 
-/** Amber used for "already read" hints — the offline banner's warning tone, at hint-text weight. */
-const ALREADY_READ_COLOR = 'rgba(240,200,80,0.8)'
-
-const primaryText = 'var(--color-ink)'
-const dimText = 'rgba(35,31,26,0.55)'
-const bodyText = 'rgba(35,31,26,0.78)'
+const SHELF_BACKGROUND = [
+  'repeating-linear-gradient(91deg, rgba(0,0,0,0.16) 0 2px, transparent 2px 9px)',
+  'linear-gradient(180deg, #1D1813 0%, var(--color-shelf) 44%, #17120E 100%)',
+].join(', ')
 
 export default function Tracker() {
   const { data: user } = useCurrentUserQuery();
@@ -25,42 +25,72 @@ export default function Tracker() {
 
   const { pendingCount, isOnline, submit, undo, reset } = useTrackerMutations()
 
+  const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [selectedBookName, setSelectedBookName] = useState<string | null>(null)
   const selectedBook = books.find(b => b.name === selectedBookName) ?? null
 
   const [chaptersInput, setChaptersInput] = useState('');
   const resetConfirm = useConfirm(selectedBookName);
   const confirmMarkAll = useConfirm(selectedBookName);
-  const [sortKey, setSortKey] = useState<SortKey | null>(null);
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [search, setSearch] = useState('');
-  const [filterTestament, setFilterTestament] = useState('');
-  const [filterCategory,  setFilterCategory]  = useState('');
-  const [filterStatus,    setFilterStatus]     = useState('');
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [filterStatus, setFilterStatus] = useState('');
+  // Set only by Dashboard's testament-breakdown deep link — there's no dropdown for it,
+  // since a testament cuts across multiple volumes and has no single volume to open.
+  const [testamentFilter, setTestamentFilter] = useState('');
   const [openedFromNav, setOpenedFromNav] = useState(false);
 
   const chaptersInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const gChord = useKeyChord();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Search or status (or a testament deep-link) flattens the shelf: instead of one
+  // volume's leaf, every matching book across all nine categories lists on one leaf.
+  const flattened = search.trim() !== '' || filterStatus !== '' || testamentFilter !== '';
+
+  const flatBooks = useMemo(
+    () => filterBooks(books, { search, filterTestament: testamentFilter, filterStatus }),
+    [books, search, testamentFilter, filterStatus]
+  );
+  const openVolumeBooks = useMemo(
+    () => openCategory ? books.filter(b => b.category === openCategory) : [],
+    [books, openCategory]
+  );
+  const visibleBooks = flattened ? flatBooks : openVolumeBooks;
+
+  // Typing into search/status (or a testament deep-link) can flatten the leaf out from
+  // under whatever was selected — drop a selection the moment it's no longer visible,
+  // rather than leaving the entry line pointed at a book that isn't on the leaf anymore.
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
+    if (selectedBookName && !visibleBooks.some(b => b.name === selectedBookName)) {
+      setSelectedBookName(null);
+      setChaptersInput('');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleBooks]);
+
+  const openVolume = (category: string) => {
+    setSearch(''); setFilterStatus(''); setTestamentFilter('');
+    setOpenCategory(category);
+    setSelectedBookName(defaultBookForCategory(books, category)?.name ?? null);
+    setChaptersInput('');
+    setOpenedFromNav(false);
+  };
 
   useEffect(() => {
     const state = location.state as { selectBook?: string; filterTestament?: string; filterCategory?: string } | null;
     if (!state) return;
 
-    if (state.filterTestament || state.filterCategory) {
+    if (state.filterCategory) {
       window.history.replaceState({}, '');
-      setFilterStatus('');
-      setFilterTestament(state.filterTestament ?? '');
-      setFilterCategory(state.filterCategory ?? '');
+      openVolume(state.filterCategory);
+      return;
+    }
+    if (state.filterTestament) {
+      window.history.replaceState({}, '');
+      setOpenCategory(null);
+      setSearch(''); setFilterStatus('');
+      setTestamentFilter(state.filterTestament);
       return;
     }
 
@@ -69,34 +99,13 @@ export default function Tracker() {
     if (!book) return;
     window.history.replaceState({}, '');
     const t = setTimeout(() => {
+      setOpenCategory(book.category);
       setSelectedBookName(book.name);
       setOpenedFromNav(true);
     }, 0)
     return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [books, location.state]);
-
-  const handleSort = (key: SortKey) => {
-    if (key === sortKey) setSortDir(sortDir === "asc" ? "desc" : "asc");
-    else { setSortKey(key); setSortDir("asc"); }
-  };
-
-  const resetSort = () => { setSortKey(null); setSortDir("asc"); };
-
-  const sortIndicator = (key: SortKey) => {
-    if (sortKey !== key) return " ↕";
-    return sortDir === "asc" ? " ↑" : " ↓";
-  };
-
-  const tabFilteredBooks = useMemo(
-    () => filterBooks(sortBooks(books, sortKey, sortDir), { search, filterTestament, filterCategory, filterStatus }),
-    [books, sortKey, sortDir, search, filterTestament, filterCategory, filterStatus]
-  );
-  const { testaments: availableTestamentOptions, categories: availableCategoryOptions } = useMemo(
-    () => availableFilterOptions(books, { filterTestament, filterCategory }),
-    [books, filterTestament, filterCategory]
-  );
-  const anyFilterActive = filterTestament !== '' || filterCategory !== '' || filterStatus !== '';
-  const clearFilters = () => { setFilterTestament(''); setFilterCategory(''); setFilterStatus(''); };
 
   // Chapters whose write just landed, kept only for the length of the bar's fill animation
   // and scoped to the book they belong to, so switching book can't replay it elsewhere.
@@ -143,18 +152,29 @@ export default function Tracker() {
   };
 
   useEffect(() => {
-    if (!selectedBook || isMobile) return;
+    if (!selectedBook) return;
     document.querySelector(`[data-book="${selectedBook.name}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [selectedBook, isMobile]);
+  }, [selectedBook]);
 
-  const moveSelection = (step: number) => {
-    const currentIndex = selectedBook ? tabFilteredBooks.findIndex(b => b.name === selectedBook.name) : -1;
+  const moveVolume = (step: number) => {
+    if (flattened) return;
+    const currentIndex = openCategory ? CATEGORY_ORDER.indexOf(openCategory as typeof CATEGORY_ORDER[number]) : -1;
     if (currentIndex === -1) {
-      if (step > 0 && tabFilteredBooks.length > 0) setSelectedBookName(tabFilteredBooks[0].name);
+      openVolume(CATEGORY_ORDER[step > 0 ? 0 : CATEGORY_ORDER.length - 1]);
       return;
     }
     const nextIndex = currentIndex + step;
-    if (nextIndex >= 0 && nextIndex < tabFilteredBooks.length) setSelectedBookName(tabFilteredBooks[nextIndex].name);
+    if (nextIndex >= 0 && nextIndex < CATEGORY_ORDER.length) openVolume(CATEGORY_ORDER[nextIndex]);
+  };
+
+  const moveEntry = (step: number) => {
+    const currentIndex = selectedBook ? visibleBooks.findIndex(b => b.name === selectedBook.name) : -1;
+    if (currentIndex === -1) {
+      if (step > 0 && visibleBooks.length > 0) { setSelectedBookName(visibleBooks[0].name); setChaptersInput(''); }
+      return;
+    }
+    const nextIndex = currentIndex + step;
+    if (nextIndex >= 0 && nextIndex < visibleBooks.length) { setSelectedBookName(visibleBooks[nextIndex].name); setChaptersInput(''); }
   };
 
   useEffect(() => {
@@ -184,71 +204,44 @@ export default function Tracker() {
       }
       if (e.key === 'i' && !isInput && selectedBook) { e.preventDefault(); chaptersInputRef.current?.focus(); return; }
 
-      if (e.key === 'g' && !isInput) {
-        e.preventDefault();
-        if (gChord.consume()) {
-          if (tabFilteredBooks.length > 0) { setSelectedBookName(tabFilteredBooks[0].name); setChaptersInput(''); }
-        } else {
-          gChord.arm();
-        }
-        return;
-      }
-      if (e.key === 'G' && !isInput) {
-        e.preventDefault();
-        if (tabFilteredBooks.length > 0) { setSelectedBookName(tabFilteredBooks[tabFilteredBooks.length - 1].name); setChaptersInput(''); }
-        return;
-      }
+      if (isInput) return;
 
-      const VIM_MAP: Record<string, string> = { h: 'ArrowLeft', l: 'ArrowRight', k: 'ArrowUp', j: 'ArrowDown' };
-      const resolvedKey = (!isInput && VIM_MAP[e.key]) ? VIM_MAP[e.key] : e.key;
+      const VOLUME_STEP: Record<string, number> = { h: -1, l: 1, ArrowLeft: -1, ArrowRight: 1 };
+      const ENTRY_STEP: Record<string, number> = { k: -1, j: 1, ArrowUp: -1, ArrowDown: 1 };
 
-      if ((resolvedKey === 'ArrowRight' || resolvedKey === 'ArrowLeft') && !isInput) {
-        e.preventDefault();
-        moveSelection(resolvedKey === 'ArrowRight' ? 1 : -1);
-        setChaptersInput(''); return;
-      }
-      if ((resolvedKey === 'ArrowDown' || resolvedKey === 'ArrowUp') && !isInput) {
-        e.preventDefault();
-        const numCols = window.innerWidth < 640 ? 2 : 3;
-        moveSelection(resolvedKey === 'ArrowDown' ? numCols : -numCols);
-        setChaptersInput('');
-      }
+      if (e.key in VOLUME_STEP) { e.preventDefault(); moveVolume(VOLUME_STEP[e.key]); return; }
+      if (e.key in ENTRY_STEP) { e.preventDefault(); moveEntry(ENTRY_STEP[e.key]); return; }
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBook, tabFilteredBooks, chaptersInput, resetConfirm.confirming, confirmMarkAll.confirming, isOnline]);
+  }, [selectedBook, visibleBooks, openCategory, flattened, resetConfirm.confirming, confirmMarkAll.confirming, isOnline]);
 
-  const showGrid = !isMobile || !selectedBook;
-  const showDetail = !isMobile || !!selectedBook;
+  const openIndex = openCategory ? CATEGORY_ORDER.indexOf(openCategory as typeof CATEGORY_ORDER[number]) : -1;
+  const leafCloth = openCategory ? CLOTH[openCategory] : 'var(--color-shelf-lit)';
+  const entryCloth = selectedBook ? CLOTH[selectedBook.category] : 'var(--color-ink)';
 
-  // Panel used only for the book grid
-  const gridPanelStyle = {
-    background: 'rgba(255,255,255,0.82)',
-    backdropFilter: 'blur(28px)',
-    WebkitBackdropFilter: 'blur(28px)',
-    border: '1px solid rgba(35,31,26,0.12)',
-    borderRadius: '1.25rem',
-  }
+  const leafSummary = (() => {
+    if (visibleBooks.length === 0) {
+      return flattened ? `No books match — try a different search or status` : '';
+    }
+    const read = visibleBooks.reduce((s, b) => s + b.chapters_read, 0);
+    const total = visibleBooks.reduce((s, b) => s + b.num_chapters, 0);
+    const pct = total ? Math.round((read / total) * 100) : 0;
+    return `${visibleBooks.length} book${visibleBooks.length !== 1 ? 's' : ''} · ${read} of ${total} chapters · ${pct}%`;
+  })();
 
-  const filterStyle = (active: boolean) => ({
-    fontSize: 12,
-    color: active ? primaryText : dimText,
-    background: active ? 'rgba(35,31,26,0.08)' : 'transparent',
-    borderRadius: '0.375rem',
-    padding: '3px 8px',
-    border: 'none',
-    cursor: 'pointer',
-    transition: 'all 0.15s',
-  })
+  const leafHeading = flattened
+    ? (search.trim() ? `Search: "${search.trim()}"` : testamentFilter || 'Matching books')
+    : (openCategory ?? '');
 
   return (
-    <div className="flex flex-col min-h-screen md:h-screen pb-20 md:pb-0">
+    <div className="flex flex-col min-h-screen" style={{ background: SHELF_BACKGROUND }}>
       {/* Status banners */}
       {!isOnline && (
         <div
           className="text-xs font-medium text-center py-1.5 px-4"
-          style={{ background: 'rgba(200,160,40,0.2)', color: 'rgba(240,200,80,0.9)', backdropFilter: 'blur(8px)' }}
+          style={{ background: 'var(--color-leaf)', color: 'var(--color-leaf-red)', borderBottom: '1px solid rgba(35,31,26,0.15)' }}
         >
           Offline{pendingCount > 0 ? ` — ${pendingCount} change${pendingCount > 1 ? 's' : ''} will sync when reconnected` : ''}
         </div>
@@ -256,7 +249,7 @@ export default function Tracker() {
       {isOnline && pendingCount > 0 && (
         <div
           className="text-xs font-medium text-center py-1.5 px-4"
-          style={{ background: 'rgba(210,166,63,0.18)', color: 'var(--color-gilt)', backdropFilter: 'blur(8px)' }}
+          style={{ background: 'var(--color-leaf)', color: 'var(--color-ink)', borderBottom: '1px solid rgba(35,31,26,0.15)' }}
         >
           Syncing {pendingCount} pending change{pendingCount > 1 ? 's' : ''}…
         </div>
@@ -264,364 +257,121 @@ export default function Tracker() {
 
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
 
-      <div className="flex flex-col md:flex-row gap-4 flex-1 md:overflow-hidden px-4 md:px-5 py-4">
-
-        {/* ── Book Grid Panel ── */}
-        {showGrid && (
-          <div className="flex flex-col flex-1 overflow-hidden md:overflow-y-auto rounded-2xl" style={gridPanelStyle}>
-            {/* Search */}
-            <div className="flex items-center gap-2 p-3" style={{ borderBottom: '1px solid rgba(35,31,26,0.07)' }}>
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder={isMobile ? "Search books…" : "Search books… (/)"}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && tabFilteredBooks.length > 0) {
-                    e.preventDefault();
-                    setSelectedBookName(tabFilteredBooks[0].name);
-                    setChaptersInput('');
-                    searchInputRef.current?.blur();
-                  }
-                }}
-                className="tracker-input flex-1 text-sm px-3 py-2"
-                style={{ transition: 'border-color 0.15s', borderColor: 'rgba(35,31,26,0.14)' }}
-                onFocus={e => (e.target.style.borderColor = 'rgba(35,31,26,0.3)')}
-                onBlur={e => (e.target.style.borderColor = 'rgba(35,31,26,0.14)')}
-              />
-              {sortKey !== null && (
-                <button
-                  onClick={resetSort}
-                  style={{ ...filterStyle(false), color: dimText }}
-                  className="whitespace-nowrap text-xs px-2 py-1 rounded"
-                >
-                  Reset order
-                </button>
-              )}
-            </div>
-
-            {/* Filters */}
-            <div className="flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap" style={{ borderBottom: '1px solid rgba(35,31,26,0.04)' }}>
-              <FilterSelect value={filterTestament} onChange={v => { setFilterTestament(v); if (v && filterCategory) { const valid = new Set(books.filter(b => b.testament === v).map(b => b.category)); if (!valid.has(filterCategory)) setFilterCategory(''); } }} placeholder="Testament" options={availableTestamentOptions} />
-              <FilterSelect value={filterCategory} onChange={v => { setFilterCategory(v); if (v && filterTestament) { const valid = new Set(books.filter(b => b.category === v).map(b => b.testament)); if (!valid.has(filterTestament)) setFilterTestament(''); } }} placeholder="Category" options={availableCategoryOptions} />
-              <FilterSelect value={filterStatus} onChange={setFilterStatus} placeholder="Status" options={[{ value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'complete', label: 'Complete' }]} />
-              {anyFilterActive && (
-                <button onClick={clearFilters} className="text-xs px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap" style={{ color: 'var(--color-leaf-red)' }}>
-                  Clear filters
-                </button>
-              )}
-              <div className="ml-auto flex gap-1">
-                {(["name", "chapters_read", "percent", "status"] as SortKey[]).map(key => {
-                  const labels: Record<SortKey, string> = { name: "Name", chapters_read: "Chapters", percent: "%", status: "Status" };
-                  return (
-                    <button key={key} onClick={() => handleSort(key)} style={filterStyle(sortKey === key)}>
-                      {labels[key]}{sortIndicator(key)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ── Card grid ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3">
-              {tabFilteredBooks.map((book) => (
-                <BookCard
-                  key={book.name}
-                  book={book}
-                  isSelected={selectedBook?.name === book.name}
-                  onClick={() => {
-                    if (selectedBook?.name !== book.name) setChaptersInput('')
-                    setOpenedFromNav(false)
-                    setSelectedBookName(book.name)
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+      <div className="flex-1 pb-20 md:pb-10 px-4 md:px-6 py-6 mx-auto w-full" style={{ maxWidth: 1100 }}>
+        {openedFromNav && (
+          <button
+            onClick={() => { setOpenedFromNav(false); navigate(-1); }}
+            className="vol-num text-sm mb-3"
+            style={{ color: 'rgba(242,236,221,0.6)' }}
+          >
+            ← Back
+          </button>
         )}
 
-        {/* ── Detail Panel — floats on the starfield ── */}
-        {showDetail && (
-          <div
-            className="flex flex-col w-full md:w-[26rem] shrink-0"
-            style={isMobile ? {
-              // Mobile: full-screen with background since it replaces the grid
-              background: 'rgba(245,248,255,0.94)',
-              backdropFilter: 'blur(28px)',
-              WebkitBackdropFilter: 'blur(28px)',
-              borderRadius: '1.25rem',
-            } : {
-              // Desktop: no box — content floats on the starfield
-              // subtle left separator only
-              paddingLeft: '0.25rem',
-              borderLeft: '1px solid rgba(35,31,26,0.1)',
+        {/* Search + status control row */}
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search books… (/)"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && flatBooks.length > 0) {
+                e.preventDefault();
+                setSelectedBookName(flatBooks[0].name);
+                setChaptersInput('');
+                searchInputRef.current?.blur();
+              }
+            }}
+            className="vol-num text-sm px-3 py-2 flex-1 min-w-[10rem] rounded-md"
+            style={{
+              maxWidth: 320,
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(242,236,221,0.2)',
+              color: 'var(--color-leaf)',
+              outline: 'none',
+            }}
+          />
+          <select
+            value={filterStatus}
+            onChange={e => setFilterStatus(e.target.value)}
+            className="vol-num text-xs px-2 py-2 rounded-md"
+            style={{
+              background: filterStatus ? 'rgba(210,166,63,0.18)' : 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(242,236,221,0.2)',
+              color: filterStatus ? 'var(--color-gilt)' : 'rgba(242,236,221,0.6)',
             }}
           >
-            <div className={`p-6 flex flex-col gap-5 flex-1${!isMobile ? ' md:overflow-y-auto' : ''}`}>
-              {selectedBook ? (
-                <>
-                  {isMobile && (
-                    <button
-                      className="self-start text-sm font-medium mb-1 transition-colors"
-                      style={{ color: 'rgba(35,31,26,0.5)' }}
-                      onClick={() => { if (openedFromNav) { setOpenedFromNav(false); navigate(-1); } else { setSelectedBookName(null); setChaptersInput(''); } }}
-                    >
-                      ← Back
-                    </button>
-                  )}
+            <option value="">Status</option>
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="complete">Complete</option>
+          </select>
+          {(search || filterStatus || testamentFilter) && (
+            <button
+              onClick={() => { setSearch(''); setFilterStatus(''); setTestamentFilter(''); }}
+              className="vol-num text-xs px-2 py-1.5"
+              style={{ color: 'var(--color-leaf-red)' }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
 
-                  {/* Book header — dramatic, full-bleed typography */}
-                  {(() => {
-                    const cat = getCategoryPalette(selectedBook.category);
-                    const isComplete = selectedBook.chapters_read >= selectedBook.num_chapters;
-                    const inProgress = selectedBook.chapters_read > 0 && !isComplete;
-                    const arcColor = isComplete || inProgress ? cat.color : ('rgba(35,31,26,0.45)');
-                    const pct = Math.round(calculateProgress(selectedBook));
+        <VolumeShelf
+          books={books}
+          openCategory={openCategory}
+          flattened={flattened}
+          onSelectCategory={openVolume}
+        />
 
-                    return (
-                      <>
-                        {/* Category row */}
-                        <div className="flex items-center gap-2" style={{ color: cat.dim }}>
-                          <CategoryIcon category={selectedBook.category} size={16} />
-                          <span className="text-sm font-medium" style={{ letterSpacing: '0.04em' }}>
-                            {selectedBook.category}
-                          </span>
-                          <span
-                            className="ml-auto text-xs px-2.5 py-0.5 rounded-full"
-                            style={{
-                              background: 'rgba(35,31,26,0.05)',
-                              color: 'rgba(35,31,26,0.5)',
-                              letterSpacing: '0.05em',
-                              border: '1px solid rgba(35,31,26,0.1)',
-                            }}
-                          >
-                            {selectedBook.testament}
-                          </span>
-                        </div>
-
-                        {/* Book name — LARGE display type with category glow */}
-                        <div>
-                          <h2
-                            className="slab"
-                            style={{
-                              fontSize: 'clamp(1.6rem, 4vw, 2.4rem)',
-                              fontWeight: 700,
-                              color: primaryText,
-                              letterSpacing: '0.04em',
-                              lineHeight: 1.2,
-                              textShadow: `0 0 32px ${cat.glow}, 0 0 64px ${cat.color.replace(',1)', ',0.08)')}`,
-                            }}
-                          >
-                            {selectedBook.name}
-                          </h2>
-                        </div>
-
-                        {/* Progress stats */}
-                        <div className="flex items-baseline gap-3">
-                          <span
-                            className="slab text-4xl font-bold tabular-nums"
-                            style={{ color: arcColor, letterSpacing: '-0.01em' }}
-                          >
-                            {pct}%
-                          </span>
-                          <p className="text-sm" style={{ color: dimText }}>
-                            {selectedBook.chapters_read} of {selectedBook.num_chapters} chapters
-                          </p>
-                          {isComplete && (
-                            <span
-                              className="text-xs px-2 py-0.5 rounded-full w-fit ml-auto"
-                              style={{ background: `${cat.glow}`, color: cat.color, border: `1px solid ${cat.color.replace(',1)', ',0.3)')}` }}
-                            >
-                              Complete
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Chapter progress — the hero: which chapters, not just how many */}
-                        {!isComplete && (
-                          <div>
-                            <span
-                              className="text-xs font-medium uppercase"
-                              style={{ color: cat.dim, letterSpacing: '0.08em' }}
-                            >
-                              Chapter progress
-                            </span>
-                            <SegmentedProgressBar
-                              total={selectedBook.num_chapters}
-                              readChapters={selectedBook.chapters_read_list}
-                              pendingChapters={newChapters}
-                              loggingChapters={loggingChapters}
-                            />
-                          </div>
-                        )}
-
-                        {/* Divider */}
-                        <div style={{ height: 1, background: 'rgba(35,31,26,0.07)' }} />
-
-                        {/* Actions */}
-                        {selectedBook.chapters_read >= selectedBook.num_chapters ? (
-                          <div className="flex flex-col gap-3">
-                            <p className="text-sm font-semibold text-center" style={{ color: cat.color }}>
-                              All {selectedBook.num_chapters} chapters read ✓
-                            </p>
-                            <button
-                              onClick={handleReset}
-                              className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors"
-                              style={resetConfirm.confirming
-                                ? { background: 'rgba(220,60,60,0.18)', border: '1px solid rgba(220,60,60,0.35)', color: 'rgba(240,100,100,0.9)' }
-                                : { background: 'transparent', border: '1px solid rgba(35,31,26,0.12)', color: dimText }
-                              }
-                            >
-                              {resetConfirm.confirming ? 'Confirm reset?' : 'Reset progress'}
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col gap-3">
-                            <div>
-                              <label className="text-sm font-medium block mb-1.5" style={{ color: bodyText }}>
-                                Chapters read
-                              </label>
-                              <input
-                                ref={chaptersInputRef}
-                                type="text"
-                                inputMode="numeric"
-                                placeholder="e.g. 1-5, 7, 10-12"
-                                value={chaptersInput}
-                                onChange={e => setChaptersInput(e.target.value)}
-                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
-                                className="tracker-input w-full px-3 py-2"
-                                style={{ borderColor: inputIsInvalid ? 'rgba(220,80,80,0.4)' : undefined }}
-                                onFocus={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.6)' : 'rgba(35,31,26,0.3)')}
-                                onBlur={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.4)' : 'rgba(35,31,26,0.14)')}
-                              />
-                              <p
-                                className="text-xs mt-1 min-h-[1rem]"
-                                style={{
-                                  color: inputIsInvalid ? 'rgba(240,100,100,0.75)' : nothingNewToLog ? ALREADY_READ_COLOR : dimText,
-                                }}
-                              >
-                                {inputIsInvalid
-                                  ? 'Invalid format — try "1-5" or "3, 7, 12"'
-                                  : nothingNewToLog
-                                    ? `Already read — nothing new to log (${formatChapterList(alreadyRead)})`
-                                    : canSubmit
-                                      ? <>
-                                          {`Will log: ${newChapters.length} chapter${newChapters.length !== 1 ? 's' : ''} (${formatChapterList(newChapters)})`}
-                                          {alreadyRead.length > 0 && (
-                                            <span style={{ color: ALREADY_READ_COLOR }}> · {alreadyRead.length} already read</span>
-                                          )}
-                                        </>
-                                      : ''}
-                              </p>
-                            </div>
-                            <button
-                              onClick={handleSubmit}
-                              disabled={!canSubmit}
-                              className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                              style={{
-                                background: canSubmit
-                                  ? ('rgba(35,31,26,0.1)')
-                                  : 'transparent',
-                                border: '1px solid rgba(35,31,26,0.16)',
-                                color: primaryText,
-                                letterSpacing: '0.06em',
-                              }}
-                            >
-                              Submit
-                            </button>
-
-                            <div className="flex items-center gap-2 pt-1">
-                              <div className="flex-1 h-px" style={{ background: 'rgba(35,31,26,0.07)' }} />
-                              <span className="text-xs select-none" style={{ color: 'rgba(35,31,26,0.22)' }}>other actions</span>
-                              <div className="flex-1 h-px" style={{ background: 'rgba(35,31,26,0.07)' }} />
-                            </div>
-
-                            {selectedBook.chapters_read > 0 && (
-                              <div className="flex gap-2">
-                                {[
-                                  { label: 'Undo', onClick: handleUndo, disabled: !isOnline, confirm: false },
-                                  { label: resetConfirm.confirming ? 'Confirm reset?' : 'Reset', onClick: handleReset, disabled: false, confirm: resetConfirm.confirming },
-                                ].map(({ label, onClick, disabled, confirm }) => (
-                                  <button
-                                    key={label}
-                                    onClick={onClick}
-                                    disabled={disabled}
-                                    className="flex-1 py-2 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                                    style={{
-                                      background: confirm ? 'rgba(220,60,60,0.18)' : 'transparent',
-                                      border: confirm ? '1px solid rgba(220,60,60,0.35)' : '1px solid rgba(35,31,26,0.1)',
-                                      color: confirm ? 'rgba(240,100,100,0.9)' : dimText,
-                                    }}
-                                  >
-                                    {label}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-
-                            {confirmMarkAll.confirming ? (
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={handleMarkAllRead}
-                                  className="flex-1 py-2 rounded-xl font-semibold text-sm transition-colors"
-                                  style={{ background: `${cat.glow}`, border: `1px solid ${cat.color.replace(',1)', ',0.3)')}`, color: cat.color }}
-                                >
-                                  Confirm — all {selectedBook.num_chapters} chapters
-                                </button>
-                                <button
-                                  onClick={() => confirmMarkAll.cancel()}
-                                  className="px-3.5 py-2 rounded-xl text-sm transition-colors"
-                                  style={{ background: 'transparent', border: '1px solid rgba(35,31,26,0.1)', color: dimText }}
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => confirmMarkAll.request()}
-                                className="w-full py-2 rounded-xl text-sm transition-colors"
-                                style={{ background: 'transparent', border: '1px solid rgba(35,31,26,0.1)', color: dimText }}
-                              >
-                                Mark all as read
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full py-12 gap-4">
-                  <span style={{ color: 'rgba(35,31,26,0.3)' }}>
-                    <BookOpenIcon size={48} />
-                  </span>
-                  <div className="text-center">
-                    <p className="text-sm mb-2" style={{ color: dimText }}>
-                      Select a book to begin
-                    </p>
-                    <p
-                      className="italic"
-                      style={{
-                        color: 'rgba(35,31,26,0.4)',
-                        fontSize: 16,
-                        lineHeight: 1.5,
-                        maxWidth: '18rem',
-                      }}
-                    >
-                      "Your word is a lamp to my feet and a light to my path"
-                      <br />
-                      <span style={{ fontSize: 13, opacity: 0.7 }}>— Psalm 119:105</span>
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
+        {(openCategory || flattened) && (
+          <>
+            <ContentsLeaf
+              heading={leafHeading}
+              romanNumeral={!flattened && openIndex >= 0 ? ROMAN[openIndex + 1] : null}
+              topBorder={leafCloth}
+              books={visibleBooks}
+              selectedBookName={selectedBookName}
+              onSelectBook={(name) => { setSelectedBookName(name); setChaptersInput(''); setOpenedFromNav(false); }}
+              summary={leafSummary}
+            />
+            {visibleBooks.length > 0 && (
+              <div
+                style={{
+                  padding: '0 clamp(20px, 3.4vw, 46px) clamp(20px, 3.4vw, 46px)',
+                  background: 'var(--color-leaf)',
+                  borderRadius: '0 0 0.5rem 0.5rem',
+                  marginTop: -1,
+                }}
+              >
+                <TrackerEntryLine
+                  book={selectedBook}
+                  cloth={entryCloth}
+                  chaptersInput={chaptersInput}
+                  onChaptersInputChange={setChaptersInput}
+                  inputRef={chaptersInputRef}
+                  inputIsInvalid={inputIsInvalid}
+                  invalidMessage={selectedBook ? invalidChaptersMessage(selectedBook.name, selectedBook.num_chapters) : ''}
+                  nothingNewToLog={nothingNewToLog}
+                  alreadyReadMessage={`Already read — nothing new to log (${formatChapterList(alreadyRead)})`}
+                  newChapters={newChapters}
+                  canSubmit={canSubmit}
+                  onSubmit={handleSubmit}
+                  loggingChapters={loggingChapters}
+                  isOnline={isOnline}
+                  onUndo={handleUndo}
+                  resetConfirm={resetConfirm}
+                  onReset={handleReset}
+                  markAllConfirm={confirmMarkAll}
+                  onMarkAllRead={handleMarkAllRead}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
-
     </div>
   );
 }

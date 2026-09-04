@@ -87,6 +87,13 @@ body {
   letter-spacing: 0.01em;
 }
 
+/* Archivo with tabular numerals — volume numbers, chapter counts, labels: anywhere a
+   figure needs to sit still against its neighbours rather than shift with proportional widths. */
+.vol-num {
+  font-family: 'Archivo', sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
 /* Tracker's search and chapter-entry fields. Tracker sets borderColor inline on
    focus/blur and for the invalid state, so an inline style beats this class. */
 .tracker-input {

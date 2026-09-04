@@ -8,7 +8,6 @@ import './index.css'
 import App from './App.tsx'
 import { AuthProvider } from './lib/AuthContext'
 import { SyncProvider } from './lib/SyncContext'
-import { ThemeProvider } from './lib/ThemeContext'
 import {
   queryClient,
   persister,
@@ -46,9 +45,7 @@ function render(): void {
           <BrowserRouter>
             <AuthProvider>
               <SyncProvider>
-                <ThemeProvider>
-                  <App />
-                </ThemeProvider>
+                <App />
               </SyncProvider>
             </AuthProvider>
           </BrowserRouter>

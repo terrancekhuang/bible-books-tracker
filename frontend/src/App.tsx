@@ -9,7 +9,6 @@ import Tracker from './components/Tracker'
 import Dashboard from './Dashboard'
 import PWAInstallModal from './components/PWAInstallModal'
 import { shouldShowPWAPrompt } from './lib/pwa'
-import CelestialBackground from './components/CelestialBackground'
 
 export default function App() {
   const { jwt } = useAuth()
@@ -89,7 +88,6 @@ export default function App() {
 
   return (
     <>
-      {jwt && <CelestialBackground />}
       <Routes>
         <Route
           path="/login"
@@ -112,21 +110,21 @@ export default function App() {
 
       {showUpdateBanner && (
         <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-between gap-4 px-4 py-3 text-sm"
-          style={{ background: 'rgba(10,18,50,0.97)', borderTop: '1px solid rgba(150,175,255,0.2)', color: 'rgba(195,210,255,0.9)' }}
+          style={{ background: 'var(--color-shelf)', borderTop: '1px solid var(--color-shelf-lit)', color: 'var(--color-leaf)' }}
         >
           <span>A new version is available.</span>
           <div className="flex gap-2">
             <button
               onClick={() => { updateSwRef.current?.(true); }}
               className="px-3 py-1 rounded font-medium text-xs"
-              style={{ background: 'rgba(99,102,241,0.8)', color: '#fff' }}
+              style={{ background: 'var(--color-gilt)', color: 'var(--color-shelf)' }}
             >
               Reload
             </button>
             <button
               onClick={() => setShowUpdateBanner(false)}
               className="px-3 py-1 rounded text-xs"
-              style={{ background: 'rgba(150,175,255,0.1)', color: 'rgba(195,210,255,0.7)' }}
+              style={{ background: 'var(--color-shelf-lit)', color: 'rgba(242,236,221,0.7)' }}
             >
               Dismiss
             </button>
@@ -141,11 +139,9 @@ export default function App() {
           aria-label="Show keyboard shortcuts"
           className="fixed bottom-20 md:bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full shadow-lg transition-all select-none font-bold text-sm"
           style={{
-            background: 'rgba(13,21,51,0.7)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(150,175,255,0.18)',
-            color: 'rgba(195,210,255,0.7)',
+            background: 'var(--color-shelf)',
+            border: '1px solid var(--color-shelf-lit)',
+            color: 'var(--color-gilt)',
           }}
         >
           ?
@@ -155,29 +151,28 @@ export default function App() {
       {jwt && showHelp && !isMobile && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ background: 'rgba(3,8,16,0.65)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+          style={{ background: 'rgba(0,0,0,0.55)' }}
           onClick={() => setShowHelp(false)}
         >
           <div
             className="rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4"
             style={{
-              background: 'rgba(10,18,50,0.96)',
-              backdropFilter: 'blur(32px)',
-              WebkitBackdropFilter: 'blur(32px)',
-              border: '1px solid rgba(150,175,255,0.22)',
+              background: 'var(--color-shelf)',
+              border: '1px solid var(--color-shelf-lit)',
             }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
               <h2
-                className="font-cinzel text-base font-semibold text-[#dde6ff]"
-                style={{ letterSpacing: '0.06em' }}
+                className="slab text-base font-semibold"
+                style={{ letterSpacing: '0.06em', color: 'var(--color-gilt)' }}
               >
                 Keyboard Shortcuts
               </h2>
               <button
                 onClick={() => setShowHelp(false)}
-                className="text-[rgba(150,175,255,0.5)] hover:text-[rgba(195,210,255,0.9)] text-xl leading-none transition-colors"
+                className="text-xl leading-none transition-colors"
+                style={{ color: 'rgba(242,236,221,0.5)' }}
               >
                 ×
               </button>
@@ -201,7 +196,7 @@ export default function App() {
                 { keys: ['?'], description: 'Show / hide this help' },
               ] as { keys: string[] | null; altKeys?: string[]; description: string }[]).map(({ keys, altKeys, description }, i) => (
                 keys === null
-                  ? <div key={i} className="border-t my-1" style={{ borderColor: 'rgba(150,175,255,0.1)' }} />
+                  ? <div key={i} className="border-t my-1" style={{ borderColor: 'var(--color-shelf-lit)' }} />
                   : (
                     <div key={description} className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
@@ -209,19 +204,19 @@ export default function App() {
                           <kbd
                             key={k}
                             className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-xs font-mono min-w-[1.5rem]"
-                            style={{ background: 'rgba(150,175,255,0.1)', border: '1px solid rgba(150,175,255,0.2)', color: 'rgba(195,210,255,0.85)' }}
+                            style={{ background: 'var(--color-shelf-lit)', border: '1px solid rgba(210,166,63,0.3)', color: 'var(--color-leaf)' }}
                           >
                             {k}
                           </kbd>
                         ))}
                         {altKeys && (
                           <>
-                            <span className="text-xs px-0.5" style={{ color: 'rgba(150,175,255,0.35)' }}>/</span>
+                            <span className="text-xs px-0.5" style={{ color: 'rgba(242,236,221,0.35)' }}>/</span>
                             {altKeys.map(k => (
                               <kbd
                                 key={k}
                                 className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-xs font-mono min-w-[1.5rem]"
-                                style={{ background: 'rgba(150,175,255,0.1)', border: '1px solid rgba(150,175,255,0.2)', color: 'rgba(195,210,255,0.85)' }}
+                                style={{ background: 'var(--color-shelf-lit)', border: '1px solid rgba(210,166,63,0.3)', color: 'var(--color-leaf)' }}
                               >
                                 {k}
                               </kbd>
@@ -229,11 +224,11 @@ export default function App() {
                           </>
                         )}
                       </div>
-                      <span className="text-sm" style={{ color: 'rgba(195,210,255,0.6)' }}>{description}</span>
+                      <span className="text-sm" style={{ color: 'rgba(242,236,221,0.6)' }}>{description}</span>
                     </div>
                   )
               ))}
-              <p className="text-xs pt-1" style={{ color: 'rgba(150,175,255,0.35)' }}>Book navigation shortcuts work on the Tracker page.</p>
+              <p className="text-xs pt-1" style={{ color: 'rgba(242,236,221,0.35)' }}>Book navigation shortcuts work on the Tracker page.</p>
             </div>
           </div>
         </div>

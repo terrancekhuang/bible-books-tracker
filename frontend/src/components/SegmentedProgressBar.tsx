@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useTheme } from '../lib/ThemeContext'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 import { buildChapterRuns, type SegmentState } from '../lib/trackerLogic'
 
@@ -27,7 +26,6 @@ export default function SegmentedProgressBar({
   pendingChapters = EMPTY,
   loggingChapters = EMPTY,
 }: SegmentedProgressBarProps) {
-  const { isDark } = useTheme()
   const reducedMotion = usePrefersReducedMotion()
   const readSet = useMemo(() => new Set(readChapters), [readChapters]);
   const barRef = useRef<HTMLDivElement>(null);
@@ -40,18 +38,16 @@ export default function SegmentedProgressBar({
   // One hue throughout — pending is the read fill at roughly half strength, so it reads as
   // "this much, not yet committed" rather than as a separate kind of thing. A logging run
   // starts from the pending shade and has the read fill wiped over it.
-  const READ = isDark ? 'rgba(150,175,255,0.85)' : 'rgba(13,21,51,0.65)';
-  const PENDING = isDark ? 'rgba(150,175,255,0.38)' : 'rgba(13,21,51,0.28)';
+  const READ = 'rgba(35,31,26,0.65)';
+  const PENDING = 'rgba(35,31,26,0.28)';
   const background: Record<SegmentState, string> = {
     read: READ,
     // Mid-wipe the run is painted entirely by its two clipped children, so it stays bare.
     logging: reducedMotion ? READ : 'transparent',
     pending: PENDING,
-    unread: isDark ? 'rgba(150,175,255,0.1)' : 'rgba(13,21,51,0.08)',
+    unread: 'rgba(35,31,26,0.08)',
   };
-  // The travelling light leans toward `read`, which means brighter on dark and darker on
-  // light. A white sheen is invisible on the light theme, where the read fill is navy.
-  const sheen = isDark ? 'rgba(215,230,255,0.55)' : 'rgba(13,21,51,0.42)';
+  const sheen = 'rgba(35,31,26,0.42)';
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!barRef.current) return;
@@ -132,11 +128,9 @@ export default function SegmentedProgressBar({
           className="fixed text-xs px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap z-50"
           style={{
             left: tooltip.x, top: tooltip.y - 28, transform: 'translateX(-50%)',
-            background: 'rgba(13,21,51,0.92)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(150,175,255,0.18)',
-            color: 'rgba(195,210,255,0.9)',
+            background: 'var(--color-shelf)',
+            border: '1px solid var(--color-shelf-lit)',
+            color: 'var(--color-leaf)',
           }}
         >
           Ch. {tooltip.chapter} {readSet.has(tooltip.chapter) ? '· ✓' : ''}

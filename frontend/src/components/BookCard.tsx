@@ -1,4 +1,3 @@
-import { useTheme } from '../lib/ThemeContext'
 import { CategoryIcon } from './Icons'
 import { getCategoryPalette } from '../lib/categoryColors'
 import { calculateProgress } from '../lib/trackerLogic'
@@ -22,18 +21,17 @@ interface BookCardProps {
   variant?: 'grid' | 'row'
 }
 
+const primaryText = 'var(--color-ink)'
+const dimText = 'rgba(35,31,26,0.55)'
+
 export default function BookCard({ book, isSelected = false, onClick, variant = 'grid' }: BookCardProps) {
-  const { isDark, colors } = useTheme()
-  const { primaryText, dimText } = colors
   const cat = getCategoryPalette(book.category)
 
   const isComplete = book.chapters_read >= book.num_chapters
   const inProgress = book.chapters_read > 0 && !isComplete
   const pct = calculateProgress(book)
 
-  const cardBg = isDark
-    ? `radial-gradient(ellipse at 90% 5%, ${cat.glow} 0%, transparent 62%), rgba(8,13,34,0.72)`
-    : `radial-gradient(ellipse at 90% 5%, ${cat.glow} 0%, transparent 62%), rgba(245,248,255,0.82)`
+  const cardBg = `radial-gradient(ellipse at 90% 5%, ${cat.glow} 0%, transparent 62%), rgba(245,248,255,0.82)`
 
   const cardBorder = isSelected
     ? `2px solid ${cat.color.replace(',1)', ',0.8)')}`
@@ -41,9 +39,7 @@ export default function BookCard({ book, isSelected = false, onClick, variant = 
       ? `1px solid ${cat.color.replace(',1)', ',0.35)')}`
       : inProgress
         ? `1px solid ${cat.color.replace(',1)', ',0.22)')}`
-        : isDark
-          ? '1px solid rgba(150,175,255,0.12)'
-          : '1px solid rgba(100,130,255,0.15)'
+        : '1px solid rgba(35,31,26,0.15)'
 
   const cardShadow = isSelected
     ? `0 0 0 1px ${cat.color.replace(',1)', ',0.18)')}, 0 8px 32px ${cat.glow}`
@@ -53,7 +49,7 @@ export default function BookCard({ book, isSelected = false, onClick, variant = 
 
   const arcColor = isComplete || inProgress
     ? cat.color
-    : isDark ? 'rgba(150,175,255,0.4)' : 'rgba(100,130,255,0.4)'
+    : 'rgba(35,31,26,0.4)'
 
   return (
     <div
@@ -84,7 +80,7 @@ export default function BookCard({ book, isSelected = false, onClick, variant = 
           </p>
         </div>
         <p
-          className={`font-cinzel font-semibold leading-snug ${variant === 'grid' ? 'text-[11px] sm:text-[13px]' : 'text-[15px] sm:text-[17px]'}`}
+          className={`slab font-semibold leading-snug ${variant === 'grid' ? 'text-[11px] sm:text-[13px]' : 'text-[15px] sm:text-[17px]'}`}
           style={{
             color: primaryText,
             letterSpacing: variant === 'row' ? '0.02em' : 0,
@@ -106,7 +102,6 @@ export default function BookCard({ book, isSelected = false, onClick, variant = 
           read={book.chapters_read}
           size={variant === 'row' ? 48 : 40}
           strokeWidth={variant === 'row' ? 3.5 : 3}
-          isDark={isDark}
         />
       </div>
     </div>

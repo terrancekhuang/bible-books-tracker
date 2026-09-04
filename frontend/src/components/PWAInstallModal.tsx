@@ -57,8 +57,8 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
         aria-label="Install app"
         style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1001,
-          background: 'linear-gradient(160deg, #0d1533 0%, #060c1e 100%)',
-          border: '1px solid rgba(150,175,255,0.12)',
+          background: 'linear-gradient(160deg, var(--color-shelf-lit) 0%, var(--color-shelf) 100%)',
+          border: '1px solid var(--color-shelf-lit)',
           borderBottom: 'none',
           borderRadius: '20px 20px 0 0',
           padding: '1.5rem 1.5rem 2rem',
@@ -73,7 +73,7 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
         {/* drag handle */}
         <div style={{
           width: 36, height: 4, borderRadius: 2,
-          background: 'rgba(150,175,255,0.2)',
+          background: 'rgba(242,236,221,0.2)',
           alignSelf: 'center', marginBottom: '0.25rem',
         }} />
 
@@ -81,9 +81,10 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
           <div style={{
             width: 48, height: 48, borderRadius: 12, flexShrink: 0,
             background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(150,175,255,0.15)',
+            border: '1px solid rgba(210,166,63,0.3)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '1.5rem',
+            color: 'var(--color-gilt)',
           }}>
             ✦
           </div>
@@ -92,7 +93,7 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
               margin: 0,
               fontWeight: 600,
               fontSize: '1rem',
-              color: '#dde6ff',
+              color: 'var(--color-leaf)',
               letterSpacing: '0.02em',
             }}>
               Add to Home Screen
@@ -101,7 +102,7 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
               margin: '0.25rem 0 0',
               fontWeight: 300,
               fontSize: '0.8rem',
-              color: 'rgba(150,175,255,0.55)',
+              color: 'rgba(242,236,221,0.55)',
               lineHeight: 1.5,
             }}>
               Install Bible Books Tracker for quick access and a better experience.
@@ -111,7 +112,7 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
 
         <div style={{
           background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(150,175,255,0.09)',
+          border: '1px solid rgba(242,236,221,0.09)',
           borderRadius: 12,
           padding: '0.9rem 1rem',
           display: 'flex',
@@ -120,9 +121,9 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
         }}>
           {platform === 'ios' ? (
             <>
-              <Step n={1} text={<>Tap the <ShareIcon /> <strong style={{ color: '#dde6ff' }}>Share</strong> button in Safari's toolbar</>} />
-              <Step n={2} text={<>Scroll down and tap <strong style={{ color: '#dde6ff' }}>"Add to Home Screen"</strong></>} />
-              <Step n={3} text={<>Tap <strong style={{ color: '#dde6ff' }}>"Add"</strong> in the top-right corner</>} />
+              <Step n={1} text={<>Tap the <ShareIcon /> <strong style={{ color: 'var(--color-leaf)' }}>Share</strong> button in Safari's toolbar</>} />
+              <Step n={2} text={<>Scroll down and tap <strong style={{ color: 'var(--color-leaf)' }}>"Add to Home Screen"</strong></>} />
+              <Step n={3} text={<>Tap <strong style={{ color: 'var(--color-leaf)' }}>"Add"</strong> in the top-right corner</>} />
             </>
           ) : (
             <>
@@ -130,12 +131,12 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
                 margin: '0 0 0.1rem',
                 fontWeight: 400,
                 fontSize: '0.75rem',
-                color: 'rgba(150,175,255,0.5)',
+                color: 'rgba(242,236,221,0.5)',
                 lineHeight: 1.5,
-              }}>Works best in <strong style={{ color: 'rgba(150,175,255,0.75)' }}>Google Chrome</strong></p>
-              <Step n={1} text={<>Tap the <MenuIcon /> <strong style={{ color: '#dde6ff' }}>menu</strong> in your browser</>} />
-              <Step n={2} text={<>Tap <strong style={{ color: '#dde6ff' }}>"Add to Home Screen"</strong> or <strong style={{ color: '#dde6ff' }}>"Install App"</strong></>} />
-              <Step n={3} text={<>Tap <strong style={{ color: '#dde6ff' }}>"Install"</strong> to confirm</>} />
+              }}>Works best in <strong style={{ color: 'rgba(242,236,221,0.75)' }}>Google Chrome</strong></p>
+              <Step n={1} text={<>Tap the <MenuIcon /> <strong style={{ color: 'var(--color-leaf)' }}>menu</strong> in your browser</>} />
+              <Step n={2} text={<>Tap <strong style={{ color: 'var(--color-leaf)' }}>"Add to Home Screen"</strong> or <strong style={{ color: 'var(--color-leaf)' }}>"Install App"</strong></>} />
+              <Step n={3} text={<>Tap <strong style={{ color: 'var(--color-leaf)' }}>"Install"</strong> to confirm</>} />
             </>
           )}
         </div>
@@ -148,9 +149,9 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
                 flex: 1,
                 padding: '0.7rem',
                 borderRadius: 10,
-                border: '1px solid rgba(150,175,255,0.25)',
-                background: 'rgba(70,100,255,0.18)',
-                color: '#c8d8ff',
+                border: '1px solid rgba(210,166,63,0.4)',
+                background: 'var(--color-gilt)',
+                color: 'var(--color-shelf)',
                 fontWeight: 600,
                 fontSize: '0.85rem',
                 letterSpacing: '0.04em',
@@ -166,9 +167,9 @@ export default function PWAInstallModal({ onDismiss }: PWAInstallModalProps) {
               flex: platform === 'android' && hasInstallPrompt ? '0 0 auto' : 1,
               padding: '0.7rem 1.2rem',
               borderRadius: 10,
-              border: '1px solid rgba(150,175,255,0.1)',
+              border: '1px solid rgba(242,236,221,0.1)',
               background: 'rgba(255,255,255,0.03)',
-              color: 'rgba(150,175,255,0.5)',
+              color: 'rgba(242,236,221,0.5)',
               fontWeight: 400,
               fontSize: '0.85rem',
               cursor: 'pointer',

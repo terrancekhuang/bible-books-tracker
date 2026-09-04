@@ -1,7 +1,16 @@
 @import "tailwindcss";
-@plugin "daisyui";
 
-@variant dark (&:is(.dark *));
+@theme {
+  --color-shelf: #2A231C;
+  --color-shelf-lit: #4A3B2C;
+  --color-leaf: #F2ECDD;
+  --color-leaf-rule: #B6A98E;
+  --color-leaf-red: #9E2A22;
+  --color-ink: #231F1A;
+  --color-gilt: #D2A63F;
+  --font-slab: 'Bevan', serif;
+  --font-body: 'Archivo', sans-serif;
+}
 
 /* Tailwind v4's preflight dropped v3's default `cursor: pointer` on <button>, so every
    native button in the app needs it restored here rather than one utility class at a time. */
@@ -12,6 +21,21 @@
   button:disabled {
     cursor: not-allowed;
   }
+}
+
+/* Browser surfaces, themed to the Volumes world. */
+::selection {
+  background: var(--color-gilt);
+  color: var(--color-shelf);
+}
+html {
+  caret-color: var(--color-gilt);
+  scrollbar-color: var(--color-shelf-lit) #17120E;
+  scrollbar-width: thin;
+}
+:where(button, a, input, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-gilt);
+  outline-offset: 2px;
 }
 
 @keyframes ring-ripple {
@@ -52,82 +76,36 @@
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 
-@keyframes nebulaDrift1 {
-  0%, 100% { transform: translate(0,0) scale(1) rotate(0deg); }
-  33%       { transform: translate(50px,-40px) scale(1.12) rotate(18deg); }
-  66%       { transform: translate(-25px,25px) scale(0.93) rotate(-12deg); }
+body {
+  font-family: 'Archivo', sans-serif;
 }
 
-@keyframes nebulaDrift2 {
-  0%, 100% { transform: translate(0,0) scale(1) rotate(0deg); }
-  40%       { transform: translate(-60px,50px) scale(1.08) rotate(-22deg); }
-  70%       { transform: translate(35px,-15px) scale(1.12) rotate(14deg); }
+/* Bevan: display type — the running head, page headings, volume/book titles, stat values. */
+.slab {
+  font-family: 'Bevan', serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
 
-@keyframes nebulaDrift3 {
-  0%, 100% { transform: translate(0,0) scale(1); }
-  50%       { transform: translate(30px,40px) scale(1.1); }
-}
-
-/* Glassmorphism card — light and dark */
-.glass-card {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(100, 130, 255, 0.14);
-  border-radius: 1rem;
-}
-.dark .glass-card {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(150, 175, 255, 0.22);
-}
-
-/* Subtle input inside glass.
-   Tracker sets borderColor inline on focus/blur and for the invalid state; an inline
-   style beats a class, so those keep working without !important anywhere. */
-.glass-input {
+/* Tracker's search and chapter-entry fields. Tracker sets borderColor inline on
+   focus/blur and for the invalid state, so an inline style beats this class. */
+.tracker-input {
   background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(100, 130, 255, 0.2);
+  border: 1px solid rgba(35, 31, 26, 0.14);
   border-radius: 0.5rem;
-  color: #0d1533;
-  font-family: 'Raleway', sans-serif;
+  color: var(--color-ink);
   outline: none;
 }
-.dark .glass-input {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(150, 175, 255, 0.22);
-  color: #dde6ff;
-}
 
-/* The label above a card section — "WEEKLY GOAL", "ACHIEVEMENTS", "READING RHYTHM".
-   One definition; Dashboard, Profile and ReadingRhythm all read the same role from it. */
-.section-label {
-  font-family: 'Raleway', sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: rgba(13, 21, 51, 0.5);
+/* The confirmation dialog on Profile (Start New Cycle) uses the native <dialog> element
+   directly now that DaisyUI's `.modal`/`.modal-box` are gone — this restores the centering
+   and backdrop dimming DaisyUI used to provide. */
+dialog.cycle-dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: none;
 }
-.dark .section-label {
-  color: rgba(150, 175, 255, 0.65);
+dialog.cycle-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
 }
-
-/* Raleway is the app's voice. It was named explicitly at 75 of 91 font declarations
-   before it became the default here; the two exceptions below say so for themselves. */
-body {
-  font-family: 'Raleway', sans-serif;
-}
-
-/* Cinzel: hero and decorative type only — page headings, the percentage in the ring,
-   book names, stat values. Not for body copy. */
-.font-cinzel { font-family: 'Cinzel', serif; }
-
-/* Cormorant Garamond, italic: the quiet aside — "when you read", the pace projection. */
-.font-cormorant { font-family: 'Cormorant Garamond', serif; }
-.serif-note {
-  font-family: 'Cormorant Garamond', serif;
-  font-style: italic;
-  font-size: 15px;
-}
-

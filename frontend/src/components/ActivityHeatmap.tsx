@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
-import { useTheme } from '../lib/ThemeContext'
 
 function isTouchDevice() {
   return typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
@@ -12,20 +11,12 @@ export interface ActivityDay {
   chapters: number
 }
 
-const LEGEND_STYLES_DARK: CSSProperties[] = [
-  { background: 'rgba(150,175,255,0.07)' },
-  { background: 'rgba(120,155,255,0.28)' },
-  { background: 'rgba(130,170,255,0.52)' },
-  { background: 'rgba(145,180,255,0.78)' },
-  { background: 'rgba(130,160,255,1.0)' },
-]
-
-const LEGEND_STYLES_LIGHT: CSSProperties[] = [
-  { background: 'rgba(100,130,255,0.08)' },
-  { background: 'rgba(80,110,220,0.25)' },
-  { background: 'rgba(70,100,210,0.50)' },
-  { background: 'rgba(60,90,220,0.72)' },
-  { background: 'rgba(60,90,220,0.9)' },
+const LEGEND_STYLES: CSSProperties[] = [
+  { background: 'rgba(210,166,63,0.1)' },
+  { background: 'rgba(210,166,63,0.32)' },
+  { background: 'rgba(210,166,63,0.55)' },
+  { background: 'rgba(210,166,63,0.78)' },
+  { background: 'rgba(210,166,63,1.0)' },
 ]
 
 function intensityStyle(chapters: number, isFuture: boolean, styles: CSSProperties[]): CSSProperties {
@@ -38,9 +29,8 @@ function intensityStyle(chapters: number, isFuture: boolean, styles: CSSProperti
 }
 
 export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
-  const { isDark } = useTheme()
-  const legendStyles = isDark ? LEGEND_STYLES_DARK : LEGEND_STYLES_LIGHT
-  const labelColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(60,90,180,0.45)'
+  const legendStyles = LEGEND_STYLES
+  const labelColor = 'rgba(35,31,26,0.45)'
 
   const containerRef = useRef<HTMLDivElement>(null)
   const [tapped, setTapped] = useState<{
@@ -183,9 +173,9 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
               whiteSpace: 'nowrap',
               padding: '4px 8px',
               fontSize: 11,
-              background: isDark ? '#1f2430' : '#ffffff',
-              color: isDark ? '#e5e9f5' : '#1f2430',
-              border: isDark ? '1px solid rgba(150,175,255,0.2)' : '1px solid rgba(60,90,180,0.15)',
+              background: '#ffffff',
+              color: 'var(--color-ink)',
+              border: '1px solid rgba(35,31,26,0.15)',
             }}
           >
             {tapped.text}

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useTheme } from '../lib/ThemeContext'
 import { useRhythmQuery } from '../lib/queries'
 import {
   PART_LABELS,
@@ -17,25 +16,27 @@ const WINDOW_OPTIONS: { key: RhythmWindowKey; label: string }[] = [
   { key: 'all_time', label: 'All time' },
 ]
 
+const primaryText = 'var(--color-ink)'
+const dimText = 'rgba(35,31,26,0.55)'
+const bodyText = 'rgba(35,31,26,0.78)'
+const trackBg = 'rgba(35,31,26,0.1)'
+
 /**
  * When the reader reads: chapters by local weekday, a smaller part-of-day strip, and one
  * plain-language sentence so the charts never need interpreting.
  *
- * Card chrome and the section label come from `.glass-card` / `.section-label` in index.css,
- * the same classes every other card section uses — so this stays visually identical to its
- * neighbours without either side passing styles to the other.
+ * Card chrome and the section label come from `.rhythm-card` / `.rhythm-label` below,
+ * the same look every other card section uses.
  */
 export default function ReadingRhythm() {
-  const { isDark, colors } = useTheme()
-  const { primaryText, dimText, bodyText, trackBg } = colors
   // Opens on the recent window: a rhythm the reader still has is more use than one averaged
   // over years they may have outgrown. All time is one click away, and costs no request.
   const [windowKey, setWindowKey] = useState<RhythmWindowKey>('last_90_days')
   const { data, isPending, isError } = useRhythmQuery()
 
-  const strongBar = isDark ? 'rgba(150,175,255,0.72)' : 'rgba(13,21,51,0.55)'
-  const weakBar = isDark ? 'rgba(150,175,255,0.3)' : 'rgba(13,21,51,0.22)'
-  const partBar = isDark ? 'rgba(200,185,100,0.72)' : 'rgba(140,100,20,0.6)'
+  const strongBar = 'rgba(35,31,26,0.55)'
+  const weakBar = 'rgba(35,31,26,0.22)'
+  const partBar = 'rgba(210,166,63,0.72)'
 
   // The whole account is empty, not just the selected window — an invitation, not bars.
   const noDataAtAll = !!data && data.all_time.total_chapters === 0
@@ -44,18 +45,15 @@ export default function ReadingRhythm() {
   const heading = (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="section-label mb-1">Reading Rhythm</h2>
-        <p className="serif-note" style={{ color: dimText }}>when you read</p>
+        <h2 className="text-[10px] font-semibold uppercase mb-1" style={{ letterSpacing: '0.3em', color: dimText }}>Reading Rhythm</h2>
+        <p className="italic" style={{ color: dimText, fontSize: 15 }}>when you read</p>
       </div>
 
       {/* Hidden while there is nothing to compare between the two windows. */}
       {data && !noDataAtAll && (
         <div
           className="flex shrink-0 rounded-lg p-0.5"
-          style={{
-            background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.45)',
-            border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(13,21,51,0.1)',
-          }}
+          style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(35,31,26,0.1)' }}
         >
           {WINDOW_OPTIONS.map(({ key, label }) => {
             const selected = key === windowKey
@@ -66,7 +64,7 @@ export default function ReadingRhythm() {
                 aria-pressed={selected}
                 className="text-xs px-2.5 py-1 rounded-md transition-all whitespace-nowrap"
                 style={{
-                  background: selected ? (isDark ? 'rgba(150,175,255,0.2)' : 'rgba(13,21,51,0.1)') : 'transparent',
+                  background: selected ? 'rgba(35,31,26,0.1)' : 'transparent',
                   color: selected ? primaryText : dimText,
                   fontWeight: selected ? 600 : 400,
                 }}
@@ -81,7 +79,7 @@ export default function ReadingRhythm() {
   )
 
   return (
-    <div className="glass-card p-5">
+    <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)' }}>
       {heading}
 
       <div className="mt-3">
@@ -140,7 +138,7 @@ export default function ReadingRhythm() {
 
               <div
                 className="flex flex-col gap-1.5 mt-4 pt-4"
-                style={{ borderTop: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.08)' }}
+                style={{ borderTop: '1px solid rgba(35,31,26,0.08)' }}
               >
                 {PART_ORDER.map(part => {
                   const count = active.by_part_of_day[part]
@@ -162,7 +160,7 @@ export default function ReadingRhythm() {
               </div>
 
               {sentence && (
-                <p className="serif-note mt-4" style={{ color: bodyText }}>
+                <p className="italic mt-4" style={{ color: bodyText, fontSize: 15 }}>
                   {sentence}
                 </p>
               )}

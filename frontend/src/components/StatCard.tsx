@@ -2,24 +2,25 @@ import type { ReactNode } from 'react'
 
 export default function StatCard({ label, value, icon }: { label: string; value: string | number; icon?: ReactNode }) {
   return (
-    <div className="glass-card p-5 flex flex-col gap-3">
+    <div
+      className="rounded-2xl p-5 flex flex-col gap-3"
+      style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)' }}
+    >
       {icon && (
         <div
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-[rgba(80,110,220,0.7)] dark:text-[rgba(170,195,255,0.75)]"
-          style={{ background: 'rgba(100,130,255,0.1)' }}
+          className="w-9 h-9 rounded-xl flex items-center justify-center"
+          style={{ background: 'rgba(210,166,63,0.14)', color: 'var(--color-gilt)' }}
         >
           {icon}
         </div>
       )}
       <div>
-        <p
-          className="text-xs font-medium uppercase tracking-widest text-[rgba(13,21,51,0.48)] dark:text-[rgba(150,175,255,0.58)]"
-        >
+        <p className="text-xs font-medium uppercase tracking-widest" style={{ color: 'rgba(35,31,26,0.48)' }}>
           {label}
         </p>
         <p
-          className="font-cinzel text-2xl font-bold mt-0.5 text-[#0d1533] dark:text-[#dde6ff]"
-          style={{ letterSpacing: '0.02em' }}
+          className="slab text-2xl font-bold mt-0.5"
+          style={{ letterSpacing: '0.02em', color: 'var(--color-ink)' }}
         >
           {value}
         </p>

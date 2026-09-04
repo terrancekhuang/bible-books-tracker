@@ -1,19 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
-import { useTheme } from '../lib/ThemeContext'
 
 interface UserMenuProps {
   pictureUrl?: string | null
   userName?: string | null
-  showProfileLink?: boolean
 }
 
-export default function UserMenu({ pictureUrl, userName, showProfileLink = true }: UserMenuProps) {
+export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
   const { logout } = useAuth()
-  const { isDark } = useTheme()
   const [open, setOpen] = useState(false)
-  const navigate = useNavigate()
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -34,7 +29,7 @@ export default function UserMenu({ pictureUrl, userName, showProfileLink = true 
       <button
         onClick={() => setOpen(o => !o)}
         className="w-8 h-8 rounded-full overflow-hidden transition-opacity hover:opacity-80"
-        style={{ outline: 'none', boxShadow: open ? `0 0 0 2px ${isDark ? 'rgba(150,175,255,0.5)' : 'rgba(13,21,51,0.25)'}` : 'none' }}
+        style={{ outline: 'none', boxShadow: open ? '0 0 0 2px rgba(210,166,63,0.6)' : 'none' }}
         title="Account"
         aria-label="Account menu"
         aria-expanded={open}
@@ -44,10 +39,7 @@ export default function UserMenu({ pictureUrl, userName, showProfileLink = true 
         ) : (
           <div
             className="w-full h-full flex items-center justify-center text-sm font-bold"
-            style={{
-              background: isDark ? 'rgba(150,175,255,0.15)' : 'rgba(13,21,51,0.1)',
-              color: isDark ? '#aabfff' : '#0d1533',
-            }}
+            style={{ background: 'var(--color-shelf-lit)', color: 'var(--color-gilt)' }}
           >
             {initials}
           </div>
@@ -56,34 +48,17 @@ export default function UserMenu({ pictureUrl, userName, showProfileLink = true 
 
       {open && (
         <div
-          className="absolute right-0 mt-2 w-44 rounded-xl py-1 z-50"
+          className="absolute right-0 mt-2 w-40 rounded-xl py-1 z-50"
           style={{
-            background: isDark ? 'rgba(13,21,51,0.92)' : 'rgba(250,244,228,0.95)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(180,140,60,0.18)',
-            boxShadow: isDark ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.12)',
+            background: 'var(--color-shelf)',
+            border: '1px solid var(--color-shelf-lit)',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           }}
         >
-          {showProfileLink && (
-            <button
-              className="w-full text-left px-4 py-2 text-sm transition-colors"
-              style={{
-                color: isDark ? 'rgba(195,210,255,0.8)' : 'rgba(13,21,51,0.8)',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.05)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-              onClick={() => { setOpen(false); navigate('/profile') }}
-            >
-              Profile
-            </button>
-          )}
           <button
             className="w-full text-left px-4 py-2 text-sm transition-colors"
-            style={{
-              color: isDark ? 'rgba(195,210,255,0.8)' : 'rgba(13,21,51,0.8)',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.05)')}
+            style={{ color: 'rgba(242,236,221,0.8)' }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(210,166,63,0.1)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             onClick={() => { setOpen(false); logout() }}
           >

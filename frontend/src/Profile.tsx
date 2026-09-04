@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTheme } from "./lib/ThemeContext";
 import { useCurrentUserQuery, useCyclesQuery, useStatsQuery } from "./lib/queries";
 import { useCreateCycle } from "./lib/useCycleMutations";
 import { TOTAL_BOOKS, TOTAL_CHAPTERS } from "./lib/trackerLogic";
@@ -80,13 +79,15 @@ function AchievementBadge({ icon, label, tier, animDelay = 0 }: { icon: string; 
   );
 }
 
+const primaryText = 'var(--color-ink)'
+const dimText = 'rgba(35,31,26,0.55)'
+const bodyText = 'rgba(35,31,26,0.78)'
+const trackBg = 'rgba(35,31,26,0.1)'
+
 export default function Profile() {
-  const { isDark, colors } = useTheme()
   const navigate = useNavigate();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { create: createCycle, isCreating } = useCreateCycle();
-
-  const { primaryText, dimText, bodyText, trackBg } = colors
 
   const { data: user } = useCurrentUserQuery()
   const { data: rawCycles } = useCyclesQuery()
@@ -137,13 +138,13 @@ export default function Profile() {
       <div className="flex flex-col gap-5 px-4 py-6 max-w-4xl mx-auto w-full">
 
         {/* User info */}
-        <div className="glass-card p-5 flex items-center gap-4 min-w-0">
+        <div className="rounded-2xl p-5 flex items-center gap-4 min-w-0" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)' }}>
           {user?.picture_url ? (
-            <img src={user.picture_url} alt="avatar" className="w-14 h-14 rounded-full shrink-0" referrerPolicy="no-referrer" style={{ boxShadow: isDark ? '0 0 0 2px rgba(150,175,255,0.2)' : '0 0 0 2px rgba(13,21,51,0.12)' }} />
+            <img src={user.picture_url} alt="avatar" className="w-14 h-14 rounded-full shrink-0" referrerPolicy="no-referrer" style={{ boxShadow: '0 0 0 2px rgba(35,31,26,0.12)' }} />
           ) : (
             <div
               className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
-              style={{ background: isDark ? 'rgba(150,175,255,0.15)' : 'rgba(13,21,51,0.08)', color: isDark ? '#aabfff' : '#0d1533' }}
+              style={{ background: 'rgba(35,31,26,0.08)', color: 'var(--color-ink)' }}
             >
               {user?.name?.[0] ?? "?"}
             </div>
@@ -167,15 +168,15 @@ export default function Profile() {
         </div>
 
         {projectionNote && (
-          <p className="serif-note text-center -mt-1" style={{ color: isDark ? 'rgba(170,195,255,0.65)' : 'rgba(13,21,51,0.55)' }}>
+          <p className="italic text-center -mt-1" style={{ color: 'rgba(35,31,26,0.55)', fontSize: 15 }}>
             {projectionNote}
           </p>
         )}
 
         {/* Achievements */}
         {earnedBadges.length > 0 && (
-          <div className="glass-card p-5">
-            <h2 className="section-label mb-5">Achievements</h2>
+          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)' }}>
+            <h2 className="text-[10px] font-semibold uppercase mb-5" style={{ letterSpacing: '0.3em', color: dimText }}>Achievements</h2>
             <div className="flex flex-wrap gap-5">
               {earnedBadges.map((badge, i) => (
                 <AchievementBadge key={badge.label} icon={badge.icon} label={badge.label} tier={badge.tier} animDelay={i * 80} />
@@ -188,9 +189,9 @@ export default function Profile() {
         {currentCycle && (() => {
           const cyclePct = Math.round((currentCycle.chapters_read / TOTAL_CHAPTERS) * 100);
           return (
-          <div className="glass-card p-5">
-            <h2 className="section-label mb-3">
-              Current Cycle — <span style={{ color: isDark ? 'rgba(200,185,100,0.85)' : 'rgba(140,100,20,0.7)' }}>#{currentCycle.cycle_number}</span>
+          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)' }}>
+            <h2 className="text-[10px] font-semibold uppercase mb-3" style={{ letterSpacing: '0.3em', color: dimText }}>
+              Current Cycle — <span style={{ color: 'var(--color-gilt)' }}>#{currentCycle.cycle_number}</span>
             </h2>
             <div className="flex justify-between text-sm mb-1.5">
               <span style={{ color: dimText }}>Chapters</span>
@@ -203,7 +204,7 @@ export default function Profile() {
                 className="h-full rounded-full transition-all"
                 style={{
                   width: `${cyclePct}%`,
-                  background: isDark ? 'rgba(150,175,255,0.72)' : 'rgba(13,21,51,0.55)',
+                  background: 'rgba(35,31,26,0.55)',
                 }}
               />
             </div>
@@ -224,8 +225,8 @@ export default function Profile() {
           <button
             className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
             style={{
-              background: isDark ? 'rgba(150,175,255,0.16)' : 'rgba(13,21,51,0.1)',
-              border: isDark ? '1px solid rgba(150,175,255,0.25)' : '1px solid rgba(13,21,51,0.18)',
+              background: 'rgba(35,31,26,0.1)',
+              border: '1px solid rgba(35,31,26,0.18)',
               color: primaryText,
               letterSpacing: '0.06em',
               backdropFilter: 'blur(12px)',
@@ -239,13 +240,13 @@ export default function Profile() {
 
         {/* Past cycles */}
         {pastCycles.length > 0 && (
-          <div className="glass-card p-5">
-            <h2 className="section-label mb-3">Cycle History</h2>
+          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)' }}>
+            <h2 className="text-[10px] font-semibold uppercase mb-3" style={{ letterSpacing: '0.3em', color: dimText }}>Cycle History</h2>
             <div className="flex flex-col gap-2">
               {pastCycles.map((cycle) => {
                 const pct = Math.round((cycle.chapters_read / TOTAL_CHAPTERS) * 100);
                 return (
-                  <div key={cycle.cycle_id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 py-2" style={{ borderBottom: isDark ? '1px solid rgba(150,175,255,0.06)' : '1px solid rgba(13,21,51,0.06)' }}>
+                  <div key={cycle.cycle_id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 py-2" style={{ borderBottom: '1px solid rgba(35,31,26,0.06)' }}>
                     <span className="text-sm font-medium shrink-0" style={{ color: primaryText }}>
                       Cycle {cycle.cycle_number}
                     </span>
@@ -261,26 +262,30 @@ export default function Profile() {
       </div>
 
       {/* Confirmation dialog */}
-      <dialog ref={dialogRef} className="modal">
+      <dialog
+        ref={dialogRef}
+        className="cycle-dialog"
+        onClick={e => { if (e.target === dialogRef.current) dialogRef.current?.close() }}
+      >
         <div
-          className="modal-box rounded-2xl"
+          className="rounded-2xl p-6 w-full max-w-md mx-4"
           style={{
-            background: isDark ? 'rgba(10,18,50,0.97)' : 'rgba(255,255,255,0.97)',
+            background: 'rgba(255,255,255,0.97)',
             backdropFilter: 'blur(32px)',
             WebkitBackdropFilter: 'blur(32px)',
-            border: isDark ? '1px solid rgba(150,175,255,0.22)' : '1px solid rgba(100,130,255,0.18)',
+            border: '1px solid rgba(35,31,26,0.18)',
           }}
         >
-          <h3 className="font-cinzel font-bold text-lg" style={{ color: primaryText, letterSpacing: '0.05em' }}>
+          <h3 className="slab font-bold text-lg" style={{ color: primaryText, letterSpacing: '0.05em' }}>
             Start a new cycle?
           </h3>
           <p className="py-4 text-sm" style={{ color: bodyText }}>
             Starting a new cycle resets your reading progress. Your current cycle's progress is saved in history.
           </p>
-          <div className="modal-action">
+          <div className="flex justify-end gap-2">
             <button
               className="px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-              style={{ border: isDark ? '1px solid rgba(150,175,255,0.14)' : '1px solid rgba(13,21,51,0.12)', color: dimText }}
+              style={{ border: '1px solid rgba(35,31,26,0.12)', color: dimText }}
               onClick={() => dialogRef.current?.close()}
             >
               Cancel
@@ -288,8 +293,8 @@ export default function Profile() {
             <button
               className="px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40"
               style={{
-                background: isDark ? 'rgba(150,175,255,0.2)' : 'rgba(13,21,51,0.1)',
-                border: isDark ? '1px solid rgba(150,175,255,0.28)' : '1px solid rgba(13,21,51,0.2)',
+                background: 'rgba(35,31,26,0.1)',
+                border: '1px solid rgba(35,31,26,0.2)',
                 color: primaryText,
                 letterSpacing: '0.05em',
               }}
@@ -300,7 +305,6 @@ export default function Profile() {
             </button>
           </div>
         </div>
-        <form method="dialog" className="modal-backdrop"><button>close</button></form>
       </dialog>
 
       <footer className="text-center text-sm py-3" style={{ color: dimText }}>

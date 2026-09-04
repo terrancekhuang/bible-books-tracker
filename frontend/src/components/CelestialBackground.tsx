@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { useTheme } from '../lib/ThemeContext'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
+
+// Retired by the Volumes redesign (unmounted in App.tsx). Kept — not deleted — until
+// milestone 5's cleanup pass; theme is now fixed rather than read from ThemeContext,
+// which no longer exists.
+const theme: 'light' | 'dark' = 'dark'
 
 interface Star {
   x: number; y: number; r: number
@@ -13,13 +17,9 @@ interface ShootingStar {
 }
 
 function StarCanvas() {
-  const { theme } = useTheme()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const mouseRef = useRef({ x: -1, y: -1 })
-  const themeRef = useRef(theme)
   const prefersReducedMotion = usePrefersReducedMotion()
-
-  useEffect(() => { themeRef.current = theme }, [theme])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -56,7 +56,7 @@ function StarCanvas() {
       let resizeTimer: ReturnType<typeof setTimeout>
       const drawStatic = () => {
         init()
-        const isLight = themeRef.current === 'light'
+        const isLight = theme === 'light'
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         for (const s of stars) {
           ctx.beginPath()
@@ -93,7 +93,7 @@ function StarCanvas() {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       frame++
 
-      const isLight = themeRef.current === 'light'
+      const isLight = theme === 'light'
       const mx = mouseRef.current.x < 0 ? canvas.width / 2 : mouseRef.current.x
       const my = mouseRef.current.y < 0 ? canvas.height / 2 : mouseRef.current.y
       lerpX += ((mx - canvas.width / 2) - lerpX) * 0.05
@@ -198,7 +198,6 @@ const BLOB = { position: 'absolute' as const, borderRadius: '50%', pointerEvents
 const WRAP: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: -1, pointerEvents: 'none', overflow: 'hidden' }
 
 export default function CelestialBackground() {
-  const { theme } = useTheme()
   const prefersReducedMotion = usePrefersReducedMotion()
   const anim = (a: string) => (prefersReducedMotion ? undefined : a)
 

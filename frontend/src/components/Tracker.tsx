@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useTheme } from '../lib/ThemeContext'
 import { useBooksQuery, useCurrentUserQuery } from '../lib/queries'
 import { useTrackerMutations } from '../lib/useTrackerMutations'
 import { useKeyChord } from '../lib/useKeyChord'
@@ -16,8 +15,11 @@ import { getCategoryPalette } from '../lib/categoryColors'
 /** Amber used for "already read" hints — the offline banner's warning tone, at hint-text weight. */
 const ALREADY_READ_COLOR = 'rgba(240,200,80,0.8)'
 
+const primaryText = 'var(--color-ink)'
+const dimText = 'rgba(35,31,26,0.55)'
+const bodyText = 'rgba(35,31,26,0.78)'
+
 export default function Tracker() {
-  const { isDark, colors } = useTheme()
   const { data: user } = useCurrentUserQuery();
   const { data: books = [] } = useBooksQuery();
 
@@ -43,8 +45,6 @@ export default function Tracker() {
   const gChord = useKeyChord();
   const navigate = useNavigate();
   const location = useLocation();
-
-  const { primaryText, dimText, bodyText } = colors
 
   useEffect(() => {
     const handler = () => setIsMobile(window.innerWidth < 768);
@@ -222,19 +222,19 @@ export default function Tracker() {
   const showGrid = !isMobile || !selectedBook;
   const showDetail = !isMobile || !!selectedBook;
 
-  // Glass panel used only for the book grid
+  // Panel used only for the book grid
   const gridPanelStyle = {
-    background: isDark ? 'rgba(6,10,28,0.62)' : 'rgba(255,255,255,0.82)',
+    background: 'rgba(255,255,255,0.82)',
     backdropFilter: 'blur(28px)',
     WebkitBackdropFilter: 'blur(28px)',
-    border: isDark ? '1px solid rgba(150,175,255,0.14)' : '1px solid rgba(100,130,255,0.12)',
+    border: '1px solid rgba(35,31,26,0.12)',
     borderRadius: '1.25rem',
   }
 
   const filterStyle = (active: boolean) => ({
     fontSize: 12,
     color: active ? primaryText : dimText,
-    background: active ? (isDark ? 'rgba(150,175,255,0.14)' : 'rgba(13,21,51,0.08)') : 'transparent',
+    background: active ? 'rgba(35,31,26,0.08)' : 'transparent',
     borderRadius: '0.375rem',
     padding: '3px 8px',
     border: 'none',
@@ -256,7 +256,7 @@ export default function Tracker() {
       {isOnline && pendingCount > 0 && (
         <div
           className="text-xs font-medium text-center py-1.5 px-4"
-          style={{ background: 'rgba(100,130,255,0.18)', color: 'rgba(170,195,255,0.9)', backdropFilter: 'blur(8px)' }}
+          style={{ background: 'rgba(210,166,63,0.18)', color: 'var(--color-gilt)', backdropFilter: 'blur(8px)' }}
         >
           Syncing {pendingCount} pending change{pendingCount > 1 ? 's' : ''}…
         </div>
@@ -270,7 +270,7 @@ export default function Tracker() {
         {showGrid && (
           <div className="flex flex-col flex-1 overflow-hidden md:overflow-y-auto rounded-2xl" style={gridPanelStyle}>
             {/* Search */}
-            <div className="flex items-center gap-2 p-3" style={{ borderBottom: isDark ? '1px solid rgba(150,175,255,0.07)' : '1px solid rgba(13,21,51,0.07)' }}>
+            <div className="flex items-center gap-2 p-3" style={{ borderBottom: '1px solid rgba(35,31,26,0.07)' }}>
               <input
                 ref={searchInputRef}
                 type="text"
@@ -285,10 +285,10 @@ export default function Tracker() {
                     searchInputRef.current?.blur();
                   }
                 }}
-                className="glass-input flex-1 text-sm px-3 py-2"
-                style={{ transition: 'border-color 0.15s' }}
-                onFocus={e => (e.target.style.borderColor = isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)')}
-                onBlur={e => (e.target.style.borderColor = isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)')}
+                className="tracker-input flex-1 text-sm px-3 py-2"
+                style={{ transition: 'border-color 0.15s', borderColor: 'rgba(35,31,26,0.14)' }}
+                onFocus={e => (e.target.style.borderColor = 'rgba(35,31,26,0.3)')}
+                onBlur={e => (e.target.style.borderColor = 'rgba(35,31,26,0.14)')}
               />
               {sortKey !== null && (
                 <button
@@ -302,12 +302,12 @@ export default function Tracker() {
             </div>
 
             {/* Filters */}
-            <div className="flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap" style={{ borderBottom: isDark ? '1px solid rgba(150,175,255,0.04)' : '1px solid rgba(13,21,51,0.04)' }}>
+            <div className="flex items-center gap-2 px-3 pt-2 pb-1 flex-wrap" style={{ borderBottom: '1px solid rgba(35,31,26,0.04)' }}>
               <FilterSelect value={filterTestament} onChange={v => { setFilterTestament(v); if (v && filterCategory) { const valid = new Set(books.filter(b => b.testament === v).map(b => b.category)); if (!valid.has(filterCategory)) setFilterCategory(''); } }} placeholder="Testament" options={availableTestamentOptions} />
               <FilterSelect value={filterCategory} onChange={v => { setFilterCategory(v); if (v && filterTestament) { const valid = new Set(books.filter(b => b.category === v).map(b => b.testament)); if (!valid.has(filterTestament)) setFilterTestament(''); } }} placeholder="Category" options={availableCategoryOptions} />
               <FilterSelect value={filterStatus} onChange={setFilterStatus} placeholder="Status" options={[{ value: 'not_started', label: 'Not Started' }, { value: 'in_progress', label: 'In Progress' }, { value: 'complete', label: 'Complete' }]} />
               {anyFilterActive && (
-                <button onClick={clearFilters} className="text-xs px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap" style={{ color: 'rgba(240,100,100,0.7)' }}>
+                <button onClick={clearFilters} className="text-xs px-2 py-1.5 rounded-lg transition-colors whitespace-nowrap" style={{ color: 'var(--color-leaf-red)' }}>
                   Clear filters
                 </button>
               )}
@@ -347,7 +347,7 @@ export default function Tracker() {
             className="flex flex-col w-full md:w-[26rem] shrink-0"
             style={isMobile ? {
               // Mobile: full-screen with background since it replaces the grid
-              background: isDark ? 'rgba(6,10,28,0.88)' : 'rgba(245,248,255,0.94)',
+              background: 'rgba(245,248,255,0.94)',
               backdropFilter: 'blur(28px)',
               WebkitBackdropFilter: 'blur(28px)',
               borderRadius: '1.25rem',
@@ -355,7 +355,7 @@ export default function Tracker() {
               // Desktop: no box — content floats on the starfield
               // subtle left separator only
               paddingLeft: '0.25rem',
-              borderLeft: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(100,130,255,0.1)',
+              borderLeft: '1px solid rgba(35,31,26,0.1)',
             }}
           >
             <div className={`p-6 flex flex-col gap-5 flex-1${!isMobile ? ' md:overflow-y-auto' : ''}`}>
@@ -364,7 +364,7 @@ export default function Tracker() {
                   {isMobile && (
                     <button
                       className="self-start text-sm font-medium mb-1 transition-colors"
-                      style={{ color: isDark ? 'rgba(170,195,255,0.7)' : 'rgba(13,21,51,0.5)' }}
+                      style={{ color: 'rgba(35,31,26,0.5)' }}
                       onClick={() => { if (openedFromNav) { setOpenedFromNav(false); navigate(-1); } else { setSelectedBookName(null); setChaptersInput(''); } }}
                     >
                       ← Back
@@ -376,7 +376,7 @@ export default function Tracker() {
                     const cat = getCategoryPalette(selectedBook.category);
                     const isComplete = selectedBook.chapters_read >= selectedBook.num_chapters;
                     const inProgress = selectedBook.chapters_read > 0 && !isComplete;
-                    const arcColor = isComplete || inProgress ? cat.color : (isDark ? 'rgba(150,175,255,0.45)' : 'rgba(100,130,255,0.45)');
+                    const arcColor = isComplete || inProgress ? cat.color : ('rgba(35,31,26,0.45)');
                     const pct = Math.round(calculateProgress(selectedBook));
 
                     return (
@@ -390,20 +390,20 @@ export default function Tracker() {
                           <span
                             className="ml-auto text-xs px-2.5 py-0.5 rounded-full"
                             style={{
-                              background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.05)',
-                              color: isDark ? 'rgba(195,210,255,0.6)' : 'rgba(13,21,51,0.5)',
+                              background: 'rgba(35,31,26,0.05)',
+                              color: 'rgba(35,31,26,0.5)',
                               letterSpacing: '0.05em',
-                              border: isDark ? '1px solid rgba(150,175,255,0.14)' : '1px solid rgba(13,21,51,0.1)',
+                              border: '1px solid rgba(35,31,26,0.1)',
                             }}
                           >
                             {selectedBook.testament}
                           </span>
                         </div>
 
-                        {/* Book name — LARGE Cinzel with category glow */}
+                        {/* Book name — LARGE display type with category glow */}
                         <div>
                           <h2
-                            className="font-cinzel"
+                            className="slab"
                             style={{
                               fontSize: 'clamp(1.6rem, 4vw, 2.4rem)',
                               fontWeight: 700,
@@ -420,7 +420,7 @@ export default function Tracker() {
                         {/* Progress stats */}
                         <div className="flex items-baseline gap-3">
                           <span
-                            className="font-cinzel text-4xl font-bold tabular-nums"
+                            className="slab text-4xl font-bold tabular-nums"
                             style={{ color: arcColor, letterSpacing: '-0.01em' }}
                           >
                             {pct}%
@@ -457,7 +457,7 @@ export default function Tracker() {
                         )}
 
                         {/* Divider */}
-                        <div style={{ height: 1, background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.07)' }} />
+                        <div style={{ height: 1, background: 'rgba(35,31,26,0.07)' }} />
 
                         {/* Actions */}
                         {selectedBook.chapters_read >= selectedBook.num_chapters ? (
@@ -470,7 +470,7 @@ export default function Tracker() {
                               className="w-full py-2.5 rounded-xl text-sm font-medium transition-colors"
                               style={resetConfirm.confirming
                                 ? { background: 'rgba(220,60,60,0.18)', border: '1px solid rgba(220,60,60,0.35)', color: 'rgba(240,100,100,0.9)' }
-                                : { background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.12)' : '1px solid rgba(13,21,51,0.12)', color: dimText }
+                                : { background: 'transparent', border: '1px solid rgba(35,31,26,0.12)', color: dimText }
                               }
                             >
                               {resetConfirm.confirming ? 'Confirm reset?' : 'Reset progress'}
@@ -490,10 +490,10 @@ export default function Tracker() {
                                 value={chaptersInput}
                                 onChange={e => setChaptersInput(e.target.value)}
                                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit(); } }}
-                                className="glass-input w-full px-3 py-2"
+                                className="tracker-input w-full px-3 py-2"
                                 style={{ borderColor: inputIsInvalid ? 'rgba(220,80,80,0.4)' : undefined }}
-                                onFocus={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.6)' : (isDark ? 'rgba(150,175,255,0.4)' : 'rgba(13,21,51,0.3)'))}
-                                onBlur={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.4)' : (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.14)'))}
+                                onFocus={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.6)' : 'rgba(35,31,26,0.3)')}
+                                onBlur={e => (e.target.style.borderColor = inputIsInvalid ? 'rgba(220,80,80,0.4)' : 'rgba(35,31,26,0.14)')}
                               />
                               <p
                                 className="text-xs mt-1 min-h-[1rem]"
@@ -521,9 +521,9 @@ export default function Tracker() {
                               className="w-full py-2.5 rounded-xl font-semibold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                               style={{
                                 background: canSubmit
-                                  ? (isDark ? 'rgba(150,175,255,0.18)' : 'rgba(13,21,51,0.1)')
+                                  ? ('rgba(35,31,26,0.1)')
                                   : 'transparent',
-                                border: isDark ? '1px solid rgba(150,175,255,0.24)' : '1px solid rgba(13,21,51,0.16)',
+                                border: '1px solid rgba(35,31,26,0.16)',
                                 color: primaryText,
                                 letterSpacing: '0.06em',
                               }}
@@ -532,9 +532,9 @@ export default function Tracker() {
                             </button>
 
                             <div className="flex items-center gap-2 pt-1">
-                              <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
-                              <span className="text-xs select-none" style={{ color: isDark ? 'rgba(150,175,255,0.25)' : 'rgba(13,21,51,0.22)' }}>other actions</span>
-                              <div className="flex-1 h-px" style={{ background: isDark ? 'rgba(150,175,255,0.07)' : 'rgba(13,21,51,0.07)' }} />
+                              <div className="flex-1 h-px" style={{ background: 'rgba(35,31,26,0.07)' }} />
+                              <span className="text-xs select-none" style={{ color: 'rgba(35,31,26,0.22)' }}>other actions</span>
+                              <div className="flex-1 h-px" style={{ background: 'rgba(35,31,26,0.07)' }} />
                             </div>
 
                             {selectedBook.chapters_read > 0 && (
@@ -550,7 +550,7 @@ export default function Tracker() {
                                     className="flex-1 py-2 rounded-xl text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                                     style={{
                                       background: confirm ? 'rgba(220,60,60,0.18)' : 'transparent',
-                                      border: confirm ? '1px solid rgba(220,60,60,0.35)' : isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)',
+                                      border: confirm ? '1px solid rgba(220,60,60,0.35)' : '1px solid rgba(35,31,26,0.1)',
                                       color: confirm ? 'rgba(240,100,100,0.9)' : dimText,
                                     }}
                                   >
@@ -572,7 +572,7 @@ export default function Tracker() {
                                 <button
                                   onClick={() => confirmMarkAll.cancel()}
                                   className="px-3.5 py-2 rounded-xl text-sm transition-colors"
-                                  style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText }}
+                                  style={{ background: 'transparent', border: '1px solid rgba(35,31,26,0.1)', color: dimText }}
                                 >
                                   Cancel
                                 </button>
@@ -581,7 +581,7 @@ export default function Tracker() {
                               <button
                                 onClick={() => confirmMarkAll.request()}
                                 className="w-full py-2 rounded-xl text-sm transition-colors"
-                                style={{ background: 'transparent', border: isDark ? '1px solid rgba(150,175,255,0.1)' : '1px solid rgba(13,21,51,0.1)', color: dimText }}
+                                style={{ background: 'transparent', border: '1px solid rgba(35,31,26,0.1)', color: dimText }}
                               >
                                 Mark all as read
                               </button>
@@ -594,7 +594,7 @@ export default function Tracker() {
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full py-12 gap-4">
-                  <span style={{ color: isDark ? 'rgba(150,175,255,0.3)' : 'rgba(100,130,255,0.3)' }}>
+                  <span style={{ color: 'rgba(35,31,26,0.3)' }}>
                     <BookOpenIcon size={48} />
                   </span>
                   <div className="text-center">
@@ -602,9 +602,9 @@ export default function Tracker() {
                       Select a book to begin
                     </p>
                     <p
-                      className="font-cormorant italic"
+                      className="italic"
                       style={{
-                        color: isDark ? 'rgba(170,195,255,0.45)' : 'rgba(13,21,51,0.4)',
+                        color: 'rgba(35,31,26,0.4)',
                         fontSize: 16,
                         lineHeight: 1.5,
                         maxWidth: '18rem',

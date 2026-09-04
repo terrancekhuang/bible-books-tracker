@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useTheme } from './lib/ThemeContext'
 import { useBooksQuery, useDashboardQuery } from './lib/queries'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
@@ -13,11 +12,12 @@ import NavBar from './components/NavBar'
 import ReadingRhythm from './components/ReadingRhythm'
 import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, type Book } from './lib/trackerLogic'
 import { getCategoryPalette } from './lib/categoryColors'
+import { CATEGORY_ORDER } from './lib/volumesTokens'
 
-const CATEGORY_ORDER = [
-  'Law', 'History', 'Poetry', 'Major Prophets', 'Minor Prophets',
-  'Gospels', 'Church History', "Paul's Epistles", 'General Epistles',
-]
+const primaryText = 'var(--color-ink)'
+const dimText = 'rgba(35,31,26,0.55)'
+const bodyText = 'rgba(35,31,26,0.78)'
+const trackBg = 'rgba(35,31,26,0.1)'
 
 function sumChapters(books: Book[]): number {
   return books.reduce((s, b) => s + b.num_chapters, 0)
@@ -41,7 +41,6 @@ const fadeUp = (delay: number): CSSProperties => ({
 
 
 export default function Dashboard() {
-  const { isDark, colors } = useTheme()
   const [displayPct, setDisplayPct] = useState(0)
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
@@ -119,7 +118,6 @@ export default function Dashboard() {
 
   const firstName = user?.name?.split(' ')[0] ?? 'friend'
 
-  const { primaryText, dimText, bodyText, trackBg } = colors
   return (
     <div className="flex flex-col min-h-screen pb-20 md:pb-0">
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
@@ -138,12 +136,12 @@ export default function Dashboard() {
                   value={totalRead}
                   max={TOTAL_CHAPTERS}
                   size={180}
-                  trackClassName={isDark ? 'text-white/10' : 'text-[#0d1533]/12'}
-                  arcClassName={isDark ? 'text-[#aabfff] transition-all duration-700 ease-out' : 'text-[#0d1533]/75 transition-all duration-700 ease-out'}
+                  trackClassName="text-black/12"
+                  arcClassName="text-[#231F1A]/75 transition-all duration-700 ease-out"
                 />
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span
-                    className="font-cinzel text-5xl md:text-6xl font-bold leading-none tabular-nums"
+                    className="slab text-5xl md:text-6xl font-bold leading-none tabular-nums"
                     style={{ color: primaryText }}
                   >
                     {displayPct}%
@@ -158,7 +156,7 @@ export default function Dashboard() {
           <div className="flex flex-col gap-3 text-center md:text-left" style={fadeUp(80)}>
             <p className="text-sm tracking-wide" style={{ color: dimText }}>{formatDate()}</p>
             <h1
-              className="font-cinzel text-3xl md:text-4xl font-semibold leading-tight"
+              className="slab text-3xl md:text-4xl font-semibold leading-tight"
               style={{ color: primaryText, letterSpacing: '0.04em' }}
             >
               {getGreeting()},<br />{firstName}.
@@ -186,13 +184,13 @@ export default function Dashboard() {
                   key={label}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full"
                   style={{
-                    background: isDark ? 'rgba(150,175,255,0.12)' : 'rgba(255,255,255,0.65)',
+                    background: 'rgba(255,255,255,0.65)',
                     backdropFilter: 'blur(12px)',
                     WebkitBackdropFilter: 'blur(12px)',
-                    border: isDark ? '1px solid rgba(150,175,255,0.2)' : '1px solid rgba(100,130,255,0.2)',
+                    border: '1px solid rgba(35,31,26,0.16)',
                   }}
                 >
-                  <span style={{ color: isDark ? 'rgba(200,185,110,0.9)' : 'rgba(140,100,20,0.8)' }}>{icon}</span>
+                  <span style={{ color: 'var(--color-gilt)' }}>{icon}</span>
                   <span className="text-sm font-semibold" style={{ color: primaryText }}>{label}</span>
                 </div>
               ))}
@@ -208,9 +206,9 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
           {/* Weekly goal */}
-          <div className="glass-card p-5" style={fadeUp(160)}>
+          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(160) }}>
             <div className="flex items-center justify-between mb-4">
-              <span className="section-label">Weekly Goal</span>
+              <span className="text-[10px] font-semibold uppercase" style={{ letterSpacing: '0.3em', color: dimText }}>Weekly Goal</span>
               {!editingGoal && !isInitialLoading && (
                 <button
                   onClick={() => { setGoalInput(String(weeklyGoal)); setGoalError(null); setEditingGoal(true) }}
@@ -242,8 +240,8 @@ export default function Dashboard() {
                     autoFocus
                     className="w-20 px-2 py-1 rounded-lg outline-none text-sm"
                     style={{
-                      background: isDark ? 'rgba(150,175,255,0.08)' : 'rgba(13,21,51,0.06)',
-                      border: goalError ? '1px solid rgba(240,100,100,0.6)' : '1px solid rgba(150,175,255,0.25)',
+                      background: 'rgba(35,31,26,0.06)',
+                      border: goalError ? '1px solid rgba(158,42,34,0.6)' : '1px solid rgba(35,31,26,0.25)',
                       color: primaryText,
                     }}
                   />
@@ -251,13 +249,13 @@ export default function Dashboard() {
                   <button
                     onClick={() => saveGoal(goalInput)}
                     className="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors"
-                    style={{ background: 'rgba(150,175,255,0.18)', color: primaryText }}
+                    style={{ background: 'rgba(35,31,26,0.1)', color: primaryText }}
                   >
                     Save
                   </button>
                 </div>
                 {goalError && (
-                  <p className="text-xs mt-1.5" style={{ color: 'rgba(240,100,100,0.8)' }} role="alert">
+                  <p className="text-xs mt-1.5" style={{ color: 'var(--color-leaf-red)' }} role="alert">
                     {goalError}
                   </p>
                 )}
@@ -265,7 +263,7 @@ export default function Dashboard() {
             ) : (
               <div className="mb-4">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="font-cinzel text-4xl font-bold tabular-nums" style={{ color: primaryText }}>
+                  <span className="slab text-4xl font-bold tabular-nums" style={{ color: primaryText }}>
                     {weekChapters}
                   </span>
                   <span className="text-sm" style={{ color: dimText }}>
@@ -273,7 +271,7 @@ export default function Dashboard() {
                   </span>
                 </div>
                 {goalError && (
-                  <p className="text-xs mt-1.5" style={{ color: 'rgba(240,100,100,0.8)' }} role="alert">
+                  <p className="text-xs mt-1.5" style={{ color: 'var(--color-leaf-red)' }} role="alert">
                     {goalError}
                   </p>
                 )}
@@ -305,8 +303,8 @@ export default function Dashboard() {
           </div>
 
           {/* Continue reading */}
-          <div className="glass-card p-5" style={fadeUp(210)}>
-            <span className="section-label block mb-3">Continue Reading</span>
+          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(210) }}>
+            <span className="text-[10px] font-semibold uppercase block mb-3" style={{ letterSpacing: '0.3em', color: dimText }}>Continue Reading</span>
             {continueBooks.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {continueBooks.map(book => (
@@ -325,7 +323,7 @@ export default function Dashboard() {
                 <button
                   onClick={() => navigate('/tracker')}
                   className="text-xs font-medium hover:underline mt-1"
-                  style={{ color: isDark ? 'rgba(170,195,255,0.7)' : 'rgba(13,21,51,0.55)' }}
+                  style={{ color: 'rgba(35,31,26,0.55)' }}
                 >
                   Open Tracker →
                 </button>
@@ -335,8 +333,8 @@ export default function Dashboard() {
         </div>
 
         {/* Testament breakdown */}
-        <div className="glass-card p-5" style={fadeUp(260)}>
-          <span className="section-label block mb-4">Testament Progress</span>
+        <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(260) }}>
+          <span className="text-[10px] font-semibold uppercase block mb-4" style={{ letterSpacing: '0.3em', color: dimText }}>Testament Progress</span>
           <div className="flex flex-col gap-4">
             {[
               { label: 'Old Testament', read: otRead, total: otTotal, color: 'rgba(240,180,60,0.85)' },
@@ -365,8 +363,8 @@ export default function Dashboard() {
         </div>
 
         {/* Category breakdown */}
-        <div className="glass-card p-5" style={fadeUp(310)}>
-          <span className="section-label block mb-4">Category Progress</span>
+        <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(310) }}>
+          <span className="text-[10px] font-semibold uppercase block mb-4" style={{ letterSpacing: '0.3em', color: dimText }}>Category Progress</span>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
             {categoryProgress.map(({ cat, read, total, pct }) => (
               <div
@@ -395,8 +393,8 @@ export default function Dashboard() {
         </div>
 
         {/* Activity heatmap */}
-        <div className="glass-card p-5" style={fadeUp(360)}>
-          <span className="section-label block mb-4">Reading Activity</span>
+        <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(360) }}>
+          <span className="text-[10px] font-semibold uppercase block mb-4" style={{ letterSpacing: '0.3em', color: dimText }}>Reading Activity</span>
           <ActivityHeatmap activity={activity ?? []} />
         </div>
 

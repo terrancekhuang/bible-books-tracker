@@ -3,10 +3,9 @@ interface ArcProgressProps {
   read: number
   size: number
   strokeWidth: number
-  isDark: boolean
 }
 
-export default function ArcProgress({ total, read, size, strokeWidth, isDark }: ArcProgressProps) {
+export default function ArcProgress({ total, read, size, strokeWidth }: ArcProgressProps) {
   const pct = total > 0 ? read / total : 0
   const r = (size - strokeWidth) / 2
   const circ = 2 * Math.PI * r
@@ -18,7 +17,7 @@ export default function ArcProgress({ total, read, size, strokeWidth, isDark }: 
     <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', display: 'block' }}>
         <circle cx={size / 2} cy={size / 2} r={r} fill="none"
-          stroke={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.09)'}
+          stroke="rgba(35,31,26,0.09)"
           strokeWidth={strokeWidth}
         />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none"
@@ -31,7 +30,7 @@ export default function ArcProgress({ total, read, size, strokeWidth, isDark }: 
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        color: isDark ? 'rgba(220,230,255,0.85)' : 'rgba(13,21,51,0.75)',
+        color: 'rgba(35,31,26,0.75)',
         textAlign: 'center', lineHeight: 1.1,
         pointerEvents: 'none',
       }}>

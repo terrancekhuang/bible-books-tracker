@@ -104,6 +104,173 @@ body {
   outline: none;
 }
 
+/* ── Login: the volume that opens ────────────────────────────────────────────
+   The scene is a two-page spread. The recto (right leaf) carries the sign-in;
+   the front board sits on top of it and swings back 180° about the gutter, so
+   the spine never moves and the cover lands face-down on the verso — the way a
+   real book opens on a table. Structural and responsive rules live here because
+   the flip needs a 3D context and the phone layout needs a media query; the
+   cloth, gilt and paper themselves stay inline in Login.tsx with the rest of
+   the app's material. */
+.login-scene {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  perspective: 2200px;
+}
+
+.login-spread {
+  /* The leaf height drives everything: each leaf is 3:4, so the spread's width
+     follows from it and the book can never outgrow the viewport it sits in. */
+  height: min(520px, calc(100dvh - 260px), 117vw);
+  display: flex;
+  width: max-content;
+  transform-style: preserve-3d;
+  /* Closed, only the recto and half the spine are visible — shift the spread so
+     that much reads as centred; opening returns it to the true centre. */
+  transform: translateX(calc(-25% + 6.5px));
+  transition: transform 950ms cubic-bezier(0.4, 0.05, 0.2, 1);
+}
+.login-spread[data-open='true'] {
+  transform: translateX(0);
+}
+
+/* The left half of the open spread is the board's own paste-down, so there is no
+   leaf to draw there — only the room the board will need once it has swung over. */
+.login-verso-space {
+  height: 100%;
+  aspect-ratio: 3 / 4;
+}
+
+.login-leaf {
+  position: relative;
+  height: 100%;
+  aspect-ratio: 3 / 4;
+  transform-style: preserve-3d;
+  border-radius: 0 3px 3px 0;
+  background-color: var(--color-leaf);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(35, 31, 26, 0.032) 0 1px, transparent 1px 4px),
+    linear-gradient(178deg, #f6f1e4, #f2ecdd 40%, #e6deca);
+  color: var(--color-ink);
+  box-shadow:
+    inset 18px 0 26px -18px rgba(0, 0, 0, 0.8),
+    0 30px 60px -26px rgba(0, 0, 0, 0.95);
+}
+
+/* The board. Lifted a few pixels off the page plane so it stays above both
+   leaves at 0° and at 180°, where it would otherwise be coplanar with them. */
+.login-cover {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  transform-style: preserve-3d;
+  transform: translateZ(6px) rotateY(0deg);
+  transition: transform 950ms cubic-bezier(0.4, 0.05, 0.2, 1);
+}
+.login-spread[data-open='true'] .login-cover {
+  transform: translateZ(6px) rotateY(-180deg);
+}
+.login-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.login-face--back {
+  transform: rotateY(180deg);
+}
+
+/* The spine, held above everything: closed it is the book's edge, open it is
+   the cloth in the gutter. Either way it is the one part that doesn't move. */
+.login-spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -13px;
+  width: 26px;
+  transform: translateZ(12px);
+  background: linear-gradient(90deg, #04140c, #0b2f1e 40%, #14432e 80%);
+  box-shadow: inset -8px 0 14px -8px rgba(0, 0, 0, 0.9);
+}
+
+/* The board is its own way in: hovering it warms the cloth from within. */
+.login-cover-hit {
+  transition: box-shadow 260ms ease;
+}
+.login-cover-hit:hover:not(:disabled) {
+  box-shadow: inset 0 0 70px -18px rgba(210, 166, 63, 0.45);
+}
+.login-cover-hit:focus-visible {
+  outline-offset: -6px;
+}
+
+/* The invitation's button — gilt on the shelf, lifting slightly when reached for. */
+.login-prompt-btn {
+  padding: 11px 26px 10px;
+  border: 1px solid rgba(210, 166, 63, 0.55);
+  border-radius: 999px;
+  background: rgba(210, 166, 63, 0.08);
+  color: var(--color-gilt);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    transform 200ms ease;
+}
+.login-prompt-btn:hover {
+  background: rgba(210, 166, 63, 0.18);
+  border-color: rgba(210, 166, 63, 0.85);
+  transform: translateY(-1px);
+}
+.login-prompt-btn:active {
+  transform: translateY(0);
+}
+
+/* The title page waits until the board has swung clear of it. */
+.login-recto-content {
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.login-spread[data-open='true'] .login-recto-content {
+  opacity: 1;
+  transition-delay: 560ms;
+}
+
+/* A phone has no room for a spread: the verso drops out, the board swings off
+   to the left, and the sign-in leaf keeps the width it already had. */
+@media (max-width: 700px) {
+  .login-verso-space {
+    display: none;
+  }
+  .login-spread,
+  .login-spread[data-open='true'] {
+    transform: translateX(0);
+  }
+  /* With nowhere to lie open, the board swings off the left edge and goes with it
+     rather than leaving a sliver of itself against the screen. */
+  .login-spread[data-open='true'] .login-cover {
+    opacity: 0;
+    transition:
+      transform 950ms cubic-bezier(0.4, 0.05, 0.2, 1),
+      opacity 260ms ease 620ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-spread,
+  .login-cover,
+  .login-recto-content {
+    transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+}
+
 /* The confirmation dialog on Profile (Start New Cycle) uses the native <dialog> element
    directly now that DaisyUI's `.modal`/`.modal-box` are gone — this restores the centering
    and backdrop dimming DaisyUI used to provide. */

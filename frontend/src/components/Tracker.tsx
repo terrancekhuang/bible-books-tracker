@@ -41,6 +41,7 @@ export default function Tracker() {
 
   const chaptersInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const shelfAreaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -76,6 +77,29 @@ export default function Tracker() {
     setChaptersInput('');
     setOpenedFromNav(false);
   };
+
+  // Lowers the open volume's spine back down — Escape, or a click anywhere off the
+  // shelf/leaf, both go through here.
+  const closeVolume = () => {
+    setOpenCategory(null);
+    setSelectedBookName(null);
+    setChaptersInput('');
+    setOpenedFromNav(false);
+  };
+
+  // A click outside the shelf-and-leaf area closes whichever volume is open. Clicks on a
+  // spine (including a different one) are handled by VolumeShelf's own onClick and land
+  // inside this ref, so they never reach here.
+  useEffect(() => {
+    if (!openCategory || flattened) return;
+    const handleClick = (e: MouseEvent) => {
+      if (shelfAreaRef.current && !shelfAreaRef.current.contains(e.target as Node)) {
+        closeVolume();
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [openCategory, flattened]);
 
   useEffect(() => {
     const state = location.state as { selectBook?: string; filterTestament?: string; filterCategory?: string } | null;
@@ -187,6 +211,8 @@ export default function Tracker() {
         if (confirmMarkAll.confirming) { confirmMarkAll.cancel(); return; }
         if (target === searchInputRef.current) {
           setSearch(''); searchInputRef.current?.blur();
+        } else if (!flattened && openCategory) {
+          closeVolume();
         } else {
           setOpenedFromNav(false); setSelectedBookName(null); setChaptersInput('');
         }
@@ -319,6 +345,7 @@ export default function Tracker() {
           )}
         </div>
 
+        <div ref={shelfAreaRef}>
         <VolumeShelf
           books={books}
           openCategory={openCategory}
@@ -371,6 +398,7 @@ export default function Tracker() {
             )}
           </>
         )}
+        </div>
       </div>
     </div>
   );

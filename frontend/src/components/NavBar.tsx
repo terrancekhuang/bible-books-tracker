@@ -9,14 +9,14 @@ interface NavBarProps {
 }
 
 const NAV_LINKS = [
-  { to: '/', label: 'Dashboard' },
   { to: '/tracker', label: 'Tracker' },
+  { to: '/', label: 'Dashboard' },
   { to: '/profile', label: 'Profile' },
 ]
 
 const MOBILE_TABS = [
-  { to: '/', label: 'Home', Icon: HomeIcon },
   { to: '/tracker', label: 'Tracker', Icon: BookOpenIcon },
+  { to: '/', label: 'Home', Icon: HomeIcon },
   { to: '/profile', label: 'Profile', Icon: UserIcon },
 ]
 

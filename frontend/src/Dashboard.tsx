@@ -147,7 +147,7 @@ export default function Dashboard() {
         <section aria-label="Today's record" style={LEAF_STYLE}>
 
           {/* Head */}
-          <div style={{ textAlign: 'center', marginBottom: 8 }}>
+          <div id="tour-dash-header" style={{ textAlign: 'center', marginBottom: 8 }}>
             <p className="vol-num" style={{ margin: 0, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: dimText, ...fadeUp(0) }}>
               {formatDate()}
             </p>
@@ -190,6 +190,7 @@ export default function Dashboard() {
             </LeafMarginaliaItem>
 
             <LeafMarginaliaItem
+              id="tour-dash-weekly-goal"
               flexGrow={1.4}
               label={
                 <span className="flex items-center gap-1.5">
@@ -272,7 +273,7 @@ export default function Dashboard() {
           <LeafDivider />
 
           {/* Continue reading */}
-          <div style={fadeUp(190)}>
+          <div id="tour-dash-continue" style={fadeUp(190)}>
             <LeafSectionLabel>Continue Reading</LeafSectionLabel>
             {continueBooks.length > 0 ? (
               <div>

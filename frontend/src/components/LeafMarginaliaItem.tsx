@@ -14,6 +14,7 @@ interface LeafMarginaliaItemProps {
   first?: boolean
   /** Flex-grow, for a column that needs more room than its siblings (e.g. a wider goal editor). */
   flexGrow?: number
+  id?: string
 }
 
 /**
@@ -22,9 +23,10 @@ interface LeafMarginaliaItemProps {
  * a vertical rule alongside its siblings on desktop. Shared by Dashboard and Profile so the
  * responsive-divider behaviour is fixed in one place.
  */
-export default function LeafMarginaliaItem({ icon, label, value, children, first = false, flexGrow = 1 }: LeafMarginaliaItemProps) {
+export default function LeafMarginaliaItem({ icon, label, value, children, first = false, flexGrow = 1, id }: LeafMarginaliaItemProps) {
   return (
     <div
+      id={id}
       className={`flex flex-col items-center text-center py-3 md:py-0 ${!first ? 'border-t md:border-t-0 md:border-l' : ''}`}
       style={{ flex: flexGrow, borderColor: 'var(--color-leaf-rule)' }}
     >

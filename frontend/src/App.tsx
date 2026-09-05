@@ -3,13 +3,19 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { registerSW } from 'virtual:pwa-register'
 import { useAuth } from './lib/AuthContext'
 import { useKeyChord } from './lib/useKeyChord'
+import { useIsMobile } from './lib/useIsMobile'
+import { useTour } from './lib/useTour'
 import Login from './Login'
 import Profile from './Profile'
 import Tracker from './components/Tracker'
 import Dashboard from './Dashboard'
 import NotFound from './NotFound'
 import PWAInstallModal from './components/PWAInstallModal'
+import TourOverlay from './components/TourOverlay'
+import TourWelcomePrompt from './components/TourWelcomePrompt'
+import HelpMenu from './components/HelpMenu'
 import { shouldShowPWAPrompt } from './lib/pwa'
+import { shouldShowTourPrompt, markTourSeen } from './lib/tour'
 
 export default function App() {
   const { jwt } = useAuth()
@@ -20,7 +26,9 @@ export default function App() {
   const location = useLocation()
 
   const [showHelp, setShowHelp] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const [showTourPrompt, setShowTourPrompt] = useState(false);
+  const isMobile = useIsMobile();
+  const tour = useTour();
   const { arm: armGChord, consume: consumeGChord } = useKeyChord();
 
   useEffect(() => {
@@ -36,28 +44,32 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-
-  useEffect(() => {
     window.scrollTo(0, 0)
   }, [location.pathname]);
 
-  // Show PWA prompt on first login (not on page refresh)
+  // Show PWA prompt on first login (not on page refresh); the tour-welcome prompt
+  // follows once the PWA prompt is resolved, so the two never show at once.
   const prevJwtRef = useRef<string | null>(jwt)
+  const pendingTourRef = useRef(false)
   useEffect(() => {
     const prev = prevJwtRef.current
     prevJwtRef.current = jwt
-    if (!jwt || prev || !shouldShowPWAPrompt()) return
-    const t = setTimeout(() => setShowPwaPrompt(true), 0)
-    return () => clearTimeout(t)
+    if (!jwt || prev) return
+    if (shouldShowPWAPrompt()) {
+      pendingTourRef.current = shouldShowTourPrompt()
+      const t = setTimeout(() => setShowPwaPrompt(true), 0)
+      return () => clearTimeout(t)
+    }
+    if (shouldShowTourPrompt()) {
+      const t = setTimeout(() => setShowTourPrompt(true), 0)
+      return () => clearTimeout(t)
+    }
   }, [jwt])
 
   useEffect(() => {
     if (!jwt) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (tour.active) return;
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
@@ -85,7 +97,7 @@ export default function App() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [jwt, showHelp, navigate, armGChord, consumeGChord]);
+  }, [jwt, showHelp, navigate, armGChord, consumeGChord, tour.active]);
 
   return (
     <>
@@ -111,7 +123,26 @@ export default function App() {
           element={jwt ? <NotFound /> : <Navigate to="/login" replace />}
         />
       </Routes>
-      {showPwaPrompt && <PWAInstallModal onDismiss={() => setShowPwaPrompt(false)} />}
+      {showPwaPrompt && (
+        <PWAInstallModal
+          onDismiss={() => {
+            setShowPwaPrompt(false)
+            if (pendingTourRef.current) {
+              pendingTourRef.current = false
+              setShowTourPrompt(true)
+            }
+          }}
+        />
+      )}
+
+      {showTourPrompt && (
+        <TourWelcomePrompt
+          onStart={() => { markTourSeen(); setShowTourPrompt(false); tour.start() }}
+          onDismiss={() => { markTourSeen(); setShowTourPrompt(false) }}
+        />
+      )}
+
+      {tour.active && <TourOverlay tour={tour} />}
 
       {showUpdateBanner && (
         <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-between gap-4 px-4 py-3 text-sm"
@@ -137,105 +168,14 @@ export default function App() {
         </div>
       )}
 
-      {jwt && !isMobile && (
-        <button
-          onClick={() => setShowHelp(v => !v)}
-          title="Keyboard shortcuts (?)"
-          aria-label="Show keyboard shortcuts"
-          className="fixed bottom-20 md:bottom-5 right-5 z-40 flex items-center justify-center w-9 h-9 rounded-full shadow-lg transition-all select-none font-bold text-sm"
-          style={{
-            background: 'var(--color-shelf)',
-            border: '1px solid var(--color-shelf-lit)',
-            color: 'var(--color-gilt)',
-          }}
-        >
-          ?
-        </button>
-      )}
-
-      {jwt && showHelp && !isMobile && (
-        <div
-          className="fixed inset-0 flex items-center justify-center z-50"
-          style={{ background: 'rgba(0,0,0,0.55)' }}
-          onClick={() => setShowHelp(false)}
-        >
-          <div
-            className="rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4"
-            style={{
-              background: 'var(--color-shelf)',
-              border: '1px solid var(--color-shelf-lit)',
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-5">
-              <h2
-                className="slab text-base font-semibold"
-                style={{ letterSpacing: '0.06em', color: 'var(--color-gilt)' }}
-              >
-                Keyboard Shortcuts
-              </h2>
-              <button
-                onClick={() => setShowHelp(false)}
-                className="text-xl leading-none transition-colors"
-                style={{ color: 'rgba(242,236,221,0.5)' }}
-              >
-                ×
-              </button>
-            </div>
-            <div className="flex flex-col gap-2.5">
-              {([
-                { keys: ['g', 'h'], description: 'Go to Dashboard' },
-                { keys: ['g', 't'], description: 'Go to Tracker' },
-                { keys: ['g', 'p'], description: 'Go to Profile' },
-                { keys: null, description: '' },
-                { keys: ['/'], description: 'Focus search' },
-                { keys: ['←', '→'], altKeys: ['h', 'l'], description: 'Switch volume' },
-                { keys: ['↑', '↓'], altKeys: ['k', 'j'], description: 'Navigate entries' },
-                { keys: ['Tab'], altKeys: ['i'], description: 'Focus chapter input' },
-                { keys: ['Enter'], description: 'Submit progress' },
-                { keys: ['u'], description: 'Undo last entry' },
-                { keys: ['R'], description: 'Reset all progress (two-step)' },
-                { keys: ['A'], description: 'Mark all chapters as read (two-step)' },
-                { keys: ['Esc'], description: 'Deselect / clear search' },
-                { keys: ['?'], description: 'Show / hide this help' },
-              ] as { keys: string[] | null; altKeys?: string[]; description: string }[]).map(({ keys, altKeys, description }, i) => (
-                keys === null
-                  ? <div key={i} className="border-t my-1" style={{ borderColor: 'var(--color-shelf-lit)' }} />
-                  : (
-                    <div key={description} className="flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        {keys.map(k => (
-                          <kbd
-                            key={k}
-                            className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-xs font-mono min-w-[1.5rem]"
-                            style={{ background: 'var(--color-shelf-lit)', border: '1px solid rgba(210,166,63,0.3)', color: 'var(--color-leaf)' }}
-                          >
-                            {k}
-                          </kbd>
-                        ))}
-                        {altKeys && (
-                          <>
-                            <span className="text-xs px-0.5" style={{ color: 'rgba(242,236,221,0.35)' }}>/</span>
-                            {altKeys.map(k => (
-                              <kbd
-                                key={k}
-                                className="inline-flex items-center justify-center rounded px-1.5 py-0.5 text-xs font-mono min-w-[1.5rem]"
-                                style={{ background: 'var(--color-shelf-lit)', border: '1px solid rgba(210,166,63,0.3)', color: 'var(--color-leaf)' }}
-                              >
-                                {k}
-                              </kbd>
-                            ))}
-                          </>
-                        )}
-                      </div>
-                      <span className="text-sm" style={{ color: 'rgba(242,236,221,0.6)' }}>{description}</span>
-                    </div>
-                  )
-              ))}
-              <p className="text-xs pt-1" style={{ color: 'rgba(242,236,221,0.35)' }}>Book navigation shortcuts work on the Tracker page.</p>
-            </div>
-          </div>
-        </div>
+      {jwt && (
+        <HelpMenu
+          isMobile={isMobile}
+          showShortcuts={showHelp}
+          onOpenShortcuts={() => setShowHelp(true)}
+          onCloseShortcuts={() => setShowHelp(false)}
+          onReplayTour={() => tour.start()}
+        />
       )}
     </>
   )

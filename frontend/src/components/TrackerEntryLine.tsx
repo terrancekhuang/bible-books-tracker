@@ -43,6 +43,7 @@ export default function TrackerEntryLine({
 
   return (
     <div
+      id="tour-tracker-entry"
       style={{
         maxWidth: 720, margin: '30px auto 0', paddingTop: 20,
         borderTop: '1px solid rgba(35,31,26,0.2)',

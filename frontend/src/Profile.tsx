@@ -261,6 +261,7 @@ export default function Profile() {
           {/* Start New Cycle */}
           <div style={{ textAlign: 'center', ...fadeUp(200) }}>
             <button
+              id="tour-profile-new-cycle"
               className="px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
               style={{
                 background: 'rgba(210,166,63,0.14)',

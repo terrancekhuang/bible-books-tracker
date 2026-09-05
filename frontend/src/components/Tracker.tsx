@@ -361,7 +361,7 @@ export default function Tracker() {
           )}
         </div>
 
-        <div ref={shelfAreaRef}>
+        <div id="tour-tracker-shelf-area" ref={shelfAreaRef}>
         <VolumeShelf
           books={books}
           openCategory={openCategory}

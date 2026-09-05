@@ -32,10 +32,13 @@ heatmap data or rhythm, it calls `reading_history` — see the `tz_offset` note 
 ```bash
 docker compose up -d   # PostgreSQL on 5432; schema + seed load on first run
 ```
+If something is already listening on 5432 (e.g. a host-installed PostgreSQL), this fails with
+"port already in use" — skip it and point `DATABASE_URL` at that instance instead. `make db`
+detects this automatically and skips `docker compose` when 5432 is already reachable.
 
 **Frontend** (from repo root):
 ```bash
-npm run dev      # dev server on http://localhost:3000
+npm run dev      # dev server on http://localhost:5173
 npm run build    # tsc + vite build
 npm run lint     # eslint
 ```
@@ -44,7 +47,7 @@ Vite proxies `/api/*` and `/auth/*` to `http://localhost:5001`.
 
 **Backend** (from repo root):
 ```bash
-python backend/src/routes.py   # Flask on port 5001
+backend/.venv/bin/python backend/src/routes.py   # Flask on port 5001
 ```
 
 ## Environment variables

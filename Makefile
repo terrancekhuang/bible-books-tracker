@@ -1,4 +1,4 @@
-VENV        := venv
+VENV        := backend/.venv
 PYTHON      := $(VENV)/bin/python
 PIP         := $(VENV)/bin/pip
 SERVER      ?= root@5.78.233.181
@@ -26,8 +26,10 @@ $(VENV)/bin/activate:
 
 # ── Database ──────────────────────────────────────────────────────────────────
 
-db: ## Start local PostgreSQL via docker compose
-	docker compose up -d
+db: ## Start local PostgreSQL via docker compose (skips it if something's already listening on 5432 — e.g. a host-installed Postgres already holding DATABASE_URL's database)
+	@python3 -c "import socket,sys; s=socket.socket(); s.settimeout(0.5); sys.exit(0 if s.connect_ex(('127.0.0.1',5432))==0 else 1)" \
+		&& echo "Postgres already listening on 127.0.0.1:5432 — skipping docker compose." \
+		|| docker compose up -d
 
 db-stop: ## Stop local PostgreSQL
 	docker compose down
@@ -40,7 +42,7 @@ db-tunnel: ## Forward prod Postgres to localhost:5433 (connect pgAdmin there)
 dev-backend: ## Flask backend on :5001
 	$(PYTHON) backend/src/routes.py
 
-dev-frontend: ## Vite dev server on :3000
+dev-frontend: ## Vite dev server on :5173
 	npm run dev
 
 dev: db ## Start db + backend + frontend together (Ctrl-C stops all)

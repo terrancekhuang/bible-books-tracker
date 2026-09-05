@@ -23,10 +23,8 @@ const trackBg = 'rgba(35,31,26,0.1)'
 
 /**
  * When the reader reads: chapters by local weekday, a smaller part-of-day strip, and one
- * plain-language sentence so the charts never need interpreting.
- *
- * Card chrome and the section label come from `.rhythm-card` / `.rhythm-label` below,
- * the same look every other card section uses.
+ * plain-language sentence so the charts never need interpreting. Rendered as its own
+ * subsection of the Dashboard's record leaf — no card chrome of its own.
  */
 export default function ReadingRhythm() {
   // Opens on the recent window: a rhythm the reader still has is more use than one averaged
@@ -36,7 +34,7 @@ export default function ReadingRhythm() {
 
   const strongBar = 'rgba(35,31,26,0.55)'
   const weakBar = 'rgba(35,31,26,0.22)'
-  const partBar = 'rgba(210,166,63,0.72)'
+  const partBar = 'rgba(210,166,63,0.85)' // var(--color-gilt) at reduced opacity
 
   // The whole account is empty, not just the selected window — an invitation, not bars.
   const noDataAtAll = !!data && data.all_time.total_chapters === 0
@@ -45,15 +43,15 @@ export default function ReadingRhythm() {
   const heading = (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-[10px] font-semibold uppercase mb-1" style={{ letterSpacing: '0.3em', color: dimText }}>Reading Rhythm</h2>
-        <p className="italic" style={{ color: dimText, fontSize: 15 }}>when you read</p>
+        <p className="vol-num" style={{ margin: '0 0 4px', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: dimText }}>Reading Rhythm</p>
+        <p className="italic" style={{ margin: 0, color: dimText, fontSize: 15 }}>when you read</p>
       </div>
 
       {/* Hidden while there is nothing to compare between the two windows. */}
       {data && !noDataAtAll && (
         <div
           className="flex shrink-0 rounded-lg p-0.5"
-          style={{ background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(35,31,26,0.1)' }}
+          style={{ background: 'rgba(35,31,26,0.06)', border: '1px solid rgba(35,31,26,0.1)' }}
         >
           {WINDOW_OPTIONS.map(({ key, label }) => {
             const selected = key === windowKey
@@ -79,7 +77,7 @@ export default function ReadingRhythm() {
   )
 
   return (
-    <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)' }}>
+    <div>
       {heading}
 
       <div className="mt-3">

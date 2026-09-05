@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
+import { GILT } from '../lib/volumesTokens'
 
 function isTouchDevice() {
   return typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
@@ -11,25 +12,49 @@ export interface ActivityDay {
   chapters: number
 }
 
-const LEGEND_STYLES: CSSProperties[] = [
-  { background: 'rgba(210,166,63,0.1)' },
-  { background: 'rgba(210,166,63,0.32)' },
-  { background: 'rgba(210,166,63,0.55)' },
-  { background: 'rgba(210,166,63,0.78)' },
-  { background: 'rgba(210,166,63,1.0)' },
+/** A day's mark on the pricked calendar: an unfilled pinprick for nothing logged, or a gilt
+ *  dot that grows and deepens with how much was read. `null` means the day doesn't get a mark
+ *  at all (it's still in the future). */
+interface DotVisual {
+  filled: boolean
+  opacity: number
+  scale: number
+}
+
+const DOT_LEVELS: { opacity: number; scale: number }[] = [
+  { opacity: 0.38, scale: 0.55 },
+  { opacity: 0.6, scale: 0.72 },
+  { opacity: 0.82, scale: 0.88 },
+  { opacity: 1, scale: 1 },
 ]
 
-function intensityStyle(chapters: number, isFuture: boolean, styles: CSSProperties[]): CSSProperties {
-  if (isFuture) return {}
-  if (chapters === 0) return styles[0]
-  if (chapters <= 2) return styles[1]
-  if (chapters <= 5) return styles[2]
-  if (chapters <= 10) return styles[3]
-  return styles[4]
+function dotVisual(chapters: number, isFuture: boolean): DotVisual | null {
+  if (isFuture) return null
+  if (chapters === 0) return { filled: false, opacity: 1, scale: 0.55 }
+  const level = chapters <= 2 ? 0 : chapters <= 5 ? 1 : chapters <= 10 ? 2 : 3
+  return { filled: true, ...DOT_LEVELS[level] }
+}
+
+const LEGEND_DOTS: (DotVisual | null)[] = [
+  { filled: false, opacity: 1, scale: 0.55 },
+  ...DOT_LEVELS.map(level => ({ filled: true, ...level })),
+]
+
+function Dot({ visual, size }: { visual: DotVisual | null; size: number }) {
+  if (!visual) return <div style={{ width: size, height: size }} />
+  return (
+    <div
+      className="rounded-full"
+      style={
+        visual.filled
+          ? { width: size * visual.scale, height: size * visual.scale, background: GILT, opacity: visual.opacity }
+          : { width: size * visual.scale, height: size * visual.scale, border: '1px solid rgba(35,31,26,0.22)' }
+      }
+    />
+  )
 }
 
 export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
-  const legendStyles = LEGEND_STYLES
   const labelColor = 'rgba(35,31,26,0.45)'
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -130,8 +155,8 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                 {week.map((day, di) => (
                   <div
                     key={di}
-                    className="rounded-sm"
-                    style={{ width: cellSize, height: cellSize, ...intensityStyle(day.chapters, day.isFuture, legendStyles) }}
+                    className="flex items-center justify-center"
+                    style={{ width: cellSize, height: cellSize }}
                     title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
                     onClick={e => {
                       if (day.isFuture || !isTouchDevice()) return
@@ -144,17 +169,21 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                           : { wi, di, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, placement, text },
                       )
                     }}
-                  />
+                  >
+                    <Dot visual={dotVisual(day.chapters, day.isFuture)} size={cellSize} />
+                  </div>
                 ))}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-1 mt-1 self-end">
+        <div className="flex items-center gap-1.5 mt-1 self-end">
           <span style={labelStyle}>Less</span>
-          {legendStyles.map((s, i) => (
-            <div key={i} className="rounded-sm" style={{ width: 12, height: 12, ...s }} />
+          {LEGEND_DOTS.map((v, i) => (
+            <div key={i} className="flex items-center justify-center" style={{ width: 12, height: 12 }}>
+              <Dot visual={v} size={12} />
+            </div>
           ))}
           <span style={labelStyle}>More</span>
         </div>
@@ -173,9 +202,9 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
               whiteSpace: 'nowrap',
               padding: '4px 8px',
               fontSize: 11,
-              background: '#ffffff',
+              background: 'var(--color-leaf)',
               color: 'var(--color-ink)',
-              border: '1px solid rgba(35,31,26,0.15)',
+              border: '1px solid var(--color-leaf-rule)',
             }}
           >
             {tapped.text}

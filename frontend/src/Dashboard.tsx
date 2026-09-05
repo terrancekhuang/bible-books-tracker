@@ -1,23 +1,44 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import { useMemo, useState } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBooksQuery, useDashboardQuery } from './lib/queries'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
-import BookCard from './components/BookCard'
 import Skeleton from './components/Skeleton'
 import ActivityHeatmap from './components/ActivityHeatmap'
-import CircularProgress from './components/CircularProgress'
+import DashboardEntryRow from './components/DashboardEntryRow'
 import NavBar from './components/NavBar'
 import ReadingRhythm from './components/ReadingRhythm'
-import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, type Book } from './lib/trackerLogic'
-import { getCategoryPalette } from './lib/categoryColors'
-import { CATEGORY_ORDER } from './lib/volumesTokens'
+import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, type Book } from './lib/trackerLogic'
+import { CATEGORY_ORDER, CLOTH, GILT } from './lib/volumesTokens'
 
 const primaryText = 'var(--color-ink)'
 const dimText = 'rgba(35,31,26,0.55)'
-const bodyText = 'rgba(35,31,26,0.78)'
 const trackBg = 'rgba(35,31,26,0.1)'
+
+// The Old/New Testament rows aren't a "volume" with a single cloth colour of their own —
+// they lean on the leaf's other two accents instead: the red rule for the Old Testament,
+// gilt for the New.
+const TESTAMENT_RULE: Record<string, string> = {
+  'Old Testament': 'var(--color-leaf-red)',
+  'New Testament': GILT,
+}
+
+// Ported from ContentsLeaf's record-page material — laid paper, faint horizontal chain lines,
+// a red-rule cousin's gilt top edge standing in for a volume's cloth (there's no single volume
+// backing the whole Dashboard, so the ornamental edge is gilt rather than a cloth colour).
+const LEAF_STYLE: CSSProperties = {
+  padding: 'clamp(24px, 4vw, 52px)',
+  backgroundColor: 'var(--color-leaf)',
+  backgroundImage: [
+    'repeating-linear-gradient(0deg, rgba(35,31,26,0.032) 0 1px, transparent 1px 4px)',
+    'linear-gradient(178deg, #F6F1E4, #F2ECDD 40%, #E6DECA)',
+  ].join(', '),
+  color: 'var(--color-ink)',
+  boxShadow: '0 24px 44px -22px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(35,31,26,0.14)',
+  borderTop: `6px solid ${GILT}`,
+  borderRadius: '0 0 0.5rem 0.5rem',
+}
 
 function sumChapters(books: Book[]): number {
   return books.reduce((s, b) => s + b.num_chapters, 0)
@@ -39,13 +60,19 @@ const fadeUp = (delay: number): CSSProperties => ({
   animationDelay: `${delay}ms`,
 })
 
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <p className="vol-num" style={{ margin: '0 0 14px', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: dimText }}>
+      {children}
+    </p>
+  )
+}
+
+function LeafDivider() {
+  return <div aria-hidden style={{ height: 1, margin: '28px 0', background: 'var(--color-leaf-rule)' }} />
+}
 
 export default function Dashboard() {
-  const [displayPct, setDisplayPct] = useState(0)
-  const [editingGoal, setEditingGoal] = useState(false)
-  const [goalInput, setGoalInput] = useState('')
-  const [goalError, setGoalError] = useState<string | null>(null)
-  const animFrameRef = useRef<number | null>(null)
   const navigate = useNavigate()
 
   const { data: books = [], isLoading: booksLoading } = useBooksQuery()
@@ -53,14 +80,35 @@ export default function Dashboard() {
   const { save: saveWeeklyGoal } = useUpdateWeeklyGoal()
   const isInitialLoading = booksLoading || dashboardLoading
 
+  const [editingGoal, setEditingGoal] = useState(false)
+  const [goalInput, setGoalInput] = useState('')
+  const [goalError, setGoalError] = useState<string | null>(null)
+
   const stats = dashboard?.stats ?? null
   const activity = dashboard?.activity ?? null
   const user = dashboard?.user ?? null
 
   const weeklyGoal = dashboard?.weekly_goal ?? 7
 
-  const { totalRead, overallPct } = useMemo(() => calculateOverallProgress(books), [books])
+  const { totalRead } = useMemo(() => calculateOverallProgress(books), [books])
   const booksComplete = useMemo(() => books.filter(b => b.chapters_read >= b.num_chapters).length, [books])
+  const hasAnyProgress = !isInitialLoading && totalRead > 0
+
+  const startEditingGoal = () => { setGoalInput(String(weeklyGoal)); setGoalError(null); setEditingGoal(true) }
+  const cancelEditingGoal = () => { setGoalError(null); setEditingGoal(false) }
+  const saveGoal = async (val: string) => {
+    const n = parseInt(val, 10)
+    if (isNaN(n) || n <= 0 || n > 200) {
+      setGoalError('Enter a number between 1 and 200.')
+      return
+    }
+    setGoalError(null)
+    setEditingGoal(false)
+    // The mutation writes the new goal into the dashboard cache before the request
+    // goes out and rolls it back itself on failure, so there's nothing to undo here.
+    const saved = await saveWeeklyGoal(n)
+    if (!saved) setGoalError("Couldn't save your goal — please try again.")
+  }
 
   const continueBooks = useMemo(() => books
     .filter(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters)
@@ -81,332 +129,229 @@ export default function Dashboard() {
     const booksInCategory = books.filter(b => b.category === cat)
     const catRead = booksInCategory.reduce((s, b) => s + b.chapters_read, 0)
     const total = sumChapters(booksInCategory)
-    return { cat, read: catRead, total, pct: total > 0 ? Math.min(Math.round((catRead / total) * 100), 100) : 0 }
+    return { cat, read: catRead, total, pct: total > 0 ? catRead / total : 0 }
   }), [books])
 
   const weekChapters = stats?.chapters_this_week ?? 0
   const atGoal = weekChapters >= weeklyGoal
 
-  useEffect(() => {
-    if (books.length === 0) return
-    const end = overallPct
-    const startTime = performance.now()
-    const animate = (now: number) => {
-      const t = Math.min((now - startTime) / 1000, 1)
-      const eased = 1 - Math.pow(1 - t, 3)
-      setDisplayPct(Math.round(end * eased))
-      if (t < 1) animFrameRef.current = requestAnimationFrame(animate)
-    }
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
-    animFrameRef.current = requestAnimationFrame(animate)
-    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current) }
-  }, [overallPct, books.length])
-
-  const saveGoal = async (val: string) => {
-    const n = parseInt(val, 10)
-    if (isNaN(n) || n <= 0 || n > 200) {
-      setGoalError('Enter a number between 1 and 200.')
-      return
-    }
-    setGoalError(null)
-    setEditingGoal(false)
-    // The mutation writes the new goal into the dashboard cache before the request
-    // goes out and rolls it back itself on failure, so there's nothing to undo here.
-    const saved = await saveWeeklyGoal(n)
-    if (!saved) setGoalError("Couldn't save your goal — please try again.")
-  }
-
   const firstName = user?.name?.split(' ')[0] ?? 'friend'
 
   return (
-    <div className="flex flex-col min-h-screen pb-20 md:pb-0">
+    <div className="min-h-screen pb-20 md:pb-0" style={{ background: 'var(--color-shelf)' }}>
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
 
-      {/* Hero */}
-      <div className="px-5 py-10 md:py-14">
-        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-14">
+      <div className="max-w-3xl mx-auto w-full px-4 py-8 md:py-14">
+        <section aria-label="Today's record" style={LEAF_STYLE}>
 
-          {/* Ring */}
-          <div className="relative shrink-0" style={fadeUp(0)}>
-            {isInitialLoading ? (
-              <Skeleton rounded="rounded-full" style={{ width: 180, height: 180 }} />
-            ) : (
-              <>
-                <CircularProgress
-                  value={totalRead}
-                  max={TOTAL_CHAPTERS}
-                  size={180}
-                  trackClassName="text-black/12"
-                  arcClassName="text-[#231F1A]/75 transition-all duration-700 ease-out"
-                />
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span
-                    className="slab text-5xl md:text-6xl font-bold leading-none tabular-nums"
-                    style={{ color: primaryText }}
-                  >
-                    {displayPct}%
-                  </span>
-                  <span className="text-[11px] mt-1.5 uppercase tracking-widest" style={{ color: dimText }}>complete</span>
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Hero text */}
-          <div className="flex flex-col gap-3 text-center md:text-left" style={fadeUp(80)}>
-            <p className="text-sm tracking-wide" style={{ color: dimText }}>{formatDate()}</p>
-            <h1
-              className="slab text-3xl md:text-4xl font-semibold leading-tight"
-              style={{ color: primaryText, letterSpacing: '0.04em' }}
-            >
-              {getGreeting()},<br />{firstName}.
+          {/* Head */}
+          <div style={{ textAlign: 'center', marginBottom: 8 }}>
+            <p className="vol-num" style={{ margin: 0, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: dimText, ...fadeUp(0) }}>
+              {formatDate()}
+            </p>
+            <h1 className="slab" style={{ margin: '10px 0 0', fontSize: 'clamp(24px, 4vw, 38px)', color: primaryText, ...fadeUp(40) }}>
+              {getGreeting()}, {firstName}.
             </h1>
+            <div aria-hidden style={{ margin: '16px auto 0', width: 'min(320px, 55%)', ...fadeUp(70) }}>
+              <div style={{ height: 2, background: 'var(--color-leaf-red)' }} />
+              <div style={{ height: 1, marginTop: 3, background: 'var(--color-leaf-red)' }} />
+            </div>
             {isInitialLoading ? (
-              <Skeleton className="h-5 w-64 max-w-full self-center md:self-start" />
+              <div className="flex justify-center mt-4"><Skeleton className="h-4 w-72 max-w-full" /></div>
             ) : (
-              <p className="text-sm" style={{ color: bodyText }}>
-                <span className="font-semibold" style={{ color: primaryText }}>{totalRead.toLocaleString()}</span> of{' '}
-                <span className="font-semibold" style={{ color: primaryText }}>{TOTAL_CHAPTERS.toLocaleString()}</span> chapters ·{' '}
-                <span className="font-semibold" style={{ color: primaryText }}>{booksComplete}</span> of {TOTAL_BOOKS} books complete
+              <p className="vol-num" style={{ margin: '14px 0 0', fontSize: 12, letterSpacing: '0.14em', color: 'rgba(35,31,26,0.72)', ...fadeUp(100) }}>
+                {hasAnyProgress
+                  ? `${totalRead.toLocaleString()} of ${TOTAL_CHAPTERS.toLocaleString()} chapters · ${booksComplete} of ${TOTAL_BOOKS} books complete`
+                  : 'Nothing logged yet — open the Tracker to begin your first volume.'}
               </p>
             )}
-            <div className="flex gap-3 flex-wrap justify-center md:justify-start mt-1">
-              {isInitialLoading ? (
-                <>
-                  <Skeleton rounded="rounded-full" className="h-8 w-28" />
-                  <Skeleton rounded="rounded-full" className="h-8 w-24" />
-                </>
-              ) : [
-                { icon: <FlameIcon size={14} />, label: `${stats?.current_streak ?? 0}d streak` },
-                { icon: <CalendarIcon size={14} />, label: `${stats?.chapters_today ?? 0} today` },
-              ].map(({ icon, label }) => (
-                <div
-                  key={label}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full"
-                  style={{
-                    background: 'rgba(255,255,255,0.65)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(35,31,26,0.16)',
-                  }}
-                >
-                  <span style={{ color: 'var(--color-gilt)' }}>{icon}</span>
-                  <span className="text-sm font-semibold" style={{ color: primaryText }}>{label}</span>
-                </div>
-              ))}
-            </div>
           </div>
-        </div>
-      </div>
 
-      {/* Body */}
-      <div className="max-w-4xl mx-auto w-full px-4 py-6 flex flex-col gap-5">
+          <LeafDivider />
 
-        {/* Row 1: Weekly goal + Continue reading */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-          {/* Weekly goal */}
-          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(160) }}>
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] font-semibold uppercase" style={{ letterSpacing: '0.3em', color: dimText }}>Weekly Goal</span>
-              {!editingGoal && !isInitialLoading && (
-                <button
-                  onClick={() => { setGoalInput(String(weeklyGoal)); setGoalError(null); setEditingGoal(true) }}
-                  className="p-1 rounded-md transition-colors"
-                  style={{ color: dimText }}
-                  title="Edit goal"
-                  aria-label="Edit weekly goal"
-                >
-                  <PencilIcon size={14} />
-                </button>
-              )}
-            </div>
-
-            {isInitialLoading ? (
-              <div className="mb-4">
-                <Skeleton className="h-9 w-32" />
+          {/* Marginalia: streak, today, weekly goal */}
+          <div className="flex flex-col md:flex-row" style={fadeUp(130)}>
+            {[
+              { icon: <FlameIcon size={15} />, label: 'Streak', value: isInitialLoading ? null : `${stats?.current_streak ?? 0}d` },
+              { icon: <CalendarIcon size={15} />, label: 'Today', value: isInitialLoading ? null : `${stats?.chapters_today ?? 0} ch.` },
+            ].map(({ icon, label, value }, i) => (
+              <div
+                key={label}
+                className={`flex-1 flex flex-col items-center text-center py-3 md:py-0 ${i > 0 ? 'border-t md:border-t-0 md:border-l' : ''}`}
+                style={{ borderColor: 'var(--color-leaf-rule)' }}
+              >
+                <span className="flex items-center gap-1.5" style={{ color: dimText }}>
+                  {icon}
+                  <span className="vol-num text-[10px] uppercase" style={{ letterSpacing: '0.2em' }}>{label}</span>
+                </span>
+                {value === null ? (
+                  <Skeleton className="h-7 w-14 mt-1.5" />
+                ) : (
+                  <span className="slab text-2xl mt-1" style={{ color: primaryText }}>{value}</span>
+                )}
               </div>
-            ) : editingGoal ? (
-              <div className="mb-4">
-                <div className="flex items-center gap-2">
+            ))}
+
+            <div className="flex-[1.4] flex flex-col items-center text-center py-3 md:py-0 border-t md:border-t-0 md:border-l" style={{ borderColor: 'var(--color-leaf-rule)' }}>
+              <span className="flex items-center gap-1.5" style={{ color: dimText }}>
+                <span className="vol-num text-[10px] uppercase" style={{ letterSpacing: '0.2em' }}>Weekly Goal</span>
+                {!editingGoal && !isInitialLoading && (
+                  <button
+                    onClick={startEditingGoal}
+                    className="p-0.5 rounded-md transition-colors"
+                    style={{ color: dimText }}
+                    title="Edit goal"
+                    aria-label="Edit weekly goal"
+                  >
+                    <PencilIcon size={12} />
+                  </button>
+                )}
+              </span>
+
+              {isInitialLoading ? (
+                <Skeleton className="h-7 w-24 mt-1.5" />
+              ) : editingGoal ? (
+                <div className="mt-1.5 flex items-center gap-1.5">
                   <input
                     type="number" min={1} max={200}
                     value={goalInput}
-                    onChange={e => { setGoalInput(e.target.value); setGoalError(null) }}
+                    onChange={e => setGoalInput(e.target.value)}
                     onKeyDown={e => {
                       if (e.key === 'Enter') saveGoal(goalInput)
-                      if (e.key === 'Escape') { setGoalError(null); setEditingGoal(false) }
+                      if (e.key === 'Escape') cancelEditingGoal()
                     }}
                     autoFocus
-                    className="w-20 px-2 py-1 rounded-lg outline-none text-sm"
+                    className="w-16 px-2 py-1 rounded-lg outline-none text-sm text-center"
                     style={{
                       background: 'rgba(35,31,26,0.06)',
                       border: goalError ? '1px solid rgba(158,42,34,0.6)' : '1px solid rgba(35,31,26,0.25)',
                       color: primaryText,
                     }}
                   />
-                  <span className="text-sm" style={{ color: dimText }}>chapters / week</span>
                   <button
                     onClick={() => saveGoal(goalInput)}
-                    className="text-xs px-2.5 py-1 rounded-lg font-medium transition-colors"
+                    className="text-xs px-2 py-1 rounded-lg font-medium transition-colors"
                     style={{ background: 'rgba(35,31,26,0.1)', color: primaryText }}
                   >
                     Save
                   </button>
                 </div>
-                {goalError && (
-                  <p className="text-xs mt-1.5" style={{ color: 'var(--color-leaf-red)' }} role="alert">
-                    {goalError}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="mb-4">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="slab text-4xl font-bold tabular-nums" style={{ color: primaryText }}>
-                    {weekChapters}
-                  </span>
-                  <span className="text-sm" style={{ color: dimText }}>
-                    / {weeklyGoal} chapters this week
-                  </span>
-                </div>
-                {goalError && (
-                  <p className="text-xs mt-1.5" style={{ color: 'var(--color-leaf-red)' }} role="alert">
-                    {goalError}
-                  </p>
-                )}
-              </div>
-            )}
+              ) : (
+                <span className="slab text-2xl mt-1 tabular-nums" style={{ color: primaryText }}>
+                  {weekChapters}<span className="text-sm" style={{ color: dimText }}> / {weeklyGoal}</span>
+                </span>
+              )}
 
-            {isInitialLoading ? (
-              <Skeleton className="h-2" />
-            ) : (
-              <div className="h-2 rounded-full overflow-hidden" style={{ background: trackBg }}>
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${Math.min((weekChapters / weeklyGoal) * 100, 100)}%`,
-                    background: atGoal
-                      ? 'linear-gradient(90deg, rgba(80,200,140,0.85), rgba(100,225,165,0.9))'
-                      : 'linear-gradient(90deg, rgba(200,180,80,0.75), rgba(230,200,80,0.85))',
-                  }}
-                />
-              </div>
-            )}
-            {!isInitialLoading && (
-              <p className="text-xs mt-2" style={{ color: dimText }}>
-                {atGoal
-                  ? `Goal reached!${weekChapters - weeklyGoal > 0 ? ` +${weekChapters - weeklyGoal} bonus` : ''}`
-                  : `${weeklyGoal - weekChapters} more to reach your goal`}
-              </p>
-            )}
+              {goalError && (
+                <p className="text-xs mt-1" style={{ color: 'var(--color-leaf-red)' }} role="alert">{goalError}</p>
+              )}
+              {!isInitialLoading && !editingGoal && (
+                <div className="w-full max-w-[160px] mt-2">
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: trackBg }}>
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${Math.min((weekChapters / weeklyGoal) * 100, 100)}%`,
+                        background: atGoal ? 'linear-gradient(90deg, rgba(80,200,140,0.85), rgba(100,225,165,0.9))' : GILT,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
+          <LeafDivider />
+
+          {/* Activity */}
+          <div style={fadeUp(160)}>
+            <SectionLabel>Reading Activity</SectionLabel>
+            <ActivityHeatmap activity={activity ?? []} />
+          </div>
+
+          <LeafDivider />
+
           {/* Continue reading */}
-          <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(210) }}>
-            <span className="text-[10px] font-semibold uppercase block mb-3" style={{ letterSpacing: '0.3em', color: dimText }}>Continue Reading</span>
+          <div style={fadeUp(190)}>
+            <SectionLabel>Continue Reading</SectionLabel>
             {continueBooks.length > 0 ? (
-              <div className="flex flex-col gap-2">
+              <div>
                 {continueBooks.map(book => (
-                  <BookCard
+                  <DashboardEntryRow
                     key={book.name}
-                    book={book}
-                    variant="row"
+                    label={book.name}
+                    trailing={`${book.chapters_read} / ${book.num_chapters}`}
+                    progress={calculateProgress(book) / 100}
+                    ruleColor={CLOTH[book.category]}
                     onClick={() => navigate('/tracker', { state: { selectBook: book.name } })}
                   />
                 ))}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 gap-2">
-                <span style={{ color: dimText }}><BookOpenIcon size={32} /></span>
+                <span style={{ color: dimText }}><BookOpenIcon size={28} /></span>
                 <p className="text-sm text-center" style={{ color: dimText }}>Start reading to see books here</p>
                 <button
                   onClick={() => navigate('/tracker')}
                   className="text-xs font-medium hover:underline mt-1"
-                  style={{ color: 'rgba(35,31,26,0.55)' }}
+                  style={{ color: dimText }}
                 >
                   Open Tracker →
                 </button>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Testament breakdown */}
-        <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(260) }}>
-          <span className="text-[10px] font-semibold uppercase block mb-4" style={{ letterSpacing: '0.3em', color: dimText }}>Testament Progress</span>
-          <div className="flex flex-col gap-4">
+          <LeafDivider />
+
+          {/* Testament breakdown */}
+          <div style={fadeUp(220)}>
+            <SectionLabel>Testament Progress</SectionLabel>
             {[
-              { label: 'Old Testament', read: otRead, total: otTotal, color: 'rgba(240,180,60,0.85)' },
-              { label: 'New Testament', read: ntRead, total: ntTotal, color: 'rgba(170,120,255,0.85)' },
-            ].map(({ label, read, total, color }) => {
-              const pct = total > 0 ? Math.round((read / total) * 100) : 0
-              return (
-                <div
-                  key={label}
-                  onClick={() => navigate('/tracker', { state: { filterTestament: label } })}
-                  className="cursor-pointer transition-opacity duration-150 hover:opacity-70"
-                >
-                  <div className="flex items-center justify-between text-sm mb-1.5">
-                    <span className="font-medium" style={{ color: primaryText }}>{label}</span>
-                    <span className="tabular-nums text-xs" style={{ color: dimText }}>
-                      {read.toLocaleString()} / {total.toLocaleString()} · {pct}%
-                    </span>
-                  </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: trackBg }}>
-                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Category breakdown */}
-        <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(310) }}>
-          <span className="text-[10px] font-semibold uppercase block mb-4" style={{ letterSpacing: '0.3em', color: dimText }}>Category Progress</span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
-            {categoryProgress.map(({ cat, read, total, pct }) => (
-              <div
-                key={cat}
-                onClick={() => navigate('/tracker', { state: { filterCategory: cat } })}
-                className="cursor-pointer transition-opacity duration-150 hover:opacity-70"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="shrink-0" style={{ color: dimText }}>
-                      <CategoryIcon category={cat} size={13} />
-                    </span>
-                    <span className="text-xs font-medium truncate" style={{ color: bodyText }}>{cat}</span>
-                  </div>
-                  <span className="text-xs shrink-0 ml-2 tabular-nums" style={{ color: dimText }}>{read}/{total}</span>
-                </div>
-                <div className="h-1.5 rounded-full overflow-hidden" style={{ background: trackBg }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${pct}%`, background: getCategoryPalette(cat).color }}
-                  />
-                </div>
-              </div>
+              { label: 'Old Testament', read: otRead, total: otTotal },
+              { label: 'New Testament', read: ntRead, total: ntTotal },
+            ].map(({ label, read, total }) => (
+              <DashboardEntryRow
+                key={label}
+                label={label}
+                trailing={`${read.toLocaleString()} / ${total.toLocaleString()} · ${total > 0 ? Math.round((read / total) * 100) : 0}%`}
+                progress={total > 0 ? read / total : 0}
+                ruleColor={TESTAMENT_RULE[label]}
+                onClick={() => navigate('/tracker', { state: { filterTestament: label } })}
+              />
             ))}
           </div>
-        </div>
 
-        {/* Activity heatmap */}
-        <div className="rounded-2xl p-5" style={{ background: 'rgba(255,255,255,0.88)', border: '1px solid rgba(35,31,26,0.12)', ...fadeUp(360) }}>
-          <span className="text-[10px] font-semibold uppercase block mb-4" style={{ letterSpacing: '0.3em', color: dimText }}>Reading Activity</span>
-          <ActivityHeatmap activity={activity ?? []} />
-        </div>
+          <LeafDivider />
 
-        {/* Reading Rhythm */}
-        <div style={fadeUp(410)}>
-          <ReadingRhythm />
-        </div>
+          {/* Category breakdown */}
+          <div style={fadeUp(250)}>
+            <SectionLabel>Category Progress</SectionLabel>
+            {categoryProgress.map(({ cat, read, total, pct }) => (
+              <DashboardEntryRow
+                key={cat}
+                icon={<CategoryIcon category={cat} size={13} />}
+                label={cat}
+                trailing={`${read} / ${total}`}
+                progress={pct}
+                ruleColor={CLOTH[cat]}
+                onClick={() => navigate('/tracker', { state: { filterCategory: cat } })}
+              />
+            ))}
+          </div>
+
+          <LeafDivider />
+
+          {/* Reading Rhythm */}
+          <div style={fadeUp(280)}>
+            <ReadingRhythm />
+          </div>
+        </section>
+
+        <footer className="text-center text-sm py-4" style={{ color: 'rgba(242,236,221,0.55)', ...fadeUp(310) }}>
+          Made by Terrance Huang
+        </footer>
       </div>
-
-      <footer className="text-center text-sm py-3" style={{ color: dimText, ...fadeUp(460) }}>
-        Made by Terrance Huang
-      </footer>
     </div>
   )
 }

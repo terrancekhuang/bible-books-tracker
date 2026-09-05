@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { createUpdateWeeklyGoalMutationOptions, type DashboardMutationDeps } from '../dashboardMutations'
 import { queryKeys } from '../queryKeys'
-import type { DashboardData } from '../queries'
+import type { DashboardData, SettingsData } from '../queries'
 
 // queries.ts pulls in React context; only its DashboardData type is needed here, and
 // types are erased at runtime, so nothing needs mocking for it.
@@ -39,6 +39,7 @@ function cachedGoal(): number | undefined {
 beforeEach(() => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData<DashboardData>(queryKeys.dashboard(TZ_OFFSET), DASHBOARD)
+  queryClient.setQueryData<SettingsData>(queryKeys.settings(), { weekly_goal: 7 })
   deps = { queryClient, tzOffset: TZ_OFFSET }
 
   vi.stubGlobal('localStorage', {
@@ -61,7 +62,27 @@ describe('updateWeeklyGoal', () => {
     const context = await options.onMutate({ weeklyGoal: 21 })
 
     expect(cachedGoal()).toBe(21)
-    expect(context.previous?.weekly_goal).toBe(7)
+    expect(context.previousDashboard?.weekly_goal).toBe(7)
+  })
+
+  it('writes the new goal into the settings cache too, so Profile stays in sync', async () => {
+    const options = createUpdateWeeklyGoalMutationOptions(deps)
+
+    const context = await options.onMutate({ weeklyGoal: 21 })
+
+    expect(queryClient.getQueryData<SettingsData>(queryKeys.settings())?.weekly_goal).toBe(21)
+    expect(context.previousSettings?.weekly_goal).toBe(7)
+  })
+
+  it('rolls back the settings cache too when the request fails', async () => {
+    const options = createUpdateWeeklyGoalMutationOptions(deps)
+    const context = await options.onMutate({ weeklyGoal: 21 })
+
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'nope' }, 500)))
+    await expect(options.mutationFn({ weeklyGoal: 21 })).rejects.toThrow('Failed to save weekly goal')
+
+    options.onError(new Error('Failed to save weekly goal'), { weeklyGoal: 21 }, context)
+    expect(queryClient.getQueryData<SettingsData>(queryKeys.settings())?.weekly_goal).toBe(7)
   })
 
   it('leaves the rest of the dashboard payload untouched', async () => {
@@ -117,13 +138,14 @@ describe('updateWeeklyGoal', () => {
     expect(cachedGoal()).toBe(7)
   })
 
-  it('invalidates the dashboard once the write settles', () => {
+  it('invalidates the dashboard and settings once the write settles', () => {
     const options = createUpdateWeeklyGoalMutationOptions(deps)
     const invalidate = vi.spyOn(queryClient, 'invalidateQueries').mockResolvedValue()
 
     options.onSettled()
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.dashboardAll() })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: queryKeys.settings() })
   })
 
   // The key carries the timezone offset, so a prefix match is what reaches whichever

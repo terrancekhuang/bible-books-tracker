@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBooksQuery, useDashboardQuery } from './lib/queries'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
@@ -7,10 +7,14 @@ import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from 
 import Skeleton from './components/Skeleton'
 import ActivityHeatmap from './components/ActivityHeatmap'
 import DashboardEntryRow from './components/DashboardEntryRow'
+import LeafDivider from './components/LeafDivider'
+import LeafSectionLabel from './components/LeafSectionLabel'
+import LeafMarginaliaItem from './components/LeafMarginaliaItem'
 import NavBar from './components/NavBar'
 import ReadingRhythm from './components/ReadingRhythm'
 import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, type Book } from './lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, GILT } from './lib/volumesTokens'
+import { leafSurfaceStyle } from './lib/leafSurface'
 
 const primaryText = 'var(--color-ink)'
 const dimText = 'rgba(35,31,26,0.55)'
@@ -24,20 +28,11 @@ const TESTAMENT_RULE: Record<string, string> = {
   'New Testament': GILT,
 }
 
-// Ported from ContentsLeaf's record-page material — laid paper, faint horizontal chain lines,
-// a red-rule cousin's gilt top edge standing in for a volume's cloth (there's no single volume
-// backing the whole Dashboard, so the ornamental edge is gilt rather than a cloth colour).
+// There's no single volume backing the whole Dashboard, so the leaf's ornamental top edge
+// is gilt rather than a cloth colour.
 const LEAF_STYLE: CSSProperties = {
   padding: 'clamp(24px, 4vw, 52px)',
-  backgroundColor: 'var(--color-leaf)',
-  backgroundImage: [
-    'repeating-linear-gradient(0deg, rgba(35,31,26,0.032) 0 1px, transparent 1px 4px)',
-    'linear-gradient(178deg, #F6F1E4, #F2ECDD 40%, #E6DECA)',
-  ].join(', '),
-  color: 'var(--color-ink)',
-  boxShadow: '0 24px 44px -22px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(35,31,26,0.14)',
-  borderTop: `6px solid ${GILT}`,
-  borderRadius: '0 0 0.5rem 0.5rem',
+  ...leafSurfaceStyle(GILT),
 }
 
 function sumChapters(books: Book[]): number {
@@ -59,18 +54,6 @@ const fadeUp = (delay: number): CSSProperties => ({
   animation: 'fade-slide-up 0.5s ease-out both',
   animationDelay: `${delay}ms`,
 })
-
-function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <p className="vol-num" style={{ margin: '0 0 14px', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: dimText }}>
-      {children}
-    </p>
-  )
-}
-
-function LeafDivider() {
-  return <div aria-hidden style={{ height: 1, margin: '28px 0', background: 'var(--color-leaf-rule)' }} />
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -171,43 +154,41 @@ export default function Dashboard() {
 
           {/* Marginalia: streak, today, weekly goal */}
           <div className="flex flex-col md:flex-row" style={fadeUp(130)}>
-            {[
-              { icon: <FlameIcon size={15} />, label: 'Streak', value: isInitialLoading ? null : `${stats?.current_streak ?? 0}d` },
-              { icon: <CalendarIcon size={15} />, label: 'Today', value: isInitialLoading ? null : `${stats?.chapters_today ?? 0} ch.` },
-            ].map(({ icon, label, value }, i) => (
-              <div
-                key={label}
-                className={`flex-1 flex flex-col items-center text-center py-3 md:py-0 ${i > 0 ? 'border-t md:border-t-0 md:border-l' : ''}`}
-                style={{ borderColor: 'var(--color-leaf-rule)' }}
-              >
-                <span className="flex items-center gap-1.5" style={{ color: dimText }}>
-                  {icon}
-                  <span className="vol-num text-[10px] uppercase" style={{ letterSpacing: '0.2em' }}>{label}</span>
+            <LeafMarginaliaItem
+              first
+              icon={<FlameIcon size={15} />}
+              label="Streak"
+              value={isInitialLoading ? undefined : `${stats?.current_streak ?? 0}d`}
+            >
+              {isInitialLoading ? <Skeleton className="h-7 w-14 mt-1.5" /> : undefined}
+            </LeafMarginaliaItem>
+            <LeafMarginaliaItem
+              icon={<CalendarIcon size={15} />}
+              label="Today"
+              value={isInitialLoading ? undefined : `${stats?.chapters_today ?? 0} ch.`}
+            >
+              {isInitialLoading ? <Skeleton className="h-7 w-14 mt-1.5" /> : undefined}
+            </LeafMarginaliaItem>
+
+            <LeafMarginaliaItem
+              flexGrow={1.4}
+              label={
+                <span className="flex items-center gap-1.5">
+                  Weekly Goal
+                  {!editingGoal && !isInitialLoading && (
+                    <button
+                      onClick={startEditingGoal}
+                      className="p-0.5 rounded-md transition-colors"
+                      style={{ color: dimText }}
+                      title="Edit goal"
+                      aria-label="Edit weekly goal"
+                    >
+                      <PencilIcon size={12} />
+                    </button>
+                  )}
                 </span>
-                {value === null ? (
-                  <Skeleton className="h-7 w-14 mt-1.5" />
-                ) : (
-                  <span className="slab text-2xl mt-1" style={{ color: primaryText }}>{value}</span>
-                )}
-              </div>
-            ))}
-
-            <div className="flex-[1.4] flex flex-col items-center text-center py-3 md:py-0 border-t md:border-t-0 md:border-l" style={{ borderColor: 'var(--color-leaf-rule)' }}>
-              <span className="flex items-center gap-1.5" style={{ color: dimText }}>
-                <span className="vol-num text-[10px] uppercase" style={{ letterSpacing: '0.2em' }}>Weekly Goal</span>
-                {!editingGoal && !isInitialLoading && (
-                  <button
-                    onClick={startEditingGoal}
-                    className="p-0.5 rounded-md transition-colors"
-                    style={{ color: dimText }}
-                    title="Edit goal"
-                    aria-label="Edit weekly goal"
-                  >
-                    <PencilIcon size={12} />
-                  </button>
-                )}
-              </span>
-
+              }
+            >
               {isInitialLoading ? (
                 <Skeleton className="h-7 w-24 mt-1.5" />
               ) : editingGoal ? (
@@ -258,14 +239,14 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
-            </div>
+            </LeafMarginaliaItem>
           </div>
 
           <LeafDivider />
 
           {/* Activity */}
           <div style={fadeUp(160)}>
-            <SectionLabel>Reading Activity</SectionLabel>
+            <LeafSectionLabel>Reading Activity</LeafSectionLabel>
             <ActivityHeatmap activity={activity ?? []} />
           </div>
 
@@ -273,7 +254,7 @@ export default function Dashboard() {
 
           {/* Continue reading */}
           <div style={fadeUp(190)}>
-            <SectionLabel>Continue Reading</SectionLabel>
+            <LeafSectionLabel>Continue Reading</LeafSectionLabel>
             {continueBooks.length > 0 ? (
               <div>
                 {continueBooks.map(book => (
@@ -306,7 +287,7 @@ export default function Dashboard() {
 
           {/* Testament breakdown */}
           <div style={fadeUp(220)}>
-            <SectionLabel>Testament Progress</SectionLabel>
+            <LeafSectionLabel>Testament Progress</LeafSectionLabel>
             {[
               { label: 'Old Testament', read: otRead, total: otTotal },
               { label: 'New Testament', read: ntRead, total: ntTotal },
@@ -326,7 +307,7 @@ export default function Dashboard() {
 
           {/* Category breakdown */}
           <div style={fadeUp(250)}>
-            <SectionLabel>Category Progress</SectionLabel>
+            <LeafSectionLabel>Category Progress</LeafSectionLabel>
             {categoryProgress.map(({ cat, read, total, pct }) => (
               <DashboardEntryRow
                 key={cat}

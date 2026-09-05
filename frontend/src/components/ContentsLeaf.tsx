@@ -1,4 +1,5 @@
 import { CLOTH, GILT } from '../lib/volumesTokens'
+import { leafSurfaceStyle } from '../lib/leafSurface'
 import type { Book } from '../lib/trackerLogic'
 
 interface ContentsLeafProps {
@@ -24,15 +25,7 @@ export default function ContentsLeaf({
       aria-label={`Contents of ${heading}`}
       style={{
         marginTop: 32, padding: 'clamp(20px, 3.4vw, 46px)',
-        backgroundColor: 'var(--color-leaf)',
-        backgroundImage: [
-          'repeating-linear-gradient(0deg, rgba(35,31,26,0.032) 0 1px, transparent 1px 4px)',
-          'linear-gradient(178deg, #F6F1E4, #F2ECDD 40%, #E6DECA)',
-        ].join(', '),
-        color: 'var(--color-ink)',
-        boxShadow: '0 24px 44px -22px rgba(0,0,0,0.9), inset 0 0 0 1px rgba(35,31,26,0.14)',
-        borderTop: `6px solid ${topBorder}`,
-        borderRadius: '0 0 0.5rem 0.5rem',
+        ...leafSurfaceStyle(topBorder),
       }}
     >
       <div style={{ textAlign: 'center', marginBottom: 26 }}>

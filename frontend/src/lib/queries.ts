@@ -96,6 +96,19 @@ export function statsQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: 
   })
 }
 
+/** Just the weekly goal — lets Profile show/edit it without pulling in the rest of the
+ *  dashboard payload it doesn't otherwise need. */
+export interface SettingsData {
+  weekly_goal: number
+}
+
+export function settingsQueryOptions({ logout }: QueryDeps) {
+  return queryOptions({
+    queryKey: queryKeys.settings(),
+    queryFn: (): Promise<SettingsData> => getJson<SettingsData>('/api/settings', logout),
+  })
+}
+
 /** Both time windows arrive in one payload, so the Profile toggle never refetches. */
 export function rhythmQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
   return queryOptions({
@@ -147,4 +160,9 @@ export function useRhythmQuery() {
   const { logout } = useAuth()
   const tzOffset = useTzOffset()
   return useQuery(rhythmQueryOptions({ logout, tzOffset }))
+}
+
+export function useSettingsQuery() {
+  const { logout } = useAuth()
+  return useQuery(settingsQueryOptions({ logout }))
 }

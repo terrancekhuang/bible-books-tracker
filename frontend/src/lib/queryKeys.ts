@@ -14,4 +14,6 @@ export const queryKeys = {
   // And again for /api/rhythm, which groups by the reader's local weekday and hour.
   rhythmAll: () => ['rhythm'] as const,
   rhythm: (tzOffset: number) => ['rhythm', tzOffset] as const,
+  // Not timezone-dependent — just the weekly goal, shared by Dashboard's and Profile's editors.
+  settings: () => ['settings'] as const,
 } as const

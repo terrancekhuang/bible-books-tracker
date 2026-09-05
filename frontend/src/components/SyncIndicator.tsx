@@ -34,7 +34,7 @@ export default function SyncIndicator({ secondaryText }: SyncIndicatorProps) {
       </span>
     )
     label = 'Syncing…'
-    color = 'rgba(120, 150, 255, 0.9)'
+    color = 'rgba(251, 191, 36, 0.9)'
   } else if (!isOnline) {
     icon = <CloudOffIcon size={18} />
     label = pendingCount > 0

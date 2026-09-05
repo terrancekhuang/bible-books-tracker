@@ -95,11 +95,11 @@ export default function AchievementMedallion({ label, criteria, tier, icon, earn
       </div>
       <span
         className="text-xs font-bold leading-tight"
-        style={{ color: earned ? cfg.label : 'rgba(35,31,26,0.45)', maxWidth: '100%', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
+        style={{ color: earned ? cfg.label : 'rgba(35,31,26,0.65)', maxWidth: '100%', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
       >
         {label}
       </span>
-      <span className="vol-num leading-tight" style={{ fontSize: 10, color: 'rgba(35,31,26,0.5)' }}>
+      <span className="vol-num leading-tight" style={{ fontSize: 10, color: 'rgba(35,31,26,0.65)' }}>
         {criteria}
       </span>
     </div>

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Full-stack Bible reading progress tracker:
 
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS v4 + DaisyUI
+- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS v4
 - **Backend**: Python Flask + psycopg2 + gunicorn
 - **Database**: PostgreSQL 17 (self-hosted in Docker)
 - **Infra**: Hetzner Cloud VM (`cpx22`, `nbg1`), Terraform, host nginx + Let's Encrypt
@@ -226,11 +226,13 @@ Configured via `VitePWA` in `vite.config.ts`. Workbox uses NetworkFirst for `/ap
 | Key | Action |
 |-----|--------|
 | `/` | Focus search |
-| `←→↑↓` / `h j k l` | Navigate book grid |
-| `gg` / `G` | First / last book |
+| `←→` / `h l` | Switch volume |
+| `↑↓` / `k j` | Navigate entries |
 | `Tab` or `i` | Focus chapter input |
 | `Enter` | Submit progress |
 | `u` | Undo last entry |
+| `R` | Reset all progress (two-step) |
+| `A` | Mark all chapters as read (two-step) |
 | `g` `h` | Go to Dashboard |
 | `g` `t` | Go to Tracker |
 | `g` `p` | Go to Profile |

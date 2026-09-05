@@ -7,6 +7,7 @@ import Login from './Login'
 import Profile from './Profile'
 import Tracker from './components/Tracker'
 import Dashboard from './Dashboard'
+import NotFound from './NotFound'
 import PWAInstallModal from './components/PWAInstallModal'
 import { shouldShowPWAPrompt } from './lib/pwa'
 
@@ -104,6 +105,10 @@ export default function App() {
         <Route
           path="/profile"
           element={jwt ? <Profile /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="*"
+          element={jwt ? <NotFound /> : <Navigate to="/login" replace />}
         />
       </Routes>
       {showPwaPrompt && <PWAInstallModal onDismiss={() => setShowPwaPrompt(false)} />}

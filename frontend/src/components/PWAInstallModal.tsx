@@ -193,19 +193,19 @@ function Step({ n, text }: { n: number; text: React.ReactNode }) {
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.7rem' }}>
       <div style={{
         width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-        background: 'rgba(100,130,255,0.15)',
-        border: '1px solid rgba(150,175,255,0.2)',
+        background: 'rgba(210,166,63,0.15)',
+        border: '1px solid rgba(210,166,63,0.35)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '0.65rem',
         fontWeight: 700,
-        color: 'rgba(150,175,255,0.7)',
+        color: 'var(--color-gilt)',
         marginTop: 1,
       }}>
         {n}
       </div>
       <span style={{
         fontSize: '0.82rem',
-        color: 'rgba(160,185,255,0.65)',
+        color: 'rgba(242,236,221,0.6)',
         lineHeight: 1.5,
       }}>
         {text}
@@ -223,7 +223,7 @@ function ShareIcon() {
       strokeWidth={2}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ display: 'inline', width: '0.9em', height: '0.9em', verticalAlign: 'text-bottom', color: '#7ab8ff', margin: '0 1px' }}
+      style={{ display: 'inline', width: '0.9em', height: '0.9em', verticalAlign: 'text-bottom', color: 'var(--color-gilt)', margin: '0 1px' }}
     >
       <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" />
       <polyline points="16 6 12 2 8 6" />
@@ -237,7 +237,7 @@ function MenuIcon() {
     <svg
       viewBox="0 0 24 24"
       fill="currentColor"
-      style={{ display: 'inline', width: '0.9em', height: '0.9em', verticalAlign: 'text-bottom', color: '#7ab8ff', margin: '0 1px' }}
+      style={{ display: 'inline', width: '0.9em', height: '0.9em', verticalAlign: 'text-bottom', color: 'var(--color-gilt)', margin: '0 1px' }}
     >
       <circle cx="12" cy="5" r="1.5" />
       <circle cx="12" cy="12" r="1.5" />

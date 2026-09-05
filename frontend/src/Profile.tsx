@@ -38,10 +38,11 @@ export default function Profile() {
   const { create: createCycle, isCreating } = useCreateCycle()
 
   const { data: user } = useCurrentUserQuery()
-  const { data: rawCycles } = useCyclesQuery()
-  const { data: stats } = useStatsQuery()
-  const { data: settings, isLoading: settingsLoading } = useSettingsQuery()
+  const { data: rawCycles, isError: cyclesError, refetch: refetchCycles } = useCyclesQuery()
+  const { data: stats, isError: statsError, refetch: refetchStats } = useStatsQuery()
+  const { data: settings, isLoading: settingsLoading, isError: settingsError, refetch: refetchSettings } = useSettingsQuery()
   const { save: saveWeeklyGoal } = useUpdateWeeklyGoal()
+  const isError = cyclesError || statsError || settingsError
 
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
@@ -88,6 +89,24 @@ export default function Profile() {
     <div className="min-h-screen pb-20 md:pb-0" style={{ background: 'var(--color-shelf)' }}>
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
 
+      {isError ? (
+        <div className="max-w-3xl mx-auto w-full px-4 py-8 md:py-14">
+          <section aria-label="Profile unavailable" style={LEAF_STYLE}>
+            <p className="text-sm text-center" style={{ color: dimText }}>
+              Could not load your profile.
+            </p>
+            <div className="flex justify-center mt-4">
+              <button
+                onClick={() => { refetchCycles(); refetchStats(); refetchSettings() }}
+                className="text-xs font-semibold uppercase px-4 py-2 rounded-lg transition-colors"
+                style={{ letterSpacing: '0.08em', color: 'var(--color-gilt)', border: '1px solid rgba(210,166,63,0.4)' }}
+              >
+                Try again
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : (
       <div className="max-w-3xl mx-auto w-full px-4 py-8 md:py-14">
         <section aria-label="Profile" style={LEAF_STYLE}>
 
@@ -287,6 +306,7 @@ export default function Profile() {
           Made by Terrance Huang
         </footer>
       </div>
+      )}
 
       {/* Confirmation dialog */}
       <dialog

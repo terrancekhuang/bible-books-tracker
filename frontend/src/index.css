@@ -279,6 +279,9 @@ dialog.cycle-dialog {
   border: none;
   background: transparent;
   max-width: none;
+  /* Tailwind's Preflight zeroes margin on every element, which defeats the native <dialog>'s
+     built-in `margin: auto` centering — restore it explicitly. */
+  margin: auto;
 }
 dialog.cycle-dialog::backdrop {
   background: rgba(0, 0, 0, 0.55);

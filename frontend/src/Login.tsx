@@ -364,7 +364,7 @@ export default function Login() {
           fontSize: 12,
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
-          color: 'rgba(242,236,221,0.4)',
+          color: 'rgba(242,236,221,0.55)',
           paddingBottom: 20,
         }}
       >

@@ -21,7 +21,7 @@ const SHELF_BACKGROUND = [
 
 export default function Tracker() {
   const { data: user } = useCurrentUserQuery();
-  const { data: books = [] } = useBooksQuery();
+  const { data: books = [], isError: booksError, refetch: refetchBooks } = useBooksQuery();
 
   const { pendingCount, isOnline, submit, undo, reset } = useTrackerMutations()
 
@@ -294,6 +294,22 @@ export default function Tracker() {
           </button>
         )}
 
+        {booksError ? (
+          <div
+            className="rounded-lg text-center"
+            style={{ padding: 'clamp(24px, 4vw, 52px)', background: 'var(--color-leaf)', color: 'var(--color-ink)' }}
+          >
+            <p className="text-sm" style={{ color: 'rgba(35,31,26,0.55)' }}>Could not load your books.</p>
+            <button
+              onClick={() => refetchBooks()}
+              className="text-xs font-semibold uppercase mt-4 px-4 py-2 rounded-lg transition-colors"
+              style={{ letterSpacing: '0.08em', color: 'var(--color-gilt)', border: '1px solid rgba(210,166,63,0.4)' }}
+            >
+              Try again
+            </button>
+          </div>
+        ) : (
+        <>
         {/* Search + status control row */}
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           <input
@@ -399,6 +415,8 @@ export default function Tracker() {
           </>
         )}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

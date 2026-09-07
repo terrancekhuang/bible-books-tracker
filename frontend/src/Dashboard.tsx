@@ -94,15 +94,15 @@ export default function Dashboard() {
     if (!saved) setGoalError("Couldn't save your goal — please try again.")
   }
 
-  const continueBooks = useMemo(() => books
+  const inProgressBooks = useMemo(() => books
     .filter(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters)
     .sort((a, b) => {
       if (!a.last_read_at && !b.last_read_at) return 0
       if (!a.last_read_at) return 1
       if (!b.last_read_at) return -1
       return b.last_read_at.localeCompare(a.last_read_at)
-    })
-    .slice(0, 3), [books])
+    }), [books])
+  const continueBooks = useMemo(() => inProgressBooks.slice(0, 3), [inProgressBooks])
 
   const otRead = useMemo(() => books.filter(b => b.testament === 'Old Testament').reduce((s, b) => s + b.chapters_read, 0), [books])
   const ntRead = useMemo(() => books.filter(b => b.testament === 'New Testament').reduce((s, b) => s + b.chapters_read, 0), [books])
@@ -287,6 +287,17 @@ export default function Dashboard() {
                     onClick={() => navigate('/tracker', { state: { selectBook: book.name } })}
                   />
                 ))}
+                <div className="flex justify-center mt-3">
+                  <button
+                    onClick={() => navigate('/tracker', { state: { filterStatus: 'in_progress' } })}
+                    className="text-xs font-medium hover:underline"
+                    style={{ color: dimText }}
+                  >
+                    {inProgressBooks.length > continueBooks.length
+                      ? `View all ${inProgressBooks.length} currently reading →`
+                      : 'View all currently reading →'}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 gap-2">

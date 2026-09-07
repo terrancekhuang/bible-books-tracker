@@ -102,7 +102,7 @@ export default function Tracker() {
   }, [openCategory, flattened]);
 
   useEffect(() => {
-    const state = location.state as { selectBook?: string; filterTestament?: string; filterCategory?: string } | null;
+    const state = location.state as { selectBook?: string; filterTestament?: string; filterCategory?: string; filterStatus?: string } | null;
     if (!state) return;
 
     if (state.filterCategory) {
@@ -115,6 +115,13 @@ export default function Tracker() {
       setOpenCategory(null);
       setSearch(''); setFilterStatus('');
       setTestamentFilter(state.filterTestament);
+      return;
+    }
+    if (state.filterStatus) {
+      window.history.replaceState({}, '');
+      setOpenCategory(null);
+      setSearch(''); setTestamentFilter('');
+      setFilterStatus(state.filterStatus);
       return;
     }
 

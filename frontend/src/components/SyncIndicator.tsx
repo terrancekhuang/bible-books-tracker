@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSyncStatus } from '../lib/useSyncStatus'
 import { CloudCheckIcon, CloudOffIcon, CloudPendingIcon, RefreshIcon, CheckCircleIcon } from './Icons'
+import { useTooltip } from '../lib/useTooltip'
 
 function isStandalone(): boolean {
   return (
@@ -16,8 +17,6 @@ interface SyncIndicatorProps {
 export default function SyncIndicator({ secondaryText }: SyncIndicatorProps) {
   const [isPWA] = useState(isStandalone)
   const { isOnline, pendingCount, isSyncing, showUpToDate, syncNow } = useSyncStatus()
-
-  if (!isPWA) return null
 
   let icon: React.ReactNode
   let label: string
@@ -51,15 +50,23 @@ export default function SyncIndicator({ secondaryText }: SyncIndicatorProps) {
     color = secondaryText
   }
 
+  const syncTooltip = useTooltip(label)
+
+  if (!isPWA) return null
+
   return (
-    <button
-      onClick={syncNow}
-      className="p-1.5 rounded-lg transition-colors leading-[0]"
-      style={{ color }}
-      title={label}
-      aria-label={label}
-    >
-      {icon}
-    </button>
+    <>
+      <button
+        onClick={syncNow}
+        onMouseEnter={syncTooltip.onMouseEnter}
+        onMouseLeave={syncTooltip.onMouseLeave}
+        className="p-1.5 rounded-lg transition-colors leading-[0]"
+        style={{ color }}
+        aria-label={label}
+      >
+        {icon}
+      </button>
+      {syncTooltip.tooltip}
+    </>
   )
 }

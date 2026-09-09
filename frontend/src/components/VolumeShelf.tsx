@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { CATEGORY_ORDER, CLOTH, ROMAN, GILT, PAPER_EDGE } from '../lib/volumesTokens'
 import type { Book } from '../lib/trackerLogic'
+import { useTooltip } from '../lib/useTooltip'
 
 interface Volume {
   category: string
@@ -20,11 +21,16 @@ interface SpineProps {
 
 function Spine({ vol, index, selected, dimmed, onSelect }: SpineProps) {
   const cloth = CLOTH[vol.category]
+  const label = `${vol.category}, ${vol.read} of ${vol.total} chapters`
+  const tooltip = useTooltip(label)
   return (
+    <>
     <button
       onClick={onSelect}
+      onMouseEnter={tooltip.onMouseEnter}
+      onMouseLeave={tooltip.onMouseLeave}
+      aria-label={label}
       aria-pressed={selected}
-      title={`Volume ${ROMAN[index + 1]} — ${vol.category}, ${vol.read} of ${vol.total} chapters`}
       style={{
         position: 'relative', flex: `${vol.total} 1 0`, minWidth: 58, height: 240,
         alignSelf: 'flex-end',
@@ -98,6 +104,8 @@ function Spine({ vol, index, selected, dimmed, onSelect }: SpineProps) {
         {ROMAN[index + 1]}
       </span>
     </button>
+    {tooltip.tooltip}
+    </>
   )
 }
 

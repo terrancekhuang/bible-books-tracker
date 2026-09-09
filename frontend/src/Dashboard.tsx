@@ -12,6 +12,7 @@ import LeafSectionLabel from './components/LeafSectionLabel'
 import LeafMarginaliaItem from './components/LeafMarginaliaItem'
 import NavBar from './components/NavBar'
 import ReadingRhythm from './components/ReadingRhythm'
+import { useTooltip } from './lib/useTooltip'
 import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, type Book } from './lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, GILT } from './lib/volumesTokens'
 import { leafSurfaceStyle } from './lib/leafSurface'
@@ -67,6 +68,7 @@ export default function Dashboard() {
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
   const [goalError, setGoalError] = useState<string | null>(null)
+  const editGoalTooltip = useTooltip('Edit goal')
 
   const stats = dashboard?.stats ?? null
   const activity = dashboard?.activity ?? null
@@ -196,15 +198,19 @@ export default function Dashboard() {
                 <span className="flex items-center gap-1.5">
                   Weekly Goal
                   {!editingGoal && !isInitialLoading && (
-                    <button
-                      onClick={startEditingGoal}
-                      className="p-0.5 rounded-md transition-colors"
-                      style={{ color: dimText }}
-                      title="Edit goal"
-                      aria-label="Edit weekly goal"
-                    >
-                      <PencilIcon size={12} />
-                    </button>
+                    <>
+                      <button
+                        onClick={startEditingGoal}
+                        onMouseEnter={editGoalTooltip.onMouseEnter}
+                        onMouseLeave={editGoalTooltip.onMouseLeave}
+                        className="p-0.5 rounded-md transition-colors"
+                        style={{ color: dimText }}
+                        aria-label="Edit weekly goal"
+                      >
+                        <PencilIcon size={12} />
+                      </button>
+                      {editGoalTooltip.tooltip}
+                    </>
                   )}
                 </span>
               }

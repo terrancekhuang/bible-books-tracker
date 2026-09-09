@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
 import { GILT } from '../lib/volumesTokens'
+import { TOOLTIP_OPEN_DELAY, useTooltipGroup } from '../lib/TooltipGroupContext'
 
 function isTouchDevice() {
   return typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
@@ -54,19 +55,60 @@ function Dot({ visual, size }: { visual: DotVisual | null; size: number }) {
   )
 }
 
+interface CellTooltip {
+  wi: number
+  di: number
+  x: number
+  top: number
+  bottom: number
+  placement: 'top' | 'bottom'
+  text: string
+}
+
 export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
   const labelColor = 'rgba(35,31,26,0.45)'
 
   const containerRef = useRef<HTMLDivElement>(null)
-  const [tapped, setTapped] = useState<{
-    wi: number
-    di: number
-    x: number
-    top: number
-    bottom: number
-    placement: 'top' | 'bottom'
-    text: string
-  } | null>(null)
+  const [tapped, setTapped] = useState<CellTooltip | null>(null)
+
+  // Desktop hover mirrors the tap tooltip above but follows the shared open-delay/skip-window
+  // timing (TooltipGroupContext) — the first cell hovered waits out the delay, sweeping on to
+  // adjacent cells afterward shows instantly.
+  const [hovered, setHovered] = useState<CellTooltip | null>(null)
+  const hoverTimerRef = useRef<number | null>(null)
+  const hoverShownRef = useRef(false)
+  const tooltipGroup = useTooltipGroup()
+
+  const clearHoverTimer = () => {
+    if (hoverTimerRef.current !== null) {
+      window.clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
+  }
+
+  const handleCellEnter = (next: CellTooltip) => {
+    clearHoverTimer()
+    if (tooltipGroup.isWithinSkipWindow()) {
+      hoverShownRef.current = true
+      tooltipGroup.markShown()
+      setHovered(next)
+    } else {
+      hoverTimerRef.current = window.setTimeout(() => {
+        hoverShownRef.current = true
+        tooltipGroup.markShown()
+        setHovered(next)
+      }, TOOLTIP_OPEN_DELAY)
+    }
+  }
+
+  const handleCellLeave = () => {
+    clearHoverTimer()
+    if (hoverShownRef.current) {
+      hoverShownRef.current = false
+      tooltipGroup.markHidden()
+    }
+    setHovered(null)
+  }
 
   useEffect(() => {
     if (!tapped) return
@@ -157,7 +199,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                     key={di}
                     className="flex items-center justify-center"
                     style={{ width: cellSize, height: cellSize }}
-                    title={day.isFuture ? '' : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
+                    aria-label={day.isFuture ? undefined : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
                     onClick={e => {
                       if (day.isFuture || !isTouchDevice()) return
                       const rect = e.currentTarget.getBoundingClientRect()
@@ -169,6 +211,14 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                           : { wi, di, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, placement, text },
                       )
                     }}
+                    onMouseEnter={e => {
+                      if (day.isFuture || isTouchDevice()) return
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      const placement = rect.top < 40 ? 'bottom' : 'top'
+                      const text = `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`
+                      handleCellEnter({ wi, di, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, placement, text })
+                    }}
+                    onMouseLeave={handleCellLeave}
                   >
                     <Dot visual={dotVisual(day.chapters, day.isFuture)} size={cellSize} />
                   </div>
@@ -189,26 +239,32 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
         </div>
       </div>
 
-      {tapped &&
+      {(tapped ?? hovered) &&
         createPortal(
-          <div
-            className="rounded shadow-lg"
-            style={{
-              position: 'fixed',
-              left: tapped.x,
-              ...(tapped.placement === 'top' ? { top: tapped.top - 6 } : { top: tapped.bottom + 6 }),
-              transform: tapped.placement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
-              zIndex: 50,
-              whiteSpace: 'nowrap',
-              padding: '4px 8px',
-              fontSize: 11,
-              background: 'var(--color-leaf)',
-              color: 'var(--color-ink)',
-              border: '1px solid var(--color-leaf-rule)',
-            }}
-          >
-            {tapped.text}
-          </div>,
+          (() => {
+            const active = (tapped ?? hovered)!
+            return (
+              <div
+                className="rounded shadow-lg"
+                style={{
+                  position: 'fixed',
+                  left: active.x,
+                  ...(active.placement === 'top' ? { top: active.top - 6 } : { top: active.bottom + 6 }),
+                  transform: active.placement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+                  zIndex: 50,
+                  pointerEvents: 'none',
+                  whiteSpace: 'nowrap',
+                  padding: '4px 8px',
+                  fontSize: 11,
+                  background: 'var(--color-leaf)',
+                  color: 'var(--color-ink)',
+                  border: '1px solid var(--color-leaf-rule)',
+                }}
+              >
+                {active.text}
+              </div>
+            )
+          })(),
           document.body,
         )}
     </div>

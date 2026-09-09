@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTooltip } from '../lib/useTooltip'
 
 interface HelpMenuProps {
   isMobile: boolean
@@ -11,6 +12,7 @@ interface HelpMenuProps {
 export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onCloseShortcuts, onReplayTour }: HelpMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const helpTooltip = useTooltip('Help')
 
   useEffect(() => {
     if (!menuOpen) return
@@ -58,7 +60,8 @@ export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onC
 
         <button
           onClick={() => setMenuOpen(v => !v)}
-          title="Help"
+          onMouseEnter={helpTooltip.onMouseEnter}
+          onMouseLeave={helpTooltip.onMouseLeave}
           aria-label="Help"
           aria-expanded={menuOpen}
           className="flex items-center justify-center w-9 h-9 rounded-full shadow-lg transition-all select-none font-bold text-sm"
@@ -70,6 +73,7 @@ export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onC
         >
           ?
         </button>
+        {helpTooltip.tooltip}
       </div>
 
       {!isMobile && showShortcuts && (

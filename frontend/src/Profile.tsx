@@ -14,6 +14,7 @@ import LeafSectionLabel from './components/LeafSectionLabel'
 import LeafMarginaliaItem from './components/LeafMarginaliaItem'
 import NavBar from './components/NavBar'
 import Skeleton from './components/Skeleton'
+import { useTooltip } from './lib/useTooltip'
 import { leafSurfaceStyle } from './lib/leafSurface'
 import { GILT } from './lib/volumesTokens'
 
@@ -47,6 +48,7 @@ export default function Profile() {
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
   const [goalError, setGoalError] = useState<string | null>(null)
+  const editGoalTooltip = useTooltip('Edit goal')
 
   const cycles = rawCycles ?? []
   const currentCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null
@@ -194,13 +196,15 @@ export default function Profile() {
                   <span className="text-sm" style={{ color: dimText }}>chapters / week</span>
                   <button
                     onClick={startEditingGoal}
+                    onMouseEnter={editGoalTooltip.onMouseEnter}
+                    onMouseLeave={editGoalTooltip.onMouseLeave}
                     className="p-1 rounded-md transition-colors"
                     style={{ color: dimText }}
-                    title="Edit goal"
                     aria-label="Edit weekly goal"
                   >
                     <PencilIcon size={14} />
                   </button>
+                  {editGoalTooltip.tooltip}
                 </div>
               )}
               {goalError && (

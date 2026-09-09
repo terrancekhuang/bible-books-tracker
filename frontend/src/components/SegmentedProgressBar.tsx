@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
 import { buildChapterRuns, type SegmentState } from '../lib/trackerLogic'
+import { TOOLTIP_OPEN_DELAY, useTooltipGroup } from '../lib/TooltipGroupContext'
 
 interface SegmentedProgressBarProps {
   total: number
@@ -30,6 +31,10 @@ export default function SegmentedProgressBar({
   const readSet = useMemo(() => new Set(readChapters), [readChapters]);
   const barRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ chapter: number; x: number; y: number } | null>(null);
+  const shownRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ chapter: number; x: number; y: number } | null>(null);
+  const tooltipGroup = useTooltipGroup();
 
   // Not memoised: Tracker rebuilds the pending list on every keystroke, so a reference-keyed
   // memo would miss anyway, and this is one pass over at most 150 chapters.
@@ -49,11 +54,51 @@ export default function SegmentedProgressBar({
   };
   const sheen = 'rgba(35,31,26,0.42)';
 
+  const clearTimer = () => {
+    if (timerRef.current !== null) { window.clearTimeout(timerRef.current); timerRef.current = null; }
+  };
+
+  const chapterAt = (e: { clientX: number }) => {
+    const rect = barRef.current!.getBoundingClientRect();
+    return Math.max(1, Math.min(total, Math.ceil(((e.clientX - rect.left) / rect.width) * total)));
+  };
+
+  // Entering the bar follows the same open-delay/skip-window timing as every other tooltip
+  // in the app; once shown, moving between chapter segments just repositions it — the bar is
+  // one continuous hover target, so crossing segments never re-triggers the delay.
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!barRef.current) return;
+    const next = { chapter: chapterAt(e), x: e.clientX, y: e.clientY };
+    if (tooltipGroup.isWithinSkipWindow()) {
+      shownRef.current = true;
+      tooltipGroup.markShown();
+      setTooltip(next);
+    } else {
+      clearTimer();
+      timerRef.current = window.setTimeout(() => {
+        shownRef.current = true;
+        tooltipGroup.markShown();
+        setTooltip(pendingRef.current);
+      }, TOOLTIP_OPEN_DELAY);
+    }
+    pendingRef.current = next;
+  };
+
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!barRef.current) return;
-    const rect = barRef.current.getBoundingClientRect();
-    const chapter = Math.max(1, Math.min(total, Math.ceil(((e.clientX - rect.left) / rect.width) * total)));
-    setTooltip({ chapter, x: e.clientX, y: e.clientY });
+    const next = { chapter: chapterAt(e), x: e.clientX, y: e.clientY };
+    pendingRef.current = next;
+    if (shownRef.current) setTooltip(next);
+  };
+
+  const handleMouseLeave = () => {
+    clearTimer();
+    pendingRef.current = null;
+    if (shownRef.current) {
+      shownRef.current = false;
+      tooltipGroup.markHidden();
+    }
+    setTooltip(null);
   };
 
   return (
@@ -61,8 +106,9 @@ export default function SegmentedProgressBar({
       <div
         ref={barRef}
         className="flex h-3.5 gap-[3px] cursor-default"
+        onMouseEnter={handleMouseEnter}
         onMouseMove={handleMouseMove}
-        onMouseLeave={() => setTooltip(null)}
+        onMouseLeave={handleMouseLeave}
       >
         {runs.map((run) => {
           const filling = !reducedMotion && run.state === 'logging';

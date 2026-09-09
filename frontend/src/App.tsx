@@ -16,6 +16,7 @@ import TourWelcomePrompt from './components/TourWelcomePrompt'
 import HelpMenu from './components/HelpMenu'
 import { shouldShowPWAPrompt } from './lib/pwa'
 import { shouldShowTourPrompt, markTourSeen } from './lib/tour'
+import { TooltipGroupProvider } from './lib/TooltipGroupContext'
 
 export default function App() {
   const { jwt } = useAuth()
@@ -100,7 +101,7 @@ export default function App() {
   }, [jwt, showHelp, navigate, armGChord, consumeGChord, tour.active]);
 
   return (
-    <>
+    <TooltipGroupProvider>
       <Routes>
         <Route
           path="/login"
@@ -177,6 +178,6 @@ export default function App() {
           onReplayTour={() => tour.start()}
         />
       )}
-    </>
+    </TooltipGroupProvider>
   )
 }

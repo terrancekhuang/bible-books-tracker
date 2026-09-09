@@ -2,8 +2,6 @@ import type { RefObject } from 'react'
 import type { Book } from '../lib/trackerLogic'
 import SegmentedProgressBar from './SegmentedProgressBar'
 
-/** Amber used for "already read" hints — the offline banner's warning tone, at hint-text weight. */
-const ALREADY_READ_COLOR = 'rgba(240,200,80,0.8)'
 const dimText = 'rgba(35,31,26,0.55)'
 
 interface ConfirmState {
@@ -94,7 +92,7 @@ export default function TrackerEntryLine({
             </button>
             <span
               className="vol-num"
-              style={{ fontSize: 12, color: inputIsInvalid ? 'var(--color-leaf-red)' : nothingNewToLog ? ALREADY_READ_COLOR : 'rgba(35,31,26,0.62)' }}
+              style={{ fontSize: 12, color: inputIsInvalid || nothingNewToLog ? 'var(--color-leaf-red)' : 'rgba(35,31,26,0.62)' }}
             >
               {inputIsInvalid
                 ? invalidMessage
@@ -102,7 +100,7 @@ export default function TrackerEntryLine({
                   ? alreadyReadMessage
                   : newChapters.length > 0
                     ? `${newChapters.length} to enter`
-                    : 'ranges and lists both read'}
+                    : ''}
             </span>
           </>
         )}

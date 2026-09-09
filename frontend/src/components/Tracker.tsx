@@ -373,7 +373,7 @@ export default function Tracker() {
           books={books}
           openCategory={openCategory}
           flattened={flattened}
-          onSelectCategory={openVolume}
+          onSelectCategory={(category) => (!flattened && category === openCategory ? closeVolume() : openVolume(category))}
         />
 
         {(openCategory || flattened) && (

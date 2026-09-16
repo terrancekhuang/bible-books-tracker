@@ -10,8 +10,9 @@ import {
   type RhythmWindowKey,
 } from '../lib/rhythmLogic'
 
-// Default first, widening to the right — the section opens on Last 90 days.
+// Narrowest first, widening to the right — the section opens on This month.
 const WINDOW_OPTIONS: { key: RhythmWindowKey; label: string }[] = [
+  { key: 'this_month', label: 'This month' },
   { key: 'last_90_days', label: 'Last 90 days' },
   { key: 'all_time', label: 'All time' },
 ]
@@ -27,9 +28,10 @@ const trackBg = 'rgba(35,31,26,0.1)'
  * subsection of the Dashboard's record leaf — no card chrome of its own.
  */
 export default function ReadingRhythm() {
-  // Opens on the recent window: a rhythm the reader still has is more use than one averaged
-  // over years they may have outgrown. All time is one click away, and costs no request.
-  const [windowKey, setWindowKey] = useState<RhythmWindowKey>('last_90_days')
+  // Opens on the narrowest window: a rhythm the reader still has is more use than one
+  // averaged over years they may have outgrown. The wider windows are one click away, and
+  // cost no request.
+  const [windowKey, setWindowKey] = useState<RhythmWindowKey>('this_month')
   const { data, isPending, isError } = useRhythmQuery()
 
   const strongBar = 'rgba(35,31,26,0.55)'
@@ -98,7 +100,7 @@ export default function ReadingRhythm() {
         {/* All-time has data but this window doesn't — truthful, and clearer than seven zeros. */}
         {active && !noDataAtAll && active.total_chapters === 0 && (
           <p className="text-sm" style={{ color: dimText }}>
-            Nothing logged in the last 90 days.
+            Nothing logged {windowKey === 'this_month' ? 'this month' : 'in the last 90 days'}.
           </p>
         )}
 

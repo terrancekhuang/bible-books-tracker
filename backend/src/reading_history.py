@@ -199,21 +199,36 @@ def _empty_window() -> dict:
 
 def _rhythm(cur, user_id: int, tz_offset: int) -> dict:
     recent_cutoff_utc = datetime.now(timezone.utc) - timedelta(days=RECENT_WINDOW_DAYS)
-    params = {'tz': tz_offset, 'user': user_id, 'cutoff': recent_cutoff_utc}
-    windows = {'all_time': _empty_window(), 'last_90_days': _empty_window()}
 
-    # Grouping by (weekday, hour, recent) caps this at 7 * 24 * 2 rows, so one scan
-    # serves both windows and the bucketing happens over a handful of rows in Python.
+    # This month, in the reader's local calendar — always a subset of last_90_days (at most
+    # 31 days), which is itself a subset of all_time, so membership only ever adds windows.
+    local_today = (datetime.now(timezone.utc) + timedelta(minutes=tz_offset)).date()
+    month_start_utc = datetime(local_today.year, local_today.month, 1,
+                                tzinfo=timezone.utc) - timedelta(minutes=tz_offset)
+
+    params = {
+        'tz': tz_offset, 'user': user_id,
+        'cutoff': recent_cutoff_utc, 'month_start': month_start_utc,
+    }
+    windows = {
+        'all_time': _empty_window(),
+        'last_90_days': _empty_window(),
+        'this_month': _empty_window(),
+    }
+
+    # Grouping by (weekday, hour, recent, this_month) caps this at 7 * 24 * 4 rows, so one
+    # scan serves all three windows and the bucketing happens over a handful of rows in Python.
     cur.execute(f"""
         WITH {BULK_SESSION_CTE}
         SELECT EXTRACT(ISODOW FROM {LOCAL_TS})::int AS weekday,
                EXTRACT(HOUR  FROM {LOCAL_TS})::int  AS hour,
                (logged_at >= %(cutoff)s)            AS recent,
+               (logged_at >= %(month_start)s)       AS this_month,
                COUNT(*)                             AS chapters
         FROM chapter_progress
         WHERE user_id = %(user)s
           AND logged_at NOT IN (SELECT logged_at FROM bulk_logged_at)
-        GROUP BY weekday, hour, recent
+        GROUP BY weekday, hour, recent, this_month
     """, params)
 
     for row in cur.fetchall():
@@ -221,7 +236,11 @@ def _rhythm(cur, user_id: int, tz_offset: int) -> dict:
         part = part_of_day(int(row['hour']))
         # ISODOW is Monday=1..Sunday=7, so weekday-1 indexes a Monday-first list directly.
         weekday_index = int(row['weekday']) - 1
-        targets = [windows['all_time']] + ([windows['last_90_days']] if row['recent'] else [])
+        targets = (
+            [windows['all_time']]
+            + ([windows['last_90_days']] if row['recent'] else [])
+            + ([windows['this_month']] if row['this_month'] else [])
+        )
         for target in targets:
             target['by_weekday'][weekday_index] += chapters
             target['by_part_of_day'][part] += chapters
@@ -234,7 +253,9 @@ def _rhythm(cur, user_id: int, tz_offset: int) -> dict:
         WITH {BULK_SESSION_CTE}
         SELECT COUNT(DISTINCT {LOCAL_TS}::date) AS all_days,
                COUNT(DISTINCT {LOCAL_TS}::date)
-                   FILTER (WHERE logged_at >= %(cutoff)s) AS recent_days
+                   FILTER (WHERE logged_at >= %(cutoff)s) AS recent_days,
+               COUNT(DISTINCT {LOCAL_TS}::date)
+                   FILTER (WHERE logged_at >= %(month_start)s) AS month_days
         FROM chapter_progress
         WHERE user_id = %(user)s
           AND logged_at NOT IN (SELECT logged_at FROM bulk_logged_at)
@@ -242,14 +263,15 @@ def _rhythm(cur, user_id: int, tz_offset: int) -> dict:
     days = cur.fetchone()
     windows['all_time']['distinct_days'] = int(days['all_days'] or 0)
     windows['last_90_days']['distinct_days'] = int(days['recent_days'] or 0)
+    windows['this_month']['distinct_days'] = int(days['month_days'] or 0)
 
     return windows
 
 
 def rhythm(user_id: int, tz_offset: int) -> dict:
-    """When the reader reads: chapters by local weekday and part of day, for two windows.
+    """When the reader reads: chapters by local weekday and part of day, for three windows.
 
-    Both windows come back in one payload so the Reading Rhythm toggle can switch between
+    All three windows come back in one payload so the Reading Rhythm toggle can switch between
     them without a refetch. `logged_at` records when a chapter was *logged*, not when it was
     read — the weekday signal survives batched logging, the part-of-day signal is softer.
     """

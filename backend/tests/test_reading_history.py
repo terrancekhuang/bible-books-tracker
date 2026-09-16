@@ -155,10 +155,22 @@ class TestWindows:
         assert result['last_90_days']['total_chapters'] == 1
         assert result['last_90_days']['distinct_days'] == 1
 
-    def test_empty_rhythm_has_both_windows_zeroed(self, test_user):
+    def test_rhythm_splits_this_month_from_last_90_days(self, test_user, seed_chapter):
+        user_id, _ = test_user
+        seed_chapter(_utc_at(days_ago=60, hour=12), chapter=1)
+        seed_chapter(_utc_at(days_ago=1, hour=12), chapter=2)
+
+        result = reading_history.rhythm(user_id, 0)
+        assert result['last_90_days']['total_chapters'] == 2
+        # days_ago=1 always falls in the current local month; days_ago=60 may or may not,
+        # depending on today's date, so only assert on the entry known to be in-month.
+        assert result['this_month']['total_chapters'] >= 1
+        assert result['this_month']['total_chapters'] <= result['last_90_days']['total_chapters']
+
+    def test_empty_rhythm_has_all_windows_zeroed(self, test_user):
         user_id, _ = test_user
         result = reading_history.rhythm(user_id, 0)
-        for window in ('all_time', 'last_90_days'):
+        for window in ('all_time', 'last_90_days', 'this_month'):
             assert result[window]['by_weekday'] == [0] * 7
             assert result[window]['total_chapters'] == 0
             assert result[window]['distinct_days'] == 0

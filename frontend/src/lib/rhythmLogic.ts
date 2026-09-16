@@ -6,7 +6,7 @@
  * only gets named in words when it leads clearly — see PART_MIN_SHARE / PART_MIN_RATIO.
  */
 
-export type RhythmWindowKey = 'all_time' | 'last_90_days'
+export type RhythmWindowKey = 'all_time' | 'last_90_days' | 'this_month'
 export type PartOfDay = 'morning' | 'afternoon' | 'evening' | 'night'
 
 /** One window of the rhythm. `by_weekday` is Monday-first — the backend groups by ISODOW. */
@@ -153,7 +153,7 @@ export function hasEnoughData(window: RhythmWindow): boolean {
 }
 
 /**
- * The one line of prose under the charts. Evaluated per window: switching to Last 90 days
+ * The one line of prose under the charts. Evaluated per window: switching to a narrower one
  * can legitimately drop a reader below the threshold, which is correct, not a bug.
  *
  * Returns '' when there is nothing logged at all — the section renders its empty line there

@@ -335,7 +335,7 @@ def _rhythm(client, auth_headers, tz_offset=0):
 class TestRhythm:
     def test_returns_both_windows_with_expected_shape(self, client, auth_headers):
         data = _rhythm(client, auth_headers)
-        assert set(data) == {'all_time', 'last_90_days'}
+        assert set(data) == {'all_time', 'last_90_days', 'this_month'}
         for window in data.values():
             assert len(window['by_weekday']) == 7
             assert set(window['by_part_of_day']) == {'morning', 'afternoon', 'evening', 'night'}
@@ -379,6 +379,16 @@ class TestRhythm:
         data = _rhythm(client, auth_headers)
         assert data['all_time']['total_chapters'] == 2
         assert data['last_90_days']['total_chapters'] == 1
+
+    def test_this_month_window_excludes_entries_from_before_the_local_month(self, client, auth_headers, seed_chapter):
+        now = datetime.now(timezone.utc)
+        first_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        seed_chapter(first_of_month - timedelta(days=1), chapter=1)
+        seed_chapter(now, chapter=2)
+
+        data = _rhythm(client, auth_headers)
+        assert data['this_month']['total_chapters'] == 1
+        assert data['this_month']['total_chapters'] <= data['last_90_days']['total_chapters']
 
     def test_distinct_days_counts_dates_not_rows(self, client, auth_headers, seed_chapter):
         seed_chapter(MONDAY.replace(hour=9), chapter=1)

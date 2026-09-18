@@ -43,7 +43,7 @@ export default function ReadingRhythm() {
   const active: RhythmWindow | null = data ? data[windowKey] : null
 
   const heading = (
-    <div className="flex items-start justify-between gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
       <div className="min-w-0">
         <p className="vol-num" style={{ margin: 0, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: dimText }}>Reading Rhythm</p>
       </div>

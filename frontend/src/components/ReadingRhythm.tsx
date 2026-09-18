@@ -45,8 +45,7 @@ export default function ReadingRhythm() {
   const heading = (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <p className="vol-num" style={{ margin: '0 0 4px', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: dimText }}>Reading Rhythm</p>
-        <p className="italic" style={{ margin: 0, color: dimText, fontSize: 15 }}>when you read</p>
+        <p className="vol-num" style={{ margin: 0, fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', color: dimText }}>Reading Rhythm</p>
       </div>
 
       {/* Hidden while there is nothing to compare between the two windows. */}

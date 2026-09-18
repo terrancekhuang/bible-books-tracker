@@ -51,7 +51,7 @@ export default function ReadingRhythm() {
       {/* Hidden while there is nothing to compare between the two windows. */}
       {data && !noDataAtAll && (
         <div
-          className="flex shrink-0 rounded-lg p-0.5"
+          className="flex self-start shrink-0 rounded-lg p-0.5"
           style={{ background: 'rgba(35,31,26,0.06)', border: '1px solid rgba(35,31,26,0.1)' }}
         >
           {WINDOW_OPTIONS.map(({ key, label }) => {

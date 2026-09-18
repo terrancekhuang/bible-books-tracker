@@ -21,25 +21,17 @@ def _get_pool():
     return _db_pool
 
 
-def get_db_connection():
-    return _get_pool().getconn()
-
-
-def release_db_connection(conn):
-    pool = _get_pool()
-    if pool and not pool.closed:
-        pool.putconn(conn)
-    else:
-        conn.close()
-
-
 @contextmanager
 def db_cursor(cursor_factory=RealDictCursor):
     """Acquire a pooled connection + cursor, always releasing it. Callers own commit/rollback."""
-    conn = get_db_connection()
+    pool = _get_pool()
+    conn = pool.getconn()
     cur = conn.cursor(cursor_factory=cursor_factory)
     try:
         yield conn, cur
     finally:
         cur.close()
-        release_db_connection(conn)
+        if not pool.closed:
+            pool.putconn(conn)
+        else:
+            conn.close()

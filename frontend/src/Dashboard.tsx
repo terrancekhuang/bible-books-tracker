@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBooksQuery, useDashboardQuery } from './lib/queries'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
-import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon } from './components/Icons'
+import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon, SwapIcon } from './components/Icons'
 import Skeleton from './components/Skeleton'
 import ActivityHeatmap from './components/ActivityHeatmap'
 import DashboardEntryRow from './components/DashboardEntryRow'
@@ -20,6 +20,8 @@ import { leafSurfaceStyle } from './lib/leafSurface'
 const primaryText = 'var(--color-ink)'
 const dimText = 'rgba(35,31,26,0.55)'
 const trackBg = 'rgba(35,31,26,0.1)'
+
+const progressLabelStyle: CSSProperties = { margin: '14px 0 0', fontSize: 12, letterSpacing: '0.14em', color: 'rgba(35,31,26,0.72)' }
 
 // The Old/New Testament rows aren't a "volume" with a single cloth colour of their own —
 // they lean on the leaf's other two accents instead: the red rule for the Old Testament,
@@ -65,6 +67,7 @@ export default function Dashboard() {
   const isInitialLoading = booksLoading || dashboardLoading
   const isError = booksError || dashboardError
 
+  const [showRemaining, setShowRemaining] = useState(false)
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
   const [goalError, setGoalError] = useState<string | null>(null)
@@ -163,11 +166,26 @@ export default function Dashboard() {
             {isInitialLoading ? (
               <div className="flex justify-center mt-4"><Skeleton className="h-4 w-72 max-w-full" /></div>
             ) : (
-              <p className="vol-num" style={{ margin: '14px 0 0', fontSize: 12, letterSpacing: '0.14em', color: 'rgba(35,31,26,0.72)', ...fadeUp(100) }}>
-                {hasAnyProgress
-                  ? `${totalRead.toLocaleString()} of ${TOTAL_CHAPTERS.toLocaleString()} chapters · ${booksComplete} of ${TOTAL_BOOKS} books complete`
-                  : 'Nothing logged yet — open the Tracker to begin your first volume.'}
-              </p>
+              hasAnyProgress ? (
+                <button
+                  type="button"
+                  onClick={() => setShowRemaining(v => !v)}
+                  className="transition-colors hover:opacity-80"
+                  aria-label="Toggle between chapters/books complete and remaining"
+                  style={{ ...progressLabelStyle, background: 'transparent', border: 'none', font: 'inherit', padding: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, ...fadeUp(100) }}
+                >
+                  {showRemaining
+                    ? `${(TOTAL_CHAPTERS - totalRead).toLocaleString()} of ${TOTAL_CHAPTERS.toLocaleString()} chapters left · ${TOTAL_BOOKS - booksComplete} of ${TOTAL_BOOKS} books left`
+                    : `${totalRead.toLocaleString()} of ${TOTAL_CHAPTERS.toLocaleString()} chapters · ${booksComplete} of ${TOTAL_BOOKS} books complete`}
+                  <span style={{ display: 'inline-flex', opacity: 0.55, transform: showRemaining ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease, opacity 0.15s ease' }}>
+                    <SwapIcon size={12} />
+                  </span>
+                </button>
+              ) : (
+                <p className="vol-num" style={{ ...progressLabelStyle, ...fadeUp(100) }}>
+                  Nothing logged yet — open the Tracker to begin your first volume.
+                </p>
+              )
             )}
           </div>
 

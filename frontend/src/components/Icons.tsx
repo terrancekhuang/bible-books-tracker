@@ -147,6 +147,17 @@ export function CloudPendingIcon({ size = 18 }: { size?: number }) {
   )
 }
 
+export function SwapIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg {...iconProps(size)}>
+      <path d="M8 20V4"/>
+      <path d="M5 7l3-3 3 3"/>
+      <path d="M16 4v16"/>
+      <path d="M13 17l3 3 3-3"/>
+    </svg>
+  )
+}
+
 export function RefreshIcon({ size = 18 }: { size?: number }) {
   return (
     <svg {...iconProps(size)}>

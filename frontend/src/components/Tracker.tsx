@@ -228,7 +228,7 @@ export default function Tracker() {
       if (e.key === '/' && !isInput) { e.preventDefault(); searchInputRef.current?.focus(); return; }
       if (e.key === 'Tab' && !isInput && selectedBook) { e.preventDefault(); chaptersInputRef.current?.focus(); return; }
       if (e.key === 'Enter' && !isInput && selectedBook) { e.preventDefault(); handleSubmit(); return; }
-      if (e.key === 'u' && !isInput && selectedBook) { e.preventDefault(); handleUndo(); return; }
+      if (e.key === 'U' && !isInput && selectedBook) { e.preventDefault(); handleUndo(); return; }
       if (e.key === 'R' && !isInput && selectedBook) { e.preventDefault(); handleReset(); return; }
       if (e.key === 'A' && !isInput && selectedBook) {
         e.preventDefault();

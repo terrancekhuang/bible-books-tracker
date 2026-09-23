@@ -116,7 +116,7 @@ export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onC
                 { keys: ['↑', '↓'], altKeys: ['k', 'j'], description: 'Navigate entries' },
                 { keys: ['Tab'], altKeys: ['i'], description: 'Focus chapter input' },
                 { keys: ['Enter'], description: 'Submit progress' },
-                { keys: ['u'], description: 'Undo last entry' },
+                { keys: ['U'], description: 'Undo last entry' },
                 { keys: ['R'], description: 'Reset all progress (two-step)' },
                 { keys: ['A'], description: 'Mark all chapters as read (two-step)' },
                 { keys: ['Esc'], description: 'Deselect / clear search' },

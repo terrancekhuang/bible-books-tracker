@@ -2,6 +2,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { HomeIcon, BookOpenIcon, UserIcon } from './Icons'
 import UserMenu from './UserMenu'
 import SyncIndicator from './SyncIndicator'
+import { useTooltip } from '../lib/useTooltip'
+import ShortcutHint from './ShortcutHint'
 
 interface NavBarProps {
   pictureUrl?: string | null
@@ -9,9 +11,9 @@ interface NavBarProps {
 }
 
 const NAV_LINKS = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/tracker', label: 'Tracker' },
-  { to: '/profile', label: 'Profile' },
+  { to: '/', label: 'Dashboard', shortcut: ['g', 'h'] },
+  { to: '/tracker', label: 'Tracker', shortcut: ['g', 't'] },
+  { to: '/profile', label: 'Profile', shortcut: ['g', 'p'] },
 ]
 
 const MOBILE_TABS = [
@@ -21,6 +23,27 @@ const MOBILE_TABS = [
 ]
 
 const MUTED_LEAF = 'rgba(242,236,221,0.55)'
+
+function DesktopNavLink({ to, label, shortcut, isActive }: { to: string; label: string; shortcut: string[]; isActive: boolean }) {
+  const tooltip = useTooltip(<ShortcutHint action={label} keys={shortcut} />, 'bottom')
+  return (
+    <>
+      <Link
+        to={to}
+        onMouseEnter={tooltip.onMouseEnter}
+        onMouseLeave={tooltip.onMouseLeave}
+        className="text-xs font-semibold uppercase transition-colors"
+        style={{
+          color: isActive ? 'var(--color-gilt)' : MUTED_LEAF,
+          letterSpacing: '0.08em',
+        }}
+      >
+        {label}
+      </Link>
+      {tooltip.tooltip}
+    </>
+  )
+}
 
 export default function NavBar({ pictureUrl, userName }: NavBarProps) {
   const { pathname } = useLocation()
@@ -41,22 +64,9 @@ export default function NavBar({ pictureUrl, userName }: NavBarProps) {
           </Link>
 
           <nav className="hidden md:flex items-center justify-center gap-6">
-            {NAV_LINKS.map(({ to, label }) => {
-              const isActive = pathname === to
-              return (
-                <Link
-                  key={to}
-                  to={to}
-                  className="text-xs font-semibold uppercase transition-colors"
-                  style={{
-                    color: isActive ? 'var(--color-gilt)' : MUTED_LEAF,
-                    letterSpacing: '0.08em',
-                  }}
-                >
-                  {label}
-                </Link>
-              )
-            })}
+            {NAV_LINKS.map(({ to, label, shortcut }) => (
+              <DesktopNavLink key={to} to={to} label={label} shortcut={shortcut} isActive={pathname === to} />
+            ))}
           </nav>
 
           <div className="flex items-center gap-3 ml-auto md:ml-0 md:justify-self-end leading-[0]">

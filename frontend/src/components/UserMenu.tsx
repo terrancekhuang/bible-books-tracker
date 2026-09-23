@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '../lib/AuthContext'
-import { useTooltip } from '../lib/useTooltip'
 
 interface UserMenuProps {
   pictureUrl?: string | null
@@ -24,14 +23,11 @@ export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
   }, [open])
 
   const initials = userName ? userName[0].toUpperCase() : '?'
-  const accountTooltip = useTooltip('Account')
 
   return (
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(o => !o)}
-        onMouseEnter={accountTooltip.onMouseEnter}
-        onMouseLeave={accountTooltip.onMouseLeave}
         className="w-8 h-8 rounded-full overflow-hidden transition-opacity hover:opacity-80"
         style={{ outline: 'none', boxShadow: open ? '0 0 0 2px rgba(210,166,63,0.6)' : 'none' }}
         aria-label="Account menu"
@@ -48,7 +44,6 @@ export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
           </div>
         )}
       </button>
-      {accountTooltip.tooltip}
 
       {open && (
         <div

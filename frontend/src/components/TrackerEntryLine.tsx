@@ -1,6 +1,8 @@
 import type { RefObject } from 'react'
 import type { Book } from '../lib/trackerLogic'
 import SegmentedProgressBar from './SegmentedProgressBar'
+import { useTooltip } from '../lib/useTooltip'
+import ShortcutHint from './ShortcutHint'
 
 const dimText = 'rgba(35,31,26,0.55)'
 
@@ -38,6 +40,12 @@ export default function TrackerEntryLine({
   isOnline, onUndo, resetConfirm, onReset, markAllConfirm, onMarkAllRead,
 }: TrackerEntryLineProps) {
   const isComplete = book ? book.chapters_read >= book.num_chapters : false
+
+  const undoTooltip = useTooltip(<ShortcutHint action="Undo" keys={['U']} />)
+  const resetTooltip = useTooltip(<ShortcutHint action={resetConfirm.confirming ? 'Confirm' : 'Reset'} keys={['R']} />)
+  const markAllTooltip = useTooltip(<ShortcutHint action="Mark all as read" keys={['A']} />)
+  const markAllConfirmTooltip = useTooltip(<ShortcutHint action="Confirm" keys={['A']} />)
+  const markAllCancelTooltip = useTooltip(<ShortcutHint action="Cancel" keys={['Esc']} />)
 
   return (
     <div
@@ -126,6 +134,8 @@ export default function TrackerEntryLine({
           {book.chapters_read > 0 && (
             <button
               onClick={onUndo}
+              onMouseEnter={undoTooltip.onMouseEnter}
+              onMouseLeave={undoTooltip.onMouseLeave}
               disabled={!isOnline}
               className="text-xs px-3 py-1.5 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
               style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
@@ -133,8 +143,11 @@ export default function TrackerEntryLine({
               Undo
             </button>
           )}
+          {undoTooltip.tooltip}
           <button
             onClick={() => { if (resetConfirm.confirming) onReset(); else resetConfirm.request() }}
+            onMouseEnter={resetTooltip.onMouseEnter}
+            onMouseLeave={resetTooltip.onMouseLeave}
             className="text-xs px-3 py-1.5 rounded-md"
             style={resetConfirm.confirming
               ? { border: '1px solid var(--color-leaf-red)', color: 'var(--color-leaf-red)' }
@@ -143,27 +156,36 @@ export default function TrackerEntryLine({
           >
             {resetConfirm.confirming ? 'Confirm reset?' : 'Reset'}
           </button>
+          {resetTooltip.tooltip}
           {!isComplete && (
             markAllConfirm.confirming ? (
               <>
                 <button
                   onClick={onMarkAllRead}
+                  onMouseEnter={markAllConfirmTooltip.onMouseEnter}
+                  onMouseLeave={markAllConfirmTooltip.onMouseLeave}
                   className="text-xs px-3 py-1.5 rounded-md font-semibold"
                   style={{ background: cloth, color: 'var(--color-leaf)' }}
                 >
                   Confirm — all {book.num_chapters} chapters
                 </button>
+                {markAllConfirmTooltip.tooltip}
                 <button
                   onClick={markAllConfirm.cancel}
+                  onMouseEnter={markAllCancelTooltip.onMouseEnter}
+                  onMouseLeave={markAllCancelTooltip.onMouseLeave}
                   className="text-xs px-3 py-1.5 rounded-md"
                   style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
                 >
                   Cancel
                 </button>
+                {markAllCancelTooltip.tooltip}
               </>
             ) : (
               <button
                 onClick={markAllConfirm.request}
+                onMouseEnter={markAllTooltip.onMouseEnter}
+                onMouseLeave={markAllTooltip.onMouseLeave}
                 className="text-xs px-3 py-1.5 rounded-md"
                 style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
               >
@@ -171,6 +193,7 @@ export default function TrackerEntryLine({
               </button>
             )
           )}
+          {!markAllConfirm.confirming && markAllTooltip.tooltip}
         </div>
       )}
     </div>

@@ -15,7 +15,7 @@ interface UseTooltipResult {
  *  Shares the app-wide group timing: the first tooltip in a hover session waits out
  *  `TOOLTIP_OPEN_DELAY`, but sweeping on to another trigger shortly after closing one shows
  *  the next instantly. See TooltipGroupContext. */
-export function useTooltip(label: string, placement: 'top' | 'bottom' = 'top'): UseTooltipResult {
+export function useTooltip(label: React.ReactNode, placement: 'top' | 'bottom' = 'top'): UseTooltipResult {
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
   const timerRef = useRef<number | null>(null)
   const shownRef = useRef(false)

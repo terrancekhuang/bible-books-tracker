@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTooltip } from '../lib/useTooltip'
+import ShortcutHint from './ShortcutHint'
 
 interface HelpMenuProps {
   isMobile: boolean
@@ -13,6 +14,7 @@ export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onC
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const helpTooltip = useTooltip('Help')
+  const shortcutsTooltip = useTooltip(<ShortcutHint action="Keyboard Shortcuts" keys={['?']} />)
 
   useEffect(() => {
     if (!menuOpen) return
@@ -36,15 +38,18 @@ export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onC
             }}
           >
             {!isMobile && (
-              <button
-                className="w-full text-left px-4 py-2 text-sm transition-colors"
-                style={{ color: 'rgba(242,236,221,0.8)' }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(210,166,63,0.1)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                onClick={() => { setMenuOpen(false); onOpenShortcuts() }}
-              >
-                Keyboard Shortcuts
-              </button>
+              <>
+                <button
+                  className="w-full text-left px-4 py-2 text-sm transition-colors"
+                  style={{ color: 'rgba(242,236,221,0.8)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(210,166,63,0.1)'; shortcutsTooltip.onMouseEnter(e) }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; shortcutsTooltip.onMouseLeave() }}
+                  onClick={() => { setMenuOpen(false); onOpenShortcuts() }}
+                >
+                  Keyboard Shortcuts
+                </button>
+                {shortcutsTooltip.tooltip}
+              </>
             )}
             <button
               className="w-full text-left px-4 py-2 text-sm transition-colors"

@@ -41,6 +41,7 @@ export function useTooltip(label: React.ReactNode, placement: 'top' | 'bottom' =
 
   const onMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
     if (!label) return
+    if (!window.matchMedia('(hover: hover)').matches) return
     clearTimer()
     const target = e.currentTarget
     if (group.isWithinSkipWindow()) show(target)

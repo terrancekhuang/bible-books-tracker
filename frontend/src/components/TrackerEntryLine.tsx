@@ -65,7 +65,7 @@ export default function TrackerEntryLine({
                 value={chaptersInput}
                 onChange={e => onChaptersInputChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onSubmit() } }}
-                placeholder="1-4, 9"
+                placeholder="eg: 1-3, 5, 7"
                 className="vol-num"
                 style={{
                   width: 132, padding: '4px 2px', fontSize: 16,

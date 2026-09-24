@@ -13,7 +13,7 @@ interface ConfirmState {
 }
 
 interface TrackerEntryLineProps {
-  book: Book | null
+  book: Book
   cloth: string
   chaptersInput: string
   onChaptersInputChange: (v: string) => void
@@ -39,7 +39,7 @@ export default function TrackerEntryLine({
   nothingNewToLog, alreadyReadMessage, newChapters, canSubmit, onSubmit, loggingChapters,
   isOnline, onUndo, resetConfirm, onReset, markAllConfirm, onMarkAllRead,
 }: TrackerEntryLineProps) {
-  const isComplete = book ? book.chapters_read >= book.num_chapters : false
+  const isComplete = book.chapters_read >= book.num_chapters
 
   const undoTooltip = useTooltip(<ShortcutHint action="Undo" keys={['U']} />)
   const resetTooltip = useTooltip(<ShortcutHint action={resetConfirm.confirming ? 'Confirm' : 'Reset'} keys={['R']} />)
@@ -51,19 +51,12 @@ export default function TrackerEntryLine({
     <div
       id="tour-tracker-entry"
       data-keep-selection
-      style={{
-        maxWidth: 720, margin: '30px auto 0', paddingTop: 20,
-        borderTop: '1px solid rgba(35,31,26,0.2)',
-      }}
+      style={{ padding: '14px 10px 16px', background: 'rgba(35,31,26,0.065)' }}
     >
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '14px 18px' }}>
-        <span className="slab" style={{ fontSize: 20, color: 'var(--color-ink)' }}>
-          {book ? book.name : 'Select a book'}
-        </span>
-
-        {book && !isComplete && (
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '12px 14px' }}>
+        {!isComplete && (
           <>
-            <label style={{ display: 'inline-flex', alignItems: 'baseline', gap: 10 }}>
+            <label style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
               <span className="vol-num" style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(35,31,26,0.62)' }}>
                 Chapters
               </span>
@@ -74,10 +67,11 @@ export default function TrackerEntryLine({
                 value={chaptersInput}
                 onChange={e => onChaptersInputChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onSubmit() } }}
-                placeholder="eg: 1-3, 5, 7"
+                placeholder="eg 1-3, 5"
                 className="vol-num"
                 style={{
-                  width: 132, padding: '4px 2px', fontSize: 16,
+                  // Narrows on phones so the field and Enter share one line.
+                  width: 'clamp(84px, 24vw, 132px)', padding: '4px 2px', fontSize: 16,
                   background: 'transparent', color: 'var(--color-ink)',
                   border: 0, borderBottom: `2px solid ${inputIsInvalid ? 'var(--color-leaf-red)' : cloth}`,
                   borderRadius: 0, outline: 'none',
@@ -89,7 +83,7 @@ export default function TrackerEntryLine({
               disabled={!canSubmit}
               className="vol-num"
               style={{
-                padding: '9px 22px', fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',
+                padding: '9px 16px', fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',
                 fontWeight: 600,
                 background: canSubmit ? cloth : 'transparent',
                 color: canSubmit ? 'var(--color-leaf)' : 'rgba(35,31,26,0.42)',
@@ -114,14 +108,14 @@ export default function TrackerEntryLine({
           </>
         )}
 
-        {book && isComplete && (
+        {isComplete && (
           <p className="text-sm font-semibold" style={{ color: cloth }}>
             All {book.num_chapters} chapters read ✓
           </p>
         )}
       </div>
 
-      {book && !isComplete && (
+      {!isComplete && (
         <SegmentedProgressBar
           total={book.num_chapters}
           readChapters={book.chapters_read_list}
@@ -130,73 +124,71 @@ export default function TrackerEntryLine({
         />
       )}
 
-      {book && (
-        <div className="flex flex-wrap gap-2" style={{ marginTop: 18 }}>
-          {book.chapters_read > 0 && (
-            <button
-              onClick={onUndo}
-              onMouseEnter={undoTooltip.onMouseEnter}
-              onMouseLeave={undoTooltip.onMouseLeave}
-              disabled={!isOnline}
-              className="text-xs px-3 py-1.5 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
-              style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
-            >
-              Undo
-            </button>
-          )}
-          {undoTooltip.tooltip}
+      <div className="flex flex-wrap gap-2" style={{ marginTop: 18 }}>
+        {book.chapters_read > 0 && (
           <button
-            onClick={() => { if (resetConfirm.confirming) onReset(); else resetConfirm.request() }}
-            onMouseEnter={resetTooltip.onMouseEnter}
-            onMouseLeave={resetTooltip.onMouseLeave}
-            className="text-xs px-3 py-1.5 rounded-md"
-            style={resetConfirm.confirming
-              ? { border: '1px solid var(--color-leaf-red)', color: 'var(--color-leaf-red)' }
-              : { border: '1px solid rgba(35,31,26,0.22)', color: dimText }
-            }
+            onClick={onUndo}
+            onMouseEnter={undoTooltip.onMouseEnter}
+            onMouseLeave={undoTooltip.onMouseLeave}
+            disabled={!isOnline}
+            className="text-xs px-3 py-1.5 rounded-md disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
           >
-            {resetConfirm.confirming ? 'Confirm reset?' : 'Reset'}
+            Undo
           </button>
-          {resetTooltip.tooltip}
-          {!isComplete && (
-            markAllConfirm.confirming ? (
-              <>
-                <button
-                  onClick={onMarkAllRead}
-                  onMouseEnter={markAllConfirmTooltip.onMouseEnter}
-                  onMouseLeave={markAllConfirmTooltip.onMouseLeave}
-                  className="text-xs px-3 py-1.5 rounded-md font-semibold"
-                  style={{ background: cloth, color: 'var(--color-leaf)' }}
-                >
-                  Confirm — all {book.num_chapters} chapters
-                </button>
-                {markAllConfirmTooltip.tooltip}
-                <button
-                  onClick={markAllConfirm.cancel}
-                  onMouseEnter={markAllCancelTooltip.onMouseEnter}
-                  onMouseLeave={markAllCancelTooltip.onMouseLeave}
-                  className="text-xs px-3 py-1.5 rounded-md"
-                  style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
-                >
-                  Cancel
-                </button>
-                {markAllCancelTooltip.tooltip}
-              </>
-            ) : (
+        )}
+        {undoTooltip.tooltip}
+        <button
+          onClick={() => { if (resetConfirm.confirming) onReset(); else resetConfirm.request() }}
+          onMouseEnter={resetTooltip.onMouseEnter}
+          onMouseLeave={resetTooltip.onMouseLeave}
+          className="text-xs px-3 py-1.5 rounded-md"
+          style={resetConfirm.confirming
+            ? { border: '1px solid var(--color-leaf-red)', color: 'var(--color-leaf-red)' }
+            : { border: '1px solid rgba(35,31,26,0.22)', color: dimText }
+          }
+        >
+          {resetConfirm.confirming ? 'Confirm reset?' : 'Reset'}
+        </button>
+        {resetTooltip.tooltip}
+        {!isComplete && (
+          markAllConfirm.confirming ? (
+            <>
               <button
-                onClick={markAllConfirm.request}
-                onMouseEnter={markAllTooltip.onMouseEnter}
-                onMouseLeave={markAllTooltip.onMouseLeave}
+                onClick={onMarkAllRead}
+                onMouseEnter={markAllConfirmTooltip.onMouseEnter}
+                onMouseLeave={markAllConfirmTooltip.onMouseLeave}
+                className="text-xs px-3 py-1.5 rounded-md font-semibold"
+                style={{ background: cloth, color: 'var(--color-leaf)' }}
+              >
+                Confirm — all {book.num_chapters} chapters
+              </button>
+              {markAllConfirmTooltip.tooltip}
+              <button
+                onClick={markAllConfirm.cancel}
+                onMouseEnter={markAllCancelTooltip.onMouseEnter}
+                onMouseLeave={markAllCancelTooltip.onMouseLeave}
                 className="text-xs px-3 py-1.5 rounded-md"
                 style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
               >
-                Mark all as read
+                Cancel
               </button>
-            )
-          )}
-          {!markAllConfirm.confirming && markAllTooltip.tooltip}
-        </div>
-      )}
+              {markAllCancelTooltip.tooltip}
+            </>
+          ) : (
+            <button
+              onClick={markAllConfirm.request}
+              onMouseEnter={markAllTooltip.onMouseEnter}
+              onMouseLeave={markAllTooltip.onMouseLeave}
+              className="text-xs px-3 py-1.5 rounded-md"
+              style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
+            >
+              Mark all as read
+            </button>
+          )
+        )}
+        {!markAllConfirm.confirming && markAllTooltip.tooltip}
+      </div>
     </div>
   )
 }

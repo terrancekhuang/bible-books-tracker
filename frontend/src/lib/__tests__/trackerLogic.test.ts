@@ -7,7 +7,6 @@ import {
   calculateProgress,
   filterBooks,
   invalidChaptersMessage,
-  defaultBookForCategory,
   type Book,
 } from '../trackerLogic'
 
@@ -308,27 +307,5 @@ describe('formatChapterList', () => {
 describe('invalidChaptersMessage', () => {
   it('names the book and its real chapter count', () => {
     expect(invalidChaptersMessage('Romans', 16)).toBe('Romans has 16 chapters — try "1-5" or "3, 7, 12"')
-  })
-})
-
-describe('defaultBookForCategory', () => {
-  const books: Book[] = [
-    makeBook({ book_id: 1, name: 'Romans', category: "Paul's Epistles", chapters_read: 16, num_chapters: 16 }),
-    makeBook({ book_id: 2, name: '1 Corinthians', category: "Paul's Epistles", chapters_read: 3, num_chapters: 16 }),
-    makeBook({ book_id: 3, name: '2 Corinthians', category: "Paul's Epistles", chapters_read: 0, num_chapters: 13 }),
-    makeBook({ book_id: 4, name: 'Genesis', category: 'Law', chapters_read: 0, num_chapters: 50 }),
-  ]
-
-  it('picks the first book in the category with unread chapters', () => {
-    expect(defaultBookForCategory(books, "Paul's Epistles")?.name).toBe('1 Corinthians')
-  })
-
-  it('falls back to the first book when the whole category is complete', () => {
-    const allRead = books.map(b => b.category === "Paul's Epistles" ? { ...b, chapters_read: b.num_chapters } : b)
-    expect(defaultBookForCategory(allRead, "Paul's Epistles")?.name).toBe('Romans')
-  })
-
-  it('returns null for a category with no books', () => {
-    expect(defaultBookForCategory(books, 'Poetry')).toBeNull()
   })
 })

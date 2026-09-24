@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { CLOTH, GILT } from '../lib/volumesTokens'
 import { leafSurfaceStyle } from '../lib/leafSurface'
 import type { Book } from '../lib/trackerLogic'
@@ -15,10 +16,12 @@ interface ContentsLeafProps {
   onSelectBook: (name: string) => void
   /** Shown under the heading — book/chapter counts, or a "no matches" message when `books` is empty. */
   summary: string
+  /** The entry line, opened directly under the selected book's row. */
+  entry: ReactNode
 }
 
 export default function ContentsLeaf({
-  heading, romanNumeral, topBorder, books, selectedBookName, onSelectBook, summary,
+  heading, romanNumeral, topBorder, books, selectedBookName, onSelectBook, summary, entry,
 }: ContentsLeafProps) {
   return (
     <section
@@ -101,6 +104,7 @@ export default function ContentsLeaf({
                     />
                   </span>
                 </button>
+                {active && entry}
               </li>
             )
           })}

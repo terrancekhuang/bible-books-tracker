@@ -5,7 +5,6 @@ import { useTrackerMutations } from '../lib/useTrackerMutations'
 import { useConfirm } from '../lib/useConfirm'
 import {
   parseChapters, splitAlreadyRead, formatChapterList, filterBooks, invalidChaptersMessage,
-  defaultBookForCategory,
 } from '../lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, ROMAN } from '../lib/volumesTokens'
 import NavBar from './NavBar'
@@ -73,8 +72,9 @@ export default function Tracker() {
   const openVolume = (category: string) => {
     setSearch(''); setFilterStatus(''); setTestamentFilter('');
     setOpenCategory(category);
-    // Opening the lifted spine from a flattened view keeps its selected book selected.
-    setSelectedBookName(selectedBook?.category === category ? selectedBook.name : defaultBookForCategory(books, category)?.name ?? null);
+    // A volume opens with nothing selected, except that opening the lifted spine from a
+    // flattened view keeps its selected book selected.
+    setSelectedBookName(selectedBook?.category === category ? selectedBook.name : null);
     setChaptersInput('');
     setOpenedFromNav(false);
   };
@@ -195,7 +195,8 @@ export default function Tracker() {
 
   useEffect(() => {
     if (!selectedBook) return;
-    document.querySelector(`[data-book="${selectedBook.name}"]`)?.scrollIntoView({ block: 'nearest' });
+    // The row's <li> holds its entry line too, so bring both into view.
+    document.querySelector(`[data-book="${selectedBook.name}"]`)?.closest('li')?.scrollIntoView({ block: 'nearest' });
   }, [selectedBook]);
 
   const moveVolume = (step: number) => {
@@ -259,7 +260,6 @@ export default function Tracker() {
 
   const openIndex = openCategory ? CATEGORY_ORDER.indexOf(openCategory as typeof CATEGORY_ORDER[number]) : -1;
   const leafCloth = openCategory ? CLOTH[openCategory] : 'var(--color-shelf-lit)';
-  const entryCloth = selectedBook ? CLOTH[selectedBook.category] : 'var(--color-ink)';
 
   const leafSummary = (() => {
     if (visibleBooks.length === 0) {
@@ -385,49 +385,41 @@ export default function Tracker() {
         />
 
         {(openCategory || flattened) && (
-          <>
-            <ContentsLeaf
-              heading={leafHeading}
-              romanNumeral={!flattened && openIndex >= 0 ? ROMAN[openIndex + 1] : null}
-              topBorder={leafCloth}
-              books={visibleBooks}
-              selectedBookName={selectedBookName}
-              onSelectBook={(name) => { setSelectedBookName(name); setChaptersInput(''); setOpenedFromNav(false); }}
-              summary={leafSummary}
-            />
-            {visibleBooks.length > 0 && (
-              <div
-                style={{
-                  padding: '0 clamp(20px, 3.4vw, 46px) clamp(20px, 3.4vw, 46px)',
-                  background: 'var(--color-leaf)',
-                  borderRadius: '0 0 0.5rem 0.5rem',
-                  marginTop: -1,
-                }}
-              >
-                <TrackerEntryLine
-                  book={selectedBook}
-                  cloth={entryCloth}
-                  chaptersInput={chaptersInput}
-                  onChaptersInputChange={setChaptersInput}
-                  inputRef={chaptersInputRef}
-                  inputIsInvalid={inputIsInvalid}
-                  invalidMessage={selectedBook ? invalidChaptersMessage(selectedBook.name, selectedBook.num_chapters) : ''}
-                  nothingNewToLog={nothingNewToLog}
-                  alreadyReadMessage={`Already read — nothing new to log (${formatChapterList(alreadyRead)})`}
-                  newChapters={newChapters}
-                  canSubmit={canSubmit}
-                  onSubmit={handleSubmit}
-                  loggingChapters={loggingChapters}
-                  isOnline={isOnline}
-                  onUndo={handleUndo}
-                  resetConfirm={resetConfirm}
-                  onReset={handleReset}
-                  markAllConfirm={confirmMarkAll}
-                  onMarkAllRead={handleMarkAllRead}
-                />
-              </div>
+          <ContentsLeaf
+            heading={leafHeading}
+            romanNumeral={!flattened && openIndex >= 0 ? ROMAN[openIndex + 1] : null}
+            topBorder={leafCloth}
+            books={visibleBooks}
+            selectedBookName={selectedBookName}
+            onSelectBook={(name) => {
+              // Tapping the open book again folds its entry line away, same as a click-off.
+              setSelectedBookName(name === selectedBookName ? null : name); setChaptersInput(''); setOpenedFromNav(false);
+            }}
+            summary={leafSummary}
+            entry={selectedBook && (
+              <TrackerEntryLine
+                book={selectedBook}
+                cloth={CLOTH[selectedBook.category]}
+                chaptersInput={chaptersInput}
+                onChaptersInputChange={setChaptersInput}
+                inputRef={chaptersInputRef}
+                inputIsInvalid={inputIsInvalid}
+                invalidMessage={invalidChaptersMessage(selectedBook.name, selectedBook.num_chapters)}
+                nothingNewToLog={nothingNewToLog}
+                alreadyReadMessage={`Already read — nothing new to log (${formatChapterList(alreadyRead)})`}
+                newChapters={newChapters}
+                canSubmit={canSubmit}
+                onSubmit={handleSubmit}
+                loggingChapters={loggingChapters}
+                isOnline={isOnline}
+                onUndo={handleUndo}
+                resetConfirm={resetConfirm}
+                onReset={handleReset}
+                markAllConfirm={confirmMarkAll}
+                onMarkAllRead={handleMarkAllRead}
+              />
             )}
-          </>
+          />
         )}
         </div>
         </>

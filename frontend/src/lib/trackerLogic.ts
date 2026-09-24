@@ -126,14 +126,6 @@ export function calculateOverallProgress(books: Book[]): { totalRead: number; ov
   return { totalRead, overallPct: Math.round((totalRead / TOTAL_CHAPTERS) * 100) }
 }
 
-/** The book a volume opens to by default: the first with unread chapters, or the first
- *  book if the whole volume is already complete. Mirrors the approved Volumes prototype's
- *  spine-click behaviour, so opening a volume is fast to log straight into. */
-export function defaultBookForCategory(books: Book[], category: string): Book | null {
-  const inCategory = books.filter(b => b.category === category)
-  return inCategory.find(b => b.chapters_read < b.num_chapters) ?? inCategory[0] ?? null
-}
-
 export interface FilterOpts {
   search: string
   filterTestament: string

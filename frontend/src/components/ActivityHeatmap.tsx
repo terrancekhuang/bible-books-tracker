@@ -13,44 +13,24 @@ export interface ActivityDay {
   chapters: number
 }
 
-/** A day's mark on the pricked calendar: an unfilled pinprick for nothing logged, or a gilt
- *  dot that grows and deepens with how much was read. `null` means the day doesn't get a mark
- *  at all (it's still in the future). */
-interface DotVisual {
-  filled: boolean
-  opacity: number
-  scale: number
+/** Gilt shades for 1–2, 3–5, 6–10 and 11+ chapters. */
+const LEVEL_OPACITY = [0.3, 0.5, 0.75, 1]
+
+function levelOf(chapters: number) {
+  return chapters <= 2 ? 0 : chapters <= 5 ? 1 : chapters <= 10 ? 2 : 3
 }
 
-const DOT_LEVELS: { opacity: number; scale: number }[] = [
-  { opacity: 0.38, scale: 0.55 },
-  { opacity: 0.6, scale: 0.72 },
-  { opacity: 0.82, scale: 0.88 },
-  { opacity: 1, scale: 1 },
-]
-
-function dotVisual(chapters: number, isFuture: boolean): DotVisual | null {
-  if (isFuture) return null
-  if (chapters === 0) return { filled: false, opacity: 1, scale: 0.55 }
-  const level = chapters <= 2 ? 0 : chapters <= 5 ? 1 : chapters <= 10 ? 2 : 3
-  return { filled: true, ...DOT_LEVELS[level] }
-}
-
-const LEGEND_DOTS: (DotVisual | null)[] = [
-  { filled: false, opacity: 1, scale: 0.55 },
-  ...DOT_LEVELS.map(level => ({ filled: true, ...level })),
-]
-
-function Dot({ visual, size }: { visual: DotVisual | null; size: number }) {
-  if (!visual) return <div style={{ width: size, height: size }} />
+/** A day's square: faint when nothing was read (or the day is still to come), gilt deepening
+ *  with how much was. Fills its cell, so the grid's cells can stretch to fit the leaf. */
+function Square({ level }: { level: number | null }) {
   return (
     <div
-      className="rounded-full"
-      style={
-        visual.filled
-          ? { width: size * visual.scale, height: size * visual.scale, background: GILT, opacity: visual.opacity }
-          : { width: size * visual.scale, height: size * visual.scale, border: '1px solid rgba(35,31,26,0.22)' }
-      }
+      className="w-full h-full"
+      style={{
+        borderRadius: 2,
+        background: level === null ? 'rgba(35,31,26,0.07)' : GILT,
+        opacity: level === null ? 1 : LEVEL_OPACITY[level],
+      }}
     />
   )
 }
@@ -128,7 +108,18 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
     }
   }, [tapped])
 
-  const weeks = useMemo(() => {
+  // Only years with something logged are offered; the newest is shown first. With no activity
+  // at all there's still the current year, drawn empty.
+  const years = useMemo(() => {
+    const found = [...new Set(activity.map(d => Number(d.logged_at.slice(0, 4))))].sort((a, b) => b - a)
+    return found.length ? found : [new Date().getFullYear()]
+  }, [activity])
+  const [pickedYear, setPickedYear] = useState<number | null>(null)
+  const year = pickedYear !== null && years.includes(pickedYear) ? pickedYear : years[0]
+
+  // The calendar year, Sunday-first weeks: from the week holding Jan 1 to the week holding Dec 31.
+  // Days outside the year get no square; days still to come get an empty one.
+  const { weeks, monthLabels } = useMemo(() => {
     const chaptersByDate = new Map<string, number>()
     for (const d of activity) {
       chaptersByDate.set(d.logged_at, (chaptersByDate.get(d.logged_at) ?? 0) + d.chapters)
@@ -136,34 +127,32 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-    const start = new Date(today)
-    start.setDate(today.getDate() - today.getDay() - 51 * 7)
+    const cursor = new Date(year, 0, 1)
+    cursor.setDate(1 - cursor.getDay())
+    const end = new Date(year, 11, 31)
 
-    const result: Array<Array<{ dateStr: string; label: string; chapters: number; isFuture: boolean }>> = []
-    const cursor = new Date(start)
-
-    while (cursor <= new Date(today.getTime() + 7 * 86400000)) {
-      if (result.length >= 53) break
+    const weeks: Array<Array<{ label: string; chapters: number; inYear: boolean; future: boolean }>> = []
+    const monthLabels: string[] = []
+    while (cursor <= end) {
       const week = []
+      let month = ''
       for (let d = 0; d < 7; d++) {
         const dateStr = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`
+        const inYear = cursor.getFullYear() === year
         week.push({
-          dateStr,
           label: cursor.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
           chapters: chaptersByDate.get(dateStr) ?? 0,
-          isFuture: cursor > today,
+          inYear,
+          future: cursor > today,
         })
+        if (inYear && cursor.getDate() === 1) month = cursor.toLocaleString('en-US', { month: 'short' })
         cursor.setDate(cursor.getDate() + 1)
       }
-      result.push(week)
+      weeks.push(week)
+      monthLabels.push(month)
     }
-    return result
-  }, [activity])
-
-  const monthLabels = useMemo(() => weeks.map(week => {
-    const d = new Date(week[0].dateStr + 'T00:00:00')
-    return d.getDate() <= 7 ? d.toLocaleString('en-US', { month: 'short' }) : ''
-  }), [weeks])
+    return { weeks, monthLabels }
+  }, [activity, year])
 
   const labelStyle: CSSProperties = {
     fontSize: 10,
@@ -171,14 +160,17 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
     letterSpacing: '0.04em',
   }
 
-  const cellSize = 11
+  // Columns stretch to fill the leaf, so a whole year fits on desktop; below the minimum
+  // cell size (phones) the grid scrolls instead.
+  const minCell = 9
+  const columns = `repeat(${weeks.length}, minmax(${minCell}px, 1fr))`
 
   return (
     <div className="overflow-x-auto" ref={containerRef}>
-      <div className="flex flex-col" style={{ gap: 2, minWidth: weeks.length * (cellSize + 2) + 22 }}>
+      <div className="flex flex-col" style={{ gap: 2, minWidth: weeks.length * (minCell + 2) + 22 }}>
         <div className="flex" style={{ gap: 2 }}>
           <div style={{ width: 20, flexShrink: 0 }} />
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${weeks.length}, ${cellSize}px)`, gap: 2 }}>
+          <div className="grid flex-1" style={{ gridTemplateColumns: columns, gap: 2 }}>
             {monthLabels.map((label, i) => (
               <div key={i} style={{ ...labelStyle, overflow: 'visible', whiteSpace: 'nowrap' }}>{label}</div>
             ))}
@@ -191,48 +183,65 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
               <div key={i} style={{ ...labelStyle, textAlign: 'right' }}>{d}</div>
             ))}
           </div>
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${weeks.length}, ${cellSize}px)`, gap: 2 }}>
+          <div className="grid flex-1" style={{ gridTemplateColumns: columns, gap: 2 }}>
             {weeks.map((week, wi) => (
               <div key={wi} className="flex flex-col" style={{ gap: 2 }}>
-                {week.map((day, di) => (
-                  <div
-                    key={di}
-                    className="flex items-center justify-center"
-                    style={{ width: cellSize, height: cellSize }}
-                    aria-label={day.isFuture ? undefined : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
-                    onClick={e => {
-                      if (day.isFuture || !isTouchDevice()) return
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      const placement = rect.top < 40 ? 'bottom' : 'top'
-                      const text = `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`
-                      setTapped(prev =>
-                        prev?.wi === wi && prev?.di === di
-                          ? null
-                          : { wi, di, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, placement, text },
-                      )
-                    }}
-                    onMouseEnter={e => {
-                      if (day.isFuture || isTouchDevice()) return
-                      const rect = e.currentTarget.getBoundingClientRect()
-                      const placement = rect.top < 40 ? 'bottom' : 'top'
-                      const text = `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`
-                      handleCellEnter({ wi, di, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, placement, text })
-                    }}
-                    onMouseLeave={handleCellLeave}
-                  >
-                    <Dot visual={dotVisual(day.chapters, day.isFuture)} size={cellSize} />
-                  </div>
-                ))}
+                {week.map((day, di) => {
+                  const quiet = !day.inYear || day.future
+                  return (
+                    <div
+                      key={di}
+                      style={{ aspectRatio: '1' }}
+                      aria-label={quiet ? undefined : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
+                      onClick={e => {
+                        if (quiet || !isTouchDevice()) return
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const placement = rect.top < 40 ? 'bottom' : 'top'
+                        const text = `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`
+                        setTapped(prev =>
+                          prev?.wi === wi && prev?.di === di
+                            ? null
+                            : { wi, di, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, placement, text },
+                        )
+                      }}
+                      onMouseEnter={e => {
+                        if (quiet || isTouchDevice()) return
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        const placement = rect.top < 40 ? 'bottom' : 'top'
+                        const text = `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`
+                        handleCellEnter({ wi, di, x: rect.left + rect.width / 2, top: rect.top, bottom: rect.bottom, placement, text })
+                      }}
+                      onMouseLeave={handleCellLeave}
+                    >
+                      {day.inYear && <Square level={day.chapters && !day.future ? levelOf(day.chapters) : null} />}
+                    </div>
+                  )
+                })}
               </div>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 mt-1 self-end">
+        <div className="flex items-center gap-1.5 mt-1">
+          <select
+            value={year}
+            onChange={e => { setPickedYear(Number(e.target.value)); setTapped(null) }}
+            aria-label="Year"
+            className="vol-num rounded mr-auto"
+            style={{
+              ...labelStyle,
+              color: 'var(--color-ink)',
+              background: 'transparent',
+              border: '1px solid rgba(35,31,26,0.2)',
+              padding: '2px 4px',
+            }}
+          >
+            {years.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
           <span style={labelStyle}>Less</span>
-          {LEGEND_DOTS.map((v, i) => (
-            <div key={i} className="flex items-center justify-center" style={{ width: 12, height: 12 }}>
-              <Dot visual={v} size={12} />
+          {[null, 0, 1, 2, 3].map(level => (
+            <div key={level ?? 'none'} style={{ width: 11, height: 11 }}>
+              <Square level={level} />
             </div>
           ))}
           <span style={labelStyle}>More</span>

@@ -137,12 +137,12 @@ class TestStreaks:
 # ── Windows ───────────────────────────────────────────────────────────────────
 
 class TestWindows:
-    def test_activity_excludes_older_than_a_year(self, test_user, seed_chapter):
+    def test_activity_covers_all_history(self, test_user, seed_chapter):
         user_id, _ = test_user
-        seed_chapter(_utc_at(days_ago=400, hour=12), chapter=1)
+        seed_chapter(_utc_at(days_ago=800, hour=12), chapter=1)
         seed_chapter(_utc_at(days_ago=10, hour=12), chapter=2)
 
-        assert len(reading_history.activity(user_id, 0)) == 1
+        assert len(reading_history.activity(user_id, 0)) == 2
 
     def test_rhythm_splits_all_time_from_last_90_days(self, test_user, seed_chapter):
         user_id, _ = test_user

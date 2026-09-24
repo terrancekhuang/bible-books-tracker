@@ -22,7 +22,6 @@ from db import db_cursor
 # can then appear as many times as a query needs it without any positional bookkeeping.
 LOCAL_TS = "((logged_at AT TIME ZONE 'UTC') + INTERVAL '1 minute' * %(tz)s)"
 
-ACTIVITY_WINDOW_DAYS = 365
 RECENT_WINDOW_DAYS = 90
 
 # Rhythm-only: a burst of submissions with no gap over SESSION_GAP_SECONDS between them is
@@ -76,14 +75,13 @@ BULK_SESSION_CTE = f"""
 # ── Activity ──────────────────────────────────────────────────────────────────
 
 def _activity(cur, user_id: int, tz_offset: int) -> list[dict]:
-    cutoff_utc = datetime.now(timezone.utc) - timedelta(days=ACTIVITY_WINDOW_DAYS)
     cur.execute(f"""
         SELECT {LOCAL_TS}::date AS local_date, COUNT(*) AS chapters
         FROM chapter_progress
-        WHERE user_id = %(user)s AND logged_at >= %(cutoff)s
+        WHERE user_id = %(user)s
         GROUP BY local_date
         ORDER BY local_date
-    """, {'tz': tz_offset, 'user': user_id, 'cutoff': cutoff_utc})
+    """, {'tz': tz_offset, 'user': user_id})
     return [
         {'logged_at': r['local_date'].isoformat(), 'chapters': r['chapters']}
         for r in cur.fetchall()
@@ -91,7 +89,7 @@ def _activity(cur, user_id: int, tz_offset: int) -> list[dict]:
 
 
 def activity(user_id: int, tz_offset: int) -> list[dict]:
-    """Chapters per local day over the last year — one entry per day that has any."""
+    """Chapters per local day across all history — one entry per day that has any."""
     with db_cursor() as (_conn, cur):
         return _activity(cur, user_id, tz_offset)
 

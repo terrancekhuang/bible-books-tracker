@@ -67,7 +67,7 @@ export default function TrackerEntryLine({
                 value={chaptersInput}
                 onChange={e => onChaptersInputChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onSubmit() } }}
-                placeholder="eg 1-3, 5"
+                placeholder="eg: 1-3, 5, 7"
                 className="vol-num"
                 style={{
                   // Narrows on phones so the field and Enter share one line.

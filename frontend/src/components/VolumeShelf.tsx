@@ -131,7 +131,7 @@ export default function VolumeShelf({ books, liftedCategory, flattened, testamen
   }), [books])
 
   return (
-    <section aria-label="The set of volumes">
+    <section aria-label="The set of volumes" data-keep-selection>
       <div className="overflow-x-auto">
         <div className="flex items-end gap-1.5 pt-8 px-1" style={{ minWidth: 'min-content' }}>
           {volumes.map((vol, i) => (

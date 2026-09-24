@@ -50,6 +50,7 @@ export default function TrackerEntryLine({
   return (
     <div
       id="tour-tracker-entry"
+      data-keep-selection
       style={{
         maxWidth: 720, margin: '30px auto 0', paddingTop: 20,
         borderTop: '1px solid rgba(35,31,26,0.2)',
@@ -57,7 +58,7 @@ export default function TrackerEntryLine({
     >
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '14px 18px' }}>
         <span className="slab" style={{ fontSize: 20, color: 'var(--color-ink)' }}>
-          {book ? book.name : 'Choose an entry'}
+          {book ? book.name : 'Select a book'}
         </span>
 
         {book && !isComplete && (

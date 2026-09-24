@@ -88,19 +88,29 @@ export default function Tracker() {
     setOpenedFromNav(false);
   };
 
-  // A click outside the shelf-and-leaf area closes whichever volume is open. Clicks on a
-  // spine (including a different one) are handled by VolumeShelf's own onClick and land
-  // inside this ref, so they never reach here.
+  // Escape and a click off the shelf/leaf both step back one level: first the selected
+  // book, then the open volume. A flattened view has no volume to close — its filter stays.
+  const stepBack = () => {
+    if (selectedBookName) {
+      setSelectedBookName(null); setChaptersInput(''); setOpenedFromNav(false);
+    } else if (!flattened && openCategory) {
+      closeVolume();
+    }
+  };
+
+  // Inside the shelf area, only a click off the book rows and the entry line counts — and
+  // then only to deselect the book. Spines and rows handle their own clicks.
   useEffect(() => {
-    if (!openCategory || flattened) return;
     const handleClick = (e: MouseEvent) => {
-      if (shelfAreaRef.current && !shelfAreaRef.current.contains(e.target as Node)) {
-        closeVolume();
+      const target = e.target as HTMLElement;
+      if (!shelfAreaRef.current?.contains(target) || (selectedBookName && !target.closest('[data-book], [data-keep-selection]'))) {
+        stepBack();
       }
     };
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
-  }, [openCategory, flattened]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBookName, openCategory, flattened]);
 
   useEffect(() => {
     const state = location.state as { selectBook?: string; filterTestament?: string; filterCategory?: string; filterStatus?: string } | null;
@@ -219,11 +229,7 @@ export default function Tracker() {
         if (confirmMarkAll.confirming) { confirmMarkAll.cancel(); return; }
         if (target === searchInputRef.current) {
           setSearch(''); searchInputRef.current?.blur();
-        } else if (!flattened && openCategory) {
-          closeVolume();
-        } else {
-          setOpenedFromNav(false); setSelectedBookName(null); setChaptersInput('');
-        }
+        } else stepBack();
         return;
       }
       if (e.key === '/' && !isInput) { e.preventDefault(); searchInputRef.current?.focus(); return; }

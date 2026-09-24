@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { TOUR_STEPS, type TourStep } from './tourSteps'
 import { markTourSeen } from './tour'
-import { useIsMobile } from './useIsMobile'
+import { useMediaQuery } from './useMediaQuery'
 
 export interface TourController {
   active: boolean
@@ -20,7 +20,7 @@ export interface TourController {
 export function useTour(): TourController {
   const [active, setActive] = useState(false)
   const [stepIndex, setStepIndex] = useState(0)
-  const isMobile = useIsMobile()
+  const isMobile = useMediaQuery('(max-width: 767px)') // Tailwind's `md:` breakpoint
   const navigate = useNavigate()
   const location = useLocation()
   // Distinguishes the tour's own navigate() calls from the user wandering off on their own.

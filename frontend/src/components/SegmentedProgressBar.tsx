@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { usePrefersReducedMotion } from '../lib/usePrefersReducedMotion'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import { buildChapterRuns, type SegmentState } from '../lib/trackerLogic'
 import { TOOLTIP_OPEN_DELAY, useTooltipGroup } from '../lib/TooltipGroupContext'
 
@@ -27,7 +27,7 @@ export default function SegmentedProgressBar({
   pendingChapters = EMPTY,
   loggingChapters = EMPTY,
 }: SegmentedProgressBarProps) {
-  const reducedMotion = usePrefersReducedMotion()
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const readSet = useMemo(() => new Set(readChapters), [readChapters]);
   const barRef = useRef<HTMLDivElement>(null);
   const [tooltip, setTooltip] = useState<{ chapter: number; x: number; y: number } | null>(null);

@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-
 import { registerSW } from 'virtual:pwa-register'
 import { useAuth } from './lib/AuthContext'
 import { useKeyChord } from './lib/useKeyChord'
-import { useIsMobile } from './lib/useIsMobile'
+import { useMediaQuery } from './lib/useMediaQuery'
 import { useTour } from './lib/useTour'
 import Login from './Login'
 import Profile from './Profile'
@@ -28,7 +28,7 @@ export default function App() {
 
   const [showHelp, setShowHelp] = useState(false);
   const [showTourPrompt, setShowTourPrompt] = useState(false);
-  const isMobile = useIsMobile();
+  const isMobile = useMediaQuery('(max-width: 767px)'); // Tailwind's `md:` breakpoint
   const tour = useTour();
   const { arm: armGChord, consume: consumeGChord } = useKeyChord();
 

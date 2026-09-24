@@ -7,7 +7,7 @@ import os
 def _utc_at(days_ago: int, hour: int, minute: int = 0) -> datetime:
     """A UTC instant N days back at a fixed wall-clock time.
 
-    Anchored to now rather than a literal date because /api/activity only looks back
+    Anchored to now rather than a literal date because the heatmap's activity only looks back
     365 days and /api/stats' streaks are measured relative to today.
     """
     return (datetime.now(timezone.utc) - timedelta(days=days_ago)).replace(
@@ -247,40 +247,6 @@ class TestStats:
         assert client.get('/api/stats').status_code == 401
 
 
-# ── Activity ──────────────────────────────────────────────────────────────────
-
-class TestActivity:
-    def test_returns_empty_list_for_new_user(self, client, auth_headers):
-        resp = client.get('/api/activity', headers=auth_headers)
-        assert resp.status_code == 200
-        assert resp.get_json() == []
-
-    def test_returns_one_entry_after_progress(self, client, auth_headers):
-        client.post('/api/progress', headers=auth_headers,
-                    json={'book_name': 'Genesis', 'chapters': [1]})
-        data = client.get('/api/activity', headers=auth_headers).get_json()
-        assert len(data) == 1
-        assert data[0]['chapters'] == 1
-        assert 'logged_at' in data[0]
-
-    # See the note on TestStats: the local-day grouping must not depend on the session
-    # timezone. The heatmap is the most visible casualty when it does.
-    def test_local_date_follows_tz_offset_not_session_timezone(self, client, auth_headers, seed_chapter):
-        # 23:30 UTC belongs to that date at UTC, and to the next date one hour east.
-        when = _utc_at(days_ago=2, hour=23, minute=30)
-        seed_chapter(when, chapter=1)
-
-        def dates(tz_offset):
-            data = client.get(f'/api/activity?tz_offset={tz_offset}', headers=auth_headers).get_json()
-            return [row['logged_at'] for row in data]
-
-        assert dates(0) == [when.date().isoformat()]
-        assert dates(60) == [(when.date() + timedelta(days=1)).isoformat()]
-
-    def test_requires_auth(self, client):
-        assert client.get('/api/activity').status_code == 401
-
-
 # ── Settings ──────────────────────────────────────────────────────────────────
 
 class TestSettings:
@@ -432,7 +398,6 @@ class TestDashboard:
 
         dashboard = client.get('/api/dashboard', headers=auth_headers).get_json()
         assert dashboard['stats'] == client.get('/api/stats', headers=auth_headers).get_json()
-        assert dashboard['activity'] == client.get('/api/activity', headers=auth_headers).get_json()
 
     def test_tz_offset_reaches_the_embedded_activity(self, client, auth_headers, seed_chapter):
         when = datetime.now(timezone.utc).replace(hour=23, minute=30) - timedelta(days=2)

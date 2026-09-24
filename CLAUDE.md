@@ -57,7 +57,6 @@ backend/.venv/bin/python backend/src/routes.py   # Flask on port 5001
 GOOGLE_CLIENT_ID=...
 JWT_SECRET_KEY=...
 DATABASE_URL=postgresql://postgres:pass@localhost:5432/bible-books-tracker
-FRONTEND_URL=http://localhost:3000
 VITE_GOOGLE_CLIENT_ID=...   # same value as GOOGLE_CLIENT_ID, exposed to Vite at build time
 ```
 
@@ -69,7 +68,6 @@ This is the only local env file. Vite's project root is the repo root, so it rea
 GOOGLE_CLIENT_ID=...
 JWT_SECRET_KEY=...
 DATABASE_URL=postgresql://postgres:<password>@db:5432/bible-books-tracker
-FRONTEND_URL=https://bible.terrancehuang.dev
 POSTGRES_PASSWORD=...
 VITE_GOOGLE_CLIENT_ID=...   # baked into frontend bundle at Docker build time — must be present
 BACKUP_S3_ACCESS_KEY=...    # Cloudflare R2 credentials — R2 → Manage R2 API Tokens in CF dashboard
@@ -189,7 +187,6 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
 **Cycles & stats**:
 - `GET /api/cycles` — all cycles for the user with aggregate stats
 - `POST /api/cycles` — create a new cycle (auto-increments cycle_number)
-- `GET /api/activity?tz_offset=N` — last 365 days of activity for the heatmap
 - `GET /api/stats?tz_offset=N` — streaks, chapters today/this week, total days/chapters
 - `GET /api/dashboard?tz_offset=N` — what Dashboard loads in one request: `stats`, `activity`, `weekly_goal` and the nav-bar `user` (name, picture_url)
 

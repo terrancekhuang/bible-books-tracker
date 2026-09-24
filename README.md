@@ -65,7 +65,6 @@ Vite proxies `/api/*` and `/auth/*` to `http://localhost:5001` automatically.
 GOOGLE_CLIENT_ID=...
 JWT_SECRET_KEY=...
 DATABASE_URL=postgresql://postgres:pass@localhost:5432/bible-books-tracker
-FRONTEND_URL=http://localhost:3000
 ```
 
 **`frontend/.env`:**
@@ -86,7 +85,6 @@ VITE_GOOGLE_CLIENT_ID=...   # same value as GOOGLE_CLIENT_ID
 | `POST` | `/api/progress/undo` | Undo the last log entry for a book                  |
 | `GET`  | `/api/cycles`        | All reading cycles with aggregate stats             |
 | `POST` | `/api/cycles`        | Create a new reading cycle                          |
-| `GET`  | `/api/activity`      | Last 365 days of activity (for heatmap)             |
 | `GET`  | `/api/stats`         | Streaks, daily/weekly totals                        |
 
 ---

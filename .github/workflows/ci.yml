@@ -86,7 +86,6 @@ jobs:
           DATABASE_URL: postgresql://postgres:pass@localhost:5432/bible-books-tracker
           JWT_SECRET_KEY: ci-test-secret-key-not-used-anywhere-real
           GOOGLE_CLIENT_ID: ci-test-client-id
-          FRONTEND_URL: http://localhost:3000
 
   deploy:
     name: Deploy

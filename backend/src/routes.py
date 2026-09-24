@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS
 from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt_identity
 )
@@ -13,7 +12,6 @@ from db import db_cursor
 import reading_history
 
 app = Flask(__name__)
-CORS(app, origins=[Config.FRONTEND_URL], supports_credentials=True)
 app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 jwt = JWTManager(app)
@@ -337,13 +335,6 @@ def create_cycle():
         cycle = cur.fetchone()
         conn.commit()
     return jsonify({'cycle_id': cycle['cycle_id'], 'cycle_number': cycle['cycle_number']})
-
-
-@app.route('/api/activity', methods=['GET'])
-@jwt_required()
-def get_activity():
-    user_id = int(get_jwt_identity())
-    return jsonify(reading_history.activity(user_id, _tz_offset()))
 
 
 @app.route('/api/stats', methods=['GET'])

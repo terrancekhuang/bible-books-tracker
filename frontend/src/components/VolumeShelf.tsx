@@ -111,16 +111,18 @@ function Spine({ vol, index, selected, dimmed, onSelect }: SpineProps) {
 
 interface VolumeShelfProps {
   books: Book[]
-  /** The category currently open on the leaf below, or null when nothing is open
-   *  (either the initial landing state, or a flattened cross-category search/filter view). */
-  openCategory: string | null
+  /** The spine to lift: the open volume, or — in a flattened search/filter view — the
+   *  selected book's category. Null lifts nothing. */
+  liftedCategory: string | null
   /** True while a search or filter has flattened the leaf across all categories — every
-   *  spine dims, since none of them are individually "open" in that state. */
+   *  spine but the lifted one dims, except those in `testament`. */
   flattened: boolean
+  /** A testament deep-link's filter: its categories stay undimmed while flattened. */
+  testament: string
   onSelectCategory: (category: string) => void
 }
 
-export default function VolumeShelf({ books, openCategory, flattened, onSelectCategory }: VolumeShelfProps) {
+export default function VolumeShelf({ books, liftedCategory, flattened, testament, onSelectCategory }: VolumeShelfProps) {
   const volumes: Volume[] = useMemo(() => CATEGORY_ORDER.map(category => {
     const inCat = books.filter(b => b.category === category)
     const read = inCat.reduce((s, b) => s + b.chapters_read, 0)
@@ -137,8 +139,8 @@ export default function VolumeShelf({ books, openCategory, flattened, onSelectCa
               key={vol.category}
               vol={vol}
               index={i}
-              selected={!flattened && vol.category === openCategory}
-              dimmed={flattened}
+              selected={vol.category === liftedCategory}
+              dimmed={flattened && vol.category !== liftedCategory && !(testament && vol.books[0]?.testament === testament)}
               onSelect={() => onSelectCategory(vol.category)}
             />
           ))}

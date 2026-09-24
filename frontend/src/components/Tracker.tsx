@@ -73,7 +73,8 @@ export default function Tracker() {
   const openVolume = (category: string) => {
     setSearch(''); setFilterStatus(''); setTestamentFilter('');
     setOpenCategory(category);
-    setSelectedBookName(defaultBookForCategory(books, category)?.name ?? null);
+    // Opening the lifted spine from a flattened view keeps its selected book selected.
+    setSelectedBookName(selectedBook?.category === category ? selectedBook.name : defaultBookForCategory(books, category)?.name ?? null);
     setChaptersInput('');
     setOpenedFromNav(false);
   };
@@ -371,8 +372,9 @@ export default function Tracker() {
         <div id="tour-tracker-shelf-area" ref={shelfAreaRef}>
         <VolumeShelf
           books={books}
-          openCategory={openCategory}
+          liftedCategory={flattened ? selectedBook?.category ?? null : openCategory}
           flattened={flattened}
+          testament={testamentFilter}
           onSelectCategory={(category) => (!flattened && category === openCategory ? closeVolume() : openVolume(category))}
         />
 

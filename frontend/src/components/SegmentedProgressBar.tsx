@@ -65,11 +65,12 @@ export default function SegmentedProgressBar({
 
   // Entering the bar follows the same open-delay/skip-window timing as every other tooltip
   // in the app; once shown, moving between chapter segments just repositions it — the bar is
-  // one continuous hover target, so crossing segments never re-triggers the delay.
+  // one continuous hover target, so crossing segments never re-triggers the delay. A tap on a
+  // touch screen arrives as this same mouseenter, and shows at once — the delay is for hover.
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!barRef.current) return;
     const next = { chapter: chapterAt(e), x: e.clientX, y: e.clientY };
-    if (tooltipGroup.isWithinSkipWindow()) {
+    if (tooltipGroup.isWithinSkipWindow() || !window.matchMedia('(hover: hover)').matches) {
       shownRef.current = true;
       tooltipGroup.markShown();
       setTooltip(next);

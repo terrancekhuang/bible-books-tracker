@@ -401,7 +401,7 @@ export default function Tracker() {
                 onChaptersInputChange={setChaptersInput}
                 inputRef={chaptersInputRef}
                 inputIsInvalid={inputIsInvalid}
-                invalidMessage={invalidChaptersMessage(selectedBook.name, selectedBook.num_chapters)}
+                invalidMessage={invalidChaptersMessage(selectedBook.name, selectedBook.num_chapters, chaptersInput)}
                 nothingNewToLog={nothingNewToLog}
                 alreadyReadMessage={`Already read — nothing new to log (${formatChapterList(alreadyRead)})`}
                 newChapters={newChapters}

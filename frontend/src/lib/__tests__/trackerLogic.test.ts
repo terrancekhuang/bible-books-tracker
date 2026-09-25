@@ -317,7 +317,26 @@ describe('formatChapterList', () => {
 })
 
 describe('invalidChaptersMessage', () => {
-  it('names the book and its real chapter count', () => {
-    expect(invalidChaptersMessage('Romans', 16)).toBe('Romans has 16 chapters — try "1-5" or "3, 7, 12"')
+  it.each([
+    ['5', 'Habakkuk has 3 chapters — "5" is past the end'],
+    ['5, 7', 'Habakkuk has 3 chapters — "5", "7" are past the end'],
+    ['2-6', 'Habakkuk has 3 chapters — "2-6" runs past the end'],
+    ['5, 2-6', 'Habakkuk has 3 chapters — "5", "2-6" go past the end'],
+    ['1, 5', 'Habakkuk has 3 chapters — "5" is past the end'],
+  ])('quotes every out-of-range part of %j', (input, message) => {
+    expect(invalidChaptersMessage('Habakkuk', 3, input)).toBe(message)
+  })
+
+  it.each(['abc', '5-2', '0', '3-', 'abc, 5'])('gives book-fit examples for the format error %j', input => {
+    expect(invalidChaptersMessage('Habakkuk', 3, input)).toBe('Habakkuk: try "1-3" or "1, 3"')
+  })
+
+  it.each(['', '1-3', '2'])('has nothing to say about the valid input %j', input => {
+    expect(invalidChaptersMessage('Habakkuk', 3, input)).toBe('')
+  })
+
+  it('tells a one-chapter book to enter 1', () => {
+    expect(invalidChaptersMessage('Jude', 1, 'abc')).toBe('Jude has 1 chapter — enter "1"')
+    expect(invalidChaptersMessage('Jude', 1, '2')).toBe('Jude has 1 chapter — "2" is past the end')
   })
 })

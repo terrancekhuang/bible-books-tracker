@@ -123,11 +123,25 @@ export function formatChapterList(chapters: number[], limit = 8): string {
   return `${chapters.slice(0, limit).join(', ')}${chapters.length > limit ? '…' : ''}`
 }
 
-/** The hint shown under the chapter-entry field when its input doesn't parse. Names the
- *  book's real chapter count so "out of range" reads as a fact about the book, not a
- *  generic syntax complaint. */
-export function invalidChaptersMessage(bookName: string, numChapters: number): string {
-  return `${bookName} has ${numChapters} chapters — try "1-5" or "3, 7, 12"`
+/**
+ * Why `input` didn't parse. A format error wins over an out-of-range chapter: once the
+ * input parses, the hint moves on to quoting every part that runs past the book's end.
+ */
+export function invalidChaptersMessage(bookName: string, numChapters: number, input: string): string {
+  const count = `${bookName} has ${numChapters} chapter${numChapters === 1 ? '' : 's'}`
+  const parts = input.split(',').map(s => s.trim()).filter(Boolean)
+  // With no upper bound, the only way a part fails to parse is its format.
+  if (parts.some(p => parseChapters(p, Infinity).length === 0)) {
+    if (numChapters === 1) return `${count} — enter "1"`
+    return `${bookName}: try "1-${numChapters}" or "1, ${numChapters}"`
+  }
+  const over = parts.filter(p => parseChapters(p, numChapters).length === 0)
+  // Tracker builds the hint on every render, including for empty or valid input.
+  if (over.length === 0) return ''
+  const verb = over.length > 1
+    ? (over.some(p => p.includes('-')) ? 'go' : 'are')
+    : (over[0].includes('-') ? 'runs' : 'is')
+  return `${count} — ${over.map(p => `"${p}"`).join(', ')} ${verb} past the end`
 }
 
 export function calculateProgress(book: Pick<Book, 'chapters_read' | 'num_chapters'>): number {

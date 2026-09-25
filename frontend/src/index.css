@@ -286,3 +286,8 @@ dialog.cycle-dialog {
 dialog.cycle-dialog::backdrop {
   background: rgba(0, 0, 0, 0.55);
 }
+
+/* Keyboard shortcut hints mean nothing on a touch screen. */
+@media (hover: none) {
+  kbd { display: none; }
+}

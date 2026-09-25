@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react'
-import { formatChapterRanges, type Book } from '../lib/trackerLogic'
+import { chapterExamples, formatChapterRanges, type Book } from '../lib/trackerLogic'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import { useTooltip } from '../lib/useTooltip'
 import ShortcutHint from './ShortcutHint'
@@ -42,6 +42,7 @@ export default function TrackerEntryLine({
   const isComplete = book.chapters_read >= book.num_chapters
   const read = book.chapters_read
   const remaining = book.num_chapters - read
+  const placeholder = `eg: ${chapterExamples(book.num_chapters).join(' or ')}`
   const chapters = (n: number) => `${n} chapter${n === 1 ? '' : 's'}`
   const CONFIRM: Record<BookAction, { question: ReactNode; label: string; hotkey: string; tint: string }> = {
     undo: {
@@ -63,6 +64,14 @@ export default function TrackerEntryLine({
     <kbd className="ml-1.5 rounded px-1 text-[10px]" style={{ border: '1px solid currentColor', opacity: 0.65, fontFamily: 'inherit' }}>{k}</kbd>
   )
 
+  const inputStatus = inputIsInvalid
+    ? invalidMessage
+    : nothingNewToLog
+      ? alreadyReadMessage
+      : newChapters.length > 0
+        ? `${newChapters.length} to enter`
+        : null
+
   return (
     <div
       id="tour-tracker-entry"
@@ -72,7 +81,8 @@ export default function TrackerEntryLine({
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '12px 14px' }}>
         {!isComplete && (
           <>
-            <label style={{ display: 'inline-flex', alignItems: 'baseline', gap: 8 }}>
+            {/* The field takes whatever the row leaves, so Enter always sits at the right edge. */}
+            <label style={{ display: 'flex', alignItems: 'baseline', gap: 8, flex: 1, minWidth: 0 }}>
               <span className="vol-num" style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(35,31,26,0.62)' }}>
                 Chapters
               </span>
@@ -83,11 +93,10 @@ export default function TrackerEntryLine({
                 value={chaptersInput}
                 onChange={e => onChaptersInputChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onSubmit() } }}
-                placeholder="eg: 1-3, 5, 7"
+                placeholder={placeholder}
                 className="vol-num"
                 style={{
-                  // Narrows on phones so the field and Enter share one line.
-                  width: 'clamp(84px, 24vw, 132px)', padding: '4px 2px', fontSize: 16,
+                  flex: 1, width: 0, padding: '4px 2px', fontSize: 16,
                   background: 'transparent', color: 'var(--color-ink)',
                   border: 0, borderBottom: `2px solid ${inputIsInvalid ? 'var(--color-leaf-red)' : cloth}`,
                   borderRadius: 0, outline: 'none',
@@ -109,18 +118,14 @@ export default function TrackerEntryLine({
             >
               Enter
             </button>
-            <span
-              className="vol-num"
-              style={{ fontSize: 12, color: inputIsInvalid || nothingNewToLog ? 'var(--color-leaf-red)' : 'rgba(35,31,26,0.62)' }}
-            >
-              {inputIsInvalid
-                ? invalidMessage
-                : nothingNewToLog
-                  ? alreadyReadMessage
-                  : newChapters.length > 0
-                    ? `${newChapters.length} to enter`
-                    : ''}
-            </span>
+            {inputStatus && (
+              <span
+                className="vol-num"
+                style={{ flexBasis: '100%', fontSize: 12, color: inputIsInvalid || nothingNewToLog ? 'var(--color-leaf-red)' : 'rgba(35,31,26,0.62)' }}
+              >
+                {inputStatus}
+              </span>
+            )}
           </>
         )}
 

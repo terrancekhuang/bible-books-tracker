@@ -8,6 +8,7 @@ import {
   calculateProgress,
   filterBooks,
   invalidChaptersMessage,
+  chapterExamples,
   type Book,
 } from '../trackerLogic'
 
@@ -313,6 +314,13 @@ describe('formatChapterList', () => {
 
   it('honours a custom limit', () => {
     expect(formatChapterList([1, 2, 3], 2)).toBe('1, 2…')
+  })
+})
+
+describe('chapterExamples', () => {
+  it('ends every example at the book\'s last chapter', () => {
+    expect(chapterExamples(50)).toEqual(['1-50', '1, 50'])
+    expect(chapterExamples(1)).toEqual(['1'])
   })
 })
 

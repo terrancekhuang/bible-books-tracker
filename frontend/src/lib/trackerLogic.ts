@@ -123,6 +123,11 @@ export function formatChapterList(chapters: number[], limit = 8): string {
   return `${chapters.slice(0, limit).join(', ')}${chapters.length > limit ? '…' : ''}`
 }
 
+/** Example inputs that fit a book: a range and a list ending at its last chapter. */
+export function chapterExamples(numChapters: number): string[] {
+  return numChapters === 1 ? ['1'] : [`1-${numChapters}`, `1, ${numChapters}`]
+}
+
 /**
  * Why `input` didn't parse. A format error wins over an out-of-range chapter: once the
  * input parses, the hint moves on to quoting every part that runs past the book's end.
@@ -132,8 +137,8 @@ export function invalidChaptersMessage(bookName: string, numChapters: number, in
   const parts = input.split(',').map(s => s.trim()).filter(Boolean)
   // With no upper bound, the only way a part fails to parse is its format.
   if (parts.some(p => parseChapters(p, Infinity).length === 0)) {
-    if (numChapters === 1) return `${count} — enter "1"`
-    return `${bookName}: try "1-${numChapters}" or "1, ${numChapters}"`
+    const examples = chapterExamples(numChapters).map(e => `"${e}"`).join(' or ')
+    return numChapters === 1 ? `${count} — enter ${examples}` : `${bookName}: try ${examples}`
   }
   const over = parts.filter(p => parseChapters(p, numChapters).length === 0)
   // Tracker builds the hint on every render, including for empty or valid input.

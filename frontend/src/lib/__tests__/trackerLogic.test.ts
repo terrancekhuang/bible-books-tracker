@@ -4,6 +4,7 @@ import {
   splitAlreadyRead,
   buildChapterRuns,
   formatChapterList,
+  formatChapterRanges,
   calculateProgress,
   filterBooks,
   invalidChaptersMessage,
@@ -279,6 +280,17 @@ describe('buildChapterRuns', () => {
       { start: 2, end: 2, state: 'pending' },
       { start: 3, end: 3, state: 'unread' },
     ])
+  })
+})
+
+describe('formatChapterRanges', () => {
+  it('collapses runs and keeps single chapters', () => {
+    expect(formatChapterRanges([1, 2, 3, 5, 7, 8])).toBe('1–3, 5, 7–8')
+  })
+
+  it('handles one chapter and none', () => {
+    expect(formatChapterRanges([4])).toBe('4')
+    expect(formatChapterRanges([])).toBe('')
   })
 })
 

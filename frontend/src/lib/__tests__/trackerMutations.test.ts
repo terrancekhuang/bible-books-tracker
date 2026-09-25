@@ -87,6 +87,8 @@ describe('submit', () => {
     // Optimistic: union of existing and submitted chapters
     expect(cachedBook()?.chapters_read_list).toEqual([1, 2, 3, 4])
     expect(cachedBook()?.chapters_read).toBe(4)
+    // The new entry is what Undo would take back
+    expect(cachedBook()?.last_entry).toEqual([3, 4])
     expect(context.previousBook).toBe(GENESIS)
     expect(context.newlyLoggedOptimistic).toBe(2)
 
@@ -113,7 +115,7 @@ describe('submit', () => {
 
     vi.stubGlobal('fetch', vi.fn())
     await options.onSuccess(
-      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0 },
+      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0, last_entry: [1, 2] },
       vars,
       context,
     )
@@ -197,7 +199,7 @@ describe('submit', () => {
 
     vi.stubGlobal('fetch', vi.fn())
     await options.onSuccess(
-      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0 },
+      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0, last_entry: [1, 2] },
       vars,
       context,
     )

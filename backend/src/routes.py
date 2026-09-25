@@ -54,20 +54,35 @@ def resolve_cycle_and_book(cur, user_id: int, book_name: str):
     return (cycle_id, book), None
 
 
+# The chapters an undo would remove: every row sharing the book's latest logged_at. One
+# submit is one transaction and logged_at defaults to NOW(), so that's exactly one entry.
+LAST_ENTRY = """
+    COALESCE(
+        ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (
+            WHERE logged_at = (SELECT MAX(logged_at) FROM chapter_progress last
+                               WHERE last.user_id = cp.user_id AND last.cycle_id = cp.cycle_id
+                                 AND last.book_id = cp.book_id)
+        ),
+        ARRAY[]::INTEGER[]
+    )"""
+
+
 def get_book_chapters(cur, user_id: int, cycle_id: int, book_id: int) -> dict:
-    cur.execute("""
+    cur.execute(f"""
         SELECT COUNT(*) AS chapters_read,
             COALESCE(
                 ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
                 ARRAY[]::INTEGER[]
-            ) AS list
-        FROM chapter_progress
+            ) AS list,
+            {LAST_ENTRY} AS last_entry
+        FROM chapter_progress cp
         WHERE user_id = %s AND cycle_id = %s AND book_id = %s
     """, (user_id, cycle_id, book_id))
     result = cur.fetchone()
     return {
         'chapters_read': result['chapters_read'],
         'chapters_read_list': list(result['list'] or []),
+        'last_entry': list(result['last_entry'] or []),
     }
 
 
@@ -150,7 +165,7 @@ def get_books():
     with db_cursor() as (conn, cur):
         cycle_id = get_active_cycle_id(cur, user_id)
 
-        cur.execute("""
+        cur.execute(f"""
             SELECT
                 b.book_id,
                 b.name,
@@ -163,7 +178,8 @@ def get_books():
                     FILTER (WHERE cp.chapter_number IS NOT NULL),
                     ARRAY[]::INTEGER[]
                 ) AS chapters_read_list,
-                MAX(cp.logged_at) AS last_read_at
+                MAX(cp.logged_at) AS last_read_at,
+                {LAST_ENTRY} AS last_entry
             FROM bible_books b
             LEFT JOIN chapter_progress cp ON b.book_id = cp.book_id
                 AND cp.user_id = %s
@@ -182,6 +198,7 @@ def get_books():
         "chapters_read": item['chapters_read'],
         "chapters_read_list": item['chapters_read_list'],
         "last_read_at": item['last_read_at'].isoformat() if item['last_read_at'] else None,
+        "last_entry": item['last_entry'],
     } for item in raw_data]
 
     return jsonify(books)
@@ -222,6 +239,7 @@ def update_progress():
                 'chapters_read': result['chapters_read'],
                 'newly_logged': newly_inserted,
                 'chapters_read_list': result['chapters_read_list'],
+                'last_entry': result['last_entry'],
             })
         except Exception as e:
             conn.rollback()
@@ -286,7 +304,7 @@ def reset_progress():
             """, (user_id, cycle_id, book_id))
 
             conn.commit()
-            return jsonify({'success': True, 'chapters_read': 0, 'chapters_read_list': []})
+            return jsonify({'success': True, 'chapters_read': 0, 'chapters_read_list': [], 'last_entry': []})
         except Exception as e:
             conn.rollback()
             return jsonify({'success': False, 'error': str(e)}), 500

@@ -149,6 +149,21 @@ class TestUndoProgress:
         assert data['success'] is True
         assert data['chapters_read'] == 0
 
+    def test_last_entry_names_what_undo_would_remove(self, client, auth_headers):
+        client.post('/api/progress', headers=auth_headers,
+                    json={'book_name': 'Genesis', 'chapters': [1, 2]})
+        second = client.post('/api/progress', headers=auth_headers,
+                             json={'book_name': 'Genesis', 'chapters': [2, 3, 4]}).get_json()
+        # Chapter 2 was already logged, so only 3 and 4 belong to the second entry.
+        assert second['last_entry'] == [3, 4]
+        books = client.get('/api/books', headers=auth_headers).get_json()
+        assert next(b for b in books if b['name'] == 'Genesis')['last_entry'] == [3, 4]
+
+        undone = client.post('/api/progress/undo', headers=auth_headers,
+                             json={'book_name': 'Genesis'}).get_json()
+        assert undone['chapters_read_list'] == [1, 2]
+        assert undone['last_entry'] == [1, 2]
+
     def test_nothing_to_undo_returns_400(self, client, auth_headers):
         resp = client.post('/api/progress/undo', headers=auth_headers,
                            json={'book_name': 'Genesis'})

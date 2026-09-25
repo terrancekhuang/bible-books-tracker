@@ -35,7 +35,7 @@ interface SubmitVars {
  * 401 has already logged the user out.
  */
 type SubmitResult =
-  | { status: 'confirmed'; chapters_read: number; chapters_read_list: number[]; newly_logged: number }
+  | { status: 'confirmed'; chapters_read: number; chapters_read_list: number[]; newly_logged: number; last_entry: number[] }
   | { status: 'queued' }
   | { status: 'auth-failed' }
 
@@ -60,6 +60,7 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
           chapters_read: data.chapters_read,
           chapters_read_list: data.chapters_read_list,
           newly_logged: data.newly_logged,
+          last_entry: data.last_entry,
         }
       } catch (e) {
         // Offline or a network-level failure — hand the write to the offline queue
@@ -85,11 +86,14 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
       await deps.queryClient.cancelQueries({ queryKey: queryKeys.books() })
       const now = new Date().toISOString()
       const optimisticList = [...new Set([...book.chapters_read_list, ...chapters])].sort((a, b) => a - b)
+      // Only chapters not already logged get a new row, so only they make up the new entry.
+      const newlyLogged = optimisticList.filter((c) => !book.chapters_read_list.includes(c))
       const optimisticBook: Book = {
         ...book,
         chapters_read: optimisticList.length,
         chapters_read_list: optimisticList,
         last_read_at: now,
+        last_entry: newlyLogged.length > 0 ? newlyLogged : book.last_entry,
       }
       setBook(deps, book.name, optimisticBook)
       return {
@@ -110,6 +114,7 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
         chapters_read: result.chapters_read,
         chapters_read_list: result.chapters_read_list,
         last_read_at: new Date().toISOString(),
+        last_entry: result.last_entry,
       }
       setBook(deps, book.name, confirmed)
       if (result.newly_logged > 0 || (context?.newlyLoggedOptimistic ?? 0) > 0) {
@@ -127,6 +132,7 @@ interface ActionResult {
   success: boolean
   chapters_read: number
   chapters_read_list: number[]
+  last_entry: number[]
 }
 
 /**
@@ -156,6 +162,7 @@ function createBookActionMutationOptions(
         ...book,
         chapters_read: data.chapters_read,
         chapters_read_list: data.chapters_read_list,
+        last_entry: data.last_entry,
       })
       invalidateProgressWrite(deps.queryClient)
     },

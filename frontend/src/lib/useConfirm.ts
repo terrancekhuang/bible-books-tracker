@@ -1,28 +1,28 @@
 import { useEffect, useState } from 'react'
 
 /**
- * Two-step "confirm" toggle (e.g. "Reset" -> "Confirm reset?"), auto-cleared
- * whenever `resetKey` changes (e.g. switching to a different selected item).
+ * Two-step confirm for a set of actions, only one of which can be armed at a time: the first
+ * press arms it, a second press of the same action commits it. Auto-cleared whenever
+ * `resetKey` changes (e.g. switching to a different selected item).
  */
-export function useConfirm(resetKey: unknown) {
-  const [confirming, setConfirming] = useState(false)
+export function useConfirm<T extends string>(resetKey: unknown) {
+  const [armed, setArmed] = useState<T | null>(null)
 
   useEffect(() => {
-    const t = setTimeout(() => setConfirming(false), 0)
+    const t = setTimeout(() => setArmed(null), 0)
     return () => clearTimeout(t)
   }, [resetKey])
 
   return {
-    confirming,
-    request: () => setConfirming(true),
-    cancel: () => setConfirming(false),
-    /** Returns true and clears state if already confirming (i.e. this is the "commit" press); otherwise arms it and returns false. */
-    confirmOrRequest: (): boolean => {
-      if (confirming) {
-        setConfirming(false)
+    armed,
+    cancel: () => setArmed(null),
+    /** Returns true and disarms if `action` is already armed (this is the commit press); otherwise arms it and returns false. */
+    confirmOrArm: (action: T): boolean => {
+      if (armed === action) {
+        setArmed(null)
         return true
       }
-      setConfirming(true)
+      setArmed(action)
       return false
     },
   }

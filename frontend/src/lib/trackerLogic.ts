@@ -7,6 +7,9 @@ export interface Book {
   chapters_read: number
   chapters_read_list: number[]
   last_read_at: string | null
+  /** The chapters Undo would remove — the most recent entry. Missing from books cached
+   *  before the field existed, until the next refetch. */
+  last_entry?: number[]
 }
 
 /** The full `/api/stats` payload — also nested inside `/api/dashboard`. */
@@ -105,6 +108,17 @@ export function buildChapterRuns(
 }
 
 /** Renders a chapter list for the hint under the input, truncating past 8 entries. */
+/** Sorted chapters as ranges: [1, 2, 3, 5, 7, 8] → "1–3, 5, 7–8". */
+export function formatChapterRanges(chapters: number[]): string {
+  const parts: string[] = []
+  for (let i = 0; i < chapters.length; i++) {
+    const start = chapters[i]
+    while (chapters[i + 1] === chapters[i] + 1) i++
+    parts.push(start === chapters[i] ? `${start}` : `${start}–${chapters[i]}`)
+  }
+  return parts.join(', ')
+}
+
 export function formatChapterList(chapters: number[], limit = 8): string {
   return `${chapters.slice(0, limit).join(', ')}${chapters.length > limit ? '…' : ''}`
 }

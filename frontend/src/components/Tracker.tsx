@@ -10,7 +10,7 @@ import { CATEGORY_ORDER, CLOTH, ROMAN } from '../lib/volumesTokens'
 import NavBar from './NavBar'
 import VolumeShelf from './VolumeShelf'
 import ContentsLeaf from './ContentsLeaf'
-import TrackerEntryLine from './TrackerEntryLine'
+import TrackerEntryLine, { type BookAction } from './TrackerEntryLine'
 import { FILL_MS } from './SegmentedProgressBar'
 
 const SHELF_BACKGROUND = [
@@ -29,8 +29,7 @@ export default function Tracker() {
   const selectedBook = books.find(b => b.name === selectedBookName) ?? null
 
   const [chaptersInput, setChaptersInput] = useState('');
-  const resetConfirm = useConfirm(selectedBookName);
-  const confirmMarkAll = useConfirm(selectedBookName);
+  const confirm = useConfirm<BookAction>(selectedBookName);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   // Set only by Dashboard's testament-breakdown deep link — there's no dropdown for it,
@@ -179,21 +178,17 @@ export default function Tracker() {
     await submit(selectedBook, logged);
   };
 
-  const handleMarkAllRead = async () => {
+  // Undo, Reset and Mark all each take two presses: the first arms the confirm strip, the
+  // second (button, or the same key again) commits.
+  const handleBookAction = async (action: BookAction) => {
     if (!selectedBook) return;
-    const allChapters = Array.from({ length: selectedBook.num_chapters }, (_, i) => i + 1);
-    confirmMarkAll.cancel();
-    await submit(selectedBook, allChapters);
-  };
-
-  const handleUndo = async () => {
-    if (!selectedBook || !isOnline) return;
-    await undo(selectedBook);
-  };
-
-  const handleReset = async () => {
-    if (!selectedBook || !resetConfirm.confirmOrRequest()) return;
-    await reset(selectedBook);
+    // Nothing to undo or clear on an unread book, nothing left to mark on a finished one.
+    if (action === 'markall' ? selectedBook.chapters_read >= selectedBook.num_chapters : selectedBook.chapters_read === 0) return;
+    if (action === 'undo' && !isOnline) return;
+    if (!confirm.confirmOrArm(action)) return;
+    if (action === 'undo') await undo(selectedBook);
+    else if (action === 'reset') await reset(selectedBook);
+    else await submit(selectedBook, Array.from({ length: selectedBook.num_chapters }, (_, i) => i + 1));
   };
 
   useEffect(() => {
@@ -229,8 +224,7 @@ export default function Tracker() {
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
 
       if (e.key === 'Escape') {
-        if (resetConfirm.confirming) { resetConfirm.cancel(); return; }
-        if (confirmMarkAll.confirming) { confirmMarkAll.cancel(); return; }
+        if (confirm.armed) { confirm.cancel(); return; }
         if (target === searchInputRef.current) {
           setSearch(''); searchInputRef.current?.blur();
         } else stepBack();
@@ -238,12 +232,12 @@ export default function Tracker() {
       }
       if (e.key === '/' && !isInput) { e.preventDefault(); searchInputRef.current?.focus(); return; }
       if (e.key === 'Tab' && !isInput && selectedBook) { e.preventDefault(); chaptersInputRef.current?.focus(); return; }
-      if (e.key === 'Enter' && !isInput && selectedBook) { e.preventDefault(); handleSubmit(); return; }
-      if (e.key === 'U' && !isInput && selectedBook) { e.preventDefault(); handleUndo(); return; }
-      if (e.key === 'R' && !isInput && selectedBook) { e.preventDefault(); handleReset(); return; }
-      if (e.key === 'A' && !isInput && selectedBook) {
+      // A focused button handles its own Enter.
+      if (e.key === 'Enter' && !isInput && target.tagName !== 'BUTTON' && selectedBook) { e.preventDefault(); handleSubmit(); return; }
+      const ACTION_KEY: Record<string, BookAction> = { U: 'undo', R: 'reset', A: 'markall' };
+      if (e.key in ACTION_KEY && !isInput && selectedBook) {
         e.preventDefault();
-        if (confirmMarkAll.confirming) handleMarkAllRead(); else confirmMarkAll.request();
+        handleBookAction(ACTION_KEY[e.key]);
         return;
       }
       if (e.key === 'i' && !isInput && selectedBook) { e.preventDefault(); chaptersInputRef.current?.focus(); return; }
@@ -259,7 +253,7 @@ export default function Tracker() {
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBook, visibleBooks, openCategory, flattened, resetConfirm.confirming, confirmMarkAll.confirming, isOnline]);
+  }, [selectedBook, visibleBooks, openCategory, flattened, confirm.armed, isOnline]);
 
   const openIndex = openCategory ? CATEGORY_ORDER.indexOf(openCategory as typeof CATEGORY_ORDER[number]) : -1;
   const leafCloth = openCategory ? CLOTH[openCategory] : 'var(--color-shelf-lit)';
@@ -415,11 +409,9 @@ export default function Tracker() {
                 onSubmit={handleSubmit}
                 loggingChapters={loggingChapters}
                 isOnline={isOnline}
-                onUndo={handleUndo}
-                resetConfirm={resetConfirm}
-                onReset={handleReset}
-                markAllConfirm={confirmMarkAll}
-                onMarkAllRead={handleMarkAllRead}
+                armed={confirm.armed}
+                onAction={handleBookAction}
+                onCancel={confirm.cancel}
               />
             )}
           />

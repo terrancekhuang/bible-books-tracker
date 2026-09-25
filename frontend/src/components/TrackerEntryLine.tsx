@@ -1,16 +1,12 @@
-import type { RefObject } from 'react'
-import type { Book } from '../lib/trackerLogic'
+import type { ReactNode, RefObject } from 'react'
+import { formatChapterRanges, type Book } from '../lib/trackerLogic'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import { useTooltip } from '../lib/useTooltip'
 import ShortcutHint from './ShortcutHint'
 
 const dimText = 'rgba(35,31,26,0.55)'
 
-interface ConfirmState {
-  confirming: boolean
-  request: () => void
-  cancel: () => void
-}
+export type BookAction = 'undo' | 'reset' | 'markall'
 
 interface TrackerEntryLineProps {
   book: Book
@@ -27,25 +23,41 @@ interface TrackerEntryLineProps {
   onSubmit: () => void
   loggingChapters?: number[]
   isOnline: boolean
-  onUndo: () => void
-  resetConfirm: ConfirmState
-  onReset: () => void
-  markAllConfirm: ConfirmState
-  onMarkAllRead: () => void
+  /** The action waiting on its second press, shown as the confirm strip in place of the buttons. */
+  armed: BookAction | null
+  /** First press arms an action, a second press of the same one commits it. */
+  onAction: (action: BookAction) => void
+  onCancel: () => void
 }
 
 export default function TrackerEntryLine({
   book, cloth, chaptersInput, onChaptersInputChange, inputRef, inputIsInvalid, invalidMessage,
   nothingNewToLog, alreadyReadMessage, newChapters, canSubmit, onSubmit, loggingChapters,
-  isOnline, onUndo, resetConfirm, onReset, markAllConfirm, onMarkAllRead,
+  isOnline, armed, onAction, onCancel,
 }: TrackerEntryLineProps) {
   const isComplete = book.chapters_read >= book.num_chapters
-
-  const undoTooltip = useTooltip(<ShortcutHint action="Undo" keys={['U']} />)
-  const resetTooltip = useTooltip(<ShortcutHint action={resetConfirm.confirming ? 'Confirm' : 'Reset'} keys={['R']} />)
-  const markAllTooltip = useTooltip(<ShortcutHint action="Mark all as read" keys={['A']} />)
-  const markAllConfirmTooltip = useTooltip(<ShortcutHint action="Confirm" keys={['A']} />)
-  const markAllCancelTooltip = useTooltip(<ShortcutHint action="Cancel" keys={['Esc']} />)
+  const read = book.chapters_read
+  const remaining = book.num_chapters - read
+  const chapters = (n: number) => `${n} chapter${n === 1 ? '' : 's'}`
+  const CONFIRM: Record<BookAction, { question: ReactNode; label: string; hotkey: string; tint: string }> = {
+    undo: {
+      question: book.last_entry?.length
+        ? <>Undo logging <strong>{book.name} {formatChapterRanges(book.last_entry)}</strong>?</>
+        : <>Undo the last entry logged for {book.name}?</>,
+      label: 'Undo', hotkey: 'U', tint: 'var(--color-leaf-red)',
+    },
+    reset: {
+      question: <>Clear <strong>all {chapters(read)}</strong> read in {book.name}?</>,
+      label: 'Reset', hotkey: 'R', tint: 'var(--color-leaf-red)',
+    },
+    markall: {
+      question: <>Mark <strong>{chapters(remaining)}</strong> of {book.name} as read?</>,
+      label: 'Mark all read', hotkey: 'A', tint: cloth,
+    },
+  }
+  const kbd = (k: string) => (
+    <kbd className="ml-1.5 rounded px-1 text-[10px]" style={{ border: '1px solid currentColor', opacity: 0.65, fontFamily: 'inherit' }}>{k}</kbd>
+  )
 
   return (
     <div
@@ -124,10 +136,56 @@ export default function TrackerEntryLine({
         />
       )}
 
-      <div className="flex flex-wrap gap-2" style={{ marginTop: 18 }}>
-        {book.chapters_read > 0 && (
+      {armed ? (
+        <div
+          role="alertdialog"
+          aria-label={CONFIRM[armed].label}
+          className="flex flex-wrap items-center justify-between rounded-md"
+          style={{
+            marginTop: 18, gap: '8px 16px', padding: '6px 6px 6px 12px',
+            background: `color-mix(in srgb, ${CONFIRM[armed].tint} 8%, transparent)`,
+            boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${CONFIRM[armed].tint} 30%, transparent)`,
+          }}
+        >
+          <p className="text-[13px]" style={{ margin: 0, lineHeight: 1.4 }}>{CONFIRM[armed].question}</p>
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => onAction(armed)}
+              className="text-xs px-3 py-1.5 rounded-md font-semibold"
+              style={{ background: CONFIRM[armed].tint, color: 'var(--color-leaf)' }}
+            >
+              {CONFIRM[armed].label}{kbd(CONFIRM[armed].hotkey)}
+            </button>
+            <button
+              autoFocus
+              onClick={onCancel}
+              className="text-xs px-3 py-1.5 rounded-md"
+              style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
+            >
+              Cancel{kbd('Esc')}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <ActionButtons book={book} isOnline={isOnline} onAction={onAction} />
+      )}
+    </div>
+  )
+}
+
+/** Undo, Reset and Mark all. Its own component so the tooltips' state goes with it: arming an
+ *  action swaps this row out from under the cursor, before any mouseleave can close them. */
+function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boolean; onAction: (action: BookAction) => void }) {
+  const undoTooltip = useTooltip(<ShortcutHint action="Undo" keys={['U']} />)
+  const resetTooltip = useTooltip(<ShortcutHint action="Reset" keys={['R']} />)
+  const markAllTooltip = useTooltip(<ShortcutHint action="Mark all as read" keys={['A']} />)
+
+  return (
+    <div className="flex flex-wrap gap-2" style={{ marginTop: 18 }}>
+      {book.chapters_read > 0 && (
+        <>
           <button
-            onClick={onUndo}
+            onClick={() => onAction('undo')}
             onMouseEnter={undoTooltip.onMouseEnter}
             onMouseLeave={undoTooltip.onMouseLeave}
             disabled={!isOnline}
@@ -136,59 +194,31 @@ export default function TrackerEntryLine({
           >
             Undo
           </button>
-        )}
-        {undoTooltip.tooltip}
+          <button
+            onClick={() => onAction('reset')}
+            onMouseEnter={resetTooltip.onMouseEnter}
+            onMouseLeave={resetTooltip.onMouseLeave}
+            className="text-xs px-3 py-1.5 rounded-md"
+            style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
+          >
+            Reset
+          </button>
+        </>
+      )}
+      {book.chapters_read < book.num_chapters && (
         <button
-          onClick={() => { if (resetConfirm.confirming) onReset(); else resetConfirm.request() }}
-          onMouseEnter={resetTooltip.onMouseEnter}
-          onMouseLeave={resetTooltip.onMouseLeave}
+          onClick={() => onAction('markall')}
+          onMouseEnter={markAllTooltip.onMouseEnter}
+          onMouseLeave={markAllTooltip.onMouseLeave}
           className="text-xs px-3 py-1.5 rounded-md"
-          style={resetConfirm.confirming
-            ? { border: '1px solid var(--color-leaf-red)', color: 'var(--color-leaf-red)' }
-            : { border: '1px solid rgba(35,31,26,0.22)', color: dimText }
-          }
+          style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
         >
-          {resetConfirm.confirming ? 'Confirm reset?' : 'Reset'}
+          Mark all as read
         </button>
-        {resetTooltip.tooltip}
-        {!isComplete && (
-          markAllConfirm.confirming ? (
-            <>
-              <button
-                onClick={onMarkAllRead}
-                onMouseEnter={markAllConfirmTooltip.onMouseEnter}
-                onMouseLeave={markAllConfirmTooltip.onMouseLeave}
-                className="text-xs px-3 py-1.5 rounded-md font-semibold"
-                style={{ background: cloth, color: 'var(--color-leaf)' }}
-              >
-                Confirm — all {book.num_chapters} chapters
-              </button>
-              {markAllConfirmTooltip.tooltip}
-              <button
-                onClick={markAllConfirm.cancel}
-                onMouseEnter={markAllCancelTooltip.onMouseEnter}
-                onMouseLeave={markAllCancelTooltip.onMouseLeave}
-                className="text-xs px-3 py-1.5 rounded-md"
-                style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
-              >
-                Cancel
-              </button>
-              {markAllCancelTooltip.tooltip}
-            </>
-          ) : (
-            <button
-              onClick={markAllConfirm.request}
-              onMouseEnter={markAllTooltip.onMouseEnter}
-              onMouseLeave={markAllTooltip.onMouseLeave}
-              className="text-xs px-3 py-1.5 rounded-md"
-              style={{ border: '1px solid rgba(35,31,26,0.22)', color: dimText }}
-            >
-              Mark all as read
-            </button>
-          )
-        )}
-        {!markAllConfirm.confirming && markAllTooltip.tooltip}
-      </div>
+      )}
+      {undoTooltip.tooltip}
+      {resetTooltip.tooltip}
+      {markAllTooltip.tooltip}
     </div>
   )
 }

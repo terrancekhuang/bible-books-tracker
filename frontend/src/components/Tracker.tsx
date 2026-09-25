@@ -99,10 +99,13 @@ export default function Tracker() {
   };
 
   // Inside the shelf area, only a click off the book rows and the entry line counts — and
-  // then only to deselect the book. Spines and rows handle their own clicks.
+  // then only to deselect the book. Spines and rows handle their own clicks. A target that's
+  // left the page was swapped out by its own click handler (Mark all → Confirm), so it was
+  // handled, not clicked off.
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      if (!target.isConnected) return;
       if (!shelfAreaRef.current?.contains(target) || (selectedBookName && !target.closest('[data-book], [data-keep-selection]'))) {
         stepBack();
       }

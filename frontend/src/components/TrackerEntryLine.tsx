@@ -6,6 +6,10 @@ import ShortcutHint from './ShortcutHint'
 
 const dimText = 'rgba(35,31,26,0.55)'
 
+// The iPhone numeric keypad is digits only, with no comma or hyphen for "1-3, 5".
+// Android's numeric keypad has both, so only iPhones fall back to the text keyboard.
+const isIPhone = /iPhone|iPod/.test(navigator.userAgent)
+
 export type BookAction = 'undo' | 'reset' | 'markall'
 
 interface TrackerEntryLineProps {
@@ -75,7 +79,7 @@ export default function TrackerEntryLine({
               <input
                 ref={inputRef}
                 type="text"
-                inputMode="numeric"
+                inputMode={isIPhone ? 'text' : 'numeric'}
                 value={chaptersInput}
                 onChange={e => onChaptersInputChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onSubmit() } }}

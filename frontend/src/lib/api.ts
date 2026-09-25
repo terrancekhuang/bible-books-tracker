@@ -1,6 +1,6 @@
 import { authHeaders } from './auth'
 
-export type FetchResult<T> = { ok: true; data: T } | { ok: false; unauthorized: boolean }
+type FetchResult<T> = { ok: true; data: T } | { ok: false; unauthorized: boolean }
 
 /**
  * Thrown by query functions when a fetch failed with 401. `fetchJson` has already

@@ -6,7 +6,7 @@ import { createSubmitMutationOptions, createUndoMutationOptions, createResetMuta
 import type { MutationDeps } from './trackerMutations'
 import type { Book } from './trackerLogic'
 
-export interface TrackerMutations {
+interface TrackerMutations {
   isOnline: boolean
   pendingCount: number
   submit: (book: Book, chapters: number[]) => Promise<void>

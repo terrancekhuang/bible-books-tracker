@@ -85,7 +85,7 @@ VITE_GOOGLE_CLIENT_ID=...   # same value as GOOGLE_CLIENT_ID
 | `POST` | `/api/progress/undo` | Undo the last log entry for a book                  |
 | `GET`  | `/api/cycles`        | All reading cycles with aggregate stats             |
 | `POST` | `/api/cycles`        | Create a new reading cycle                          |
-| `GET`  | `/api/stats`         | Streaks, daily/weekly totals                        |
+| `GET`  | `/api/dashboard`     | Streaks, totals, heatmap activity and weekly goal   |
 
 ---
 

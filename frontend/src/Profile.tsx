@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useCurrentUserQuery, useCyclesQuery, useStatsQuery, useSettingsQuery } from './lib/queries'
+import { useCurrentUserQuery, useCyclesQuery, useDashboardQuery } from './lib/queries'
 import { useCreateCycle } from './lib/useCycleMutations'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
 import { TOTAL_BOOKS, TOTAL_CHAPTERS } from './lib/trackerLogic'
@@ -40,10 +40,11 @@ export default function Profile() {
 
   const { data: user } = useCurrentUserQuery()
   const { data: rawCycles, isError: cyclesError, refetch: refetchCycles } = useCyclesQuery()
-  const { data: stats, isError: statsError, refetch: refetchStats } = useStatsQuery()
-  const { data: settings, isLoading: settingsLoading, isError: settingsError, refetch: refetchSettings } = useSettingsQuery()
+  // Stats and the weekly goal both ride in the dashboard payload, so Profile shares its cache.
+  const { data: dashboard, isLoading: dashboardLoading, isError: dashboardError, refetch: refetchDashboard } = useDashboardQuery()
+  const stats = dashboard?.stats
   const { save: saveWeeklyGoal } = useUpdateWeeklyGoal()
-  const isError = cyclesError || statsError || settingsError
+  const isError = cyclesError || dashboardError
 
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
@@ -54,7 +55,7 @@ export default function Profile() {
   const currentCycle = cycles.length > 0 ? cycles[cycles.length - 1] : null
   const pastCycles = cycles.slice(0, -1)
 
-  const weeklyGoal = settings?.weekly_goal ?? 7
+  const weeklyGoal = dashboard?.weekly_goal ?? 7
   const startEditingGoal = () => { setGoalInput(String(weeklyGoal)); setGoalError(null); setEditingGoal(true) }
   const cancelEditingGoal = () => { setGoalError(null); setEditingGoal(false) }
   const saveGoal = async (val: string) => {
@@ -99,7 +100,7 @@ export default function Profile() {
             </p>
             <div className="flex justify-center mt-4">
               <button
-                onClick={() => { refetchCycles(); refetchStats(); refetchSettings() }}
+                onClick={() => { refetchCycles(); refetchDashboard() }}
                 className="text-xs font-semibold uppercase px-4 py-2 rounded-lg transition-colors"
                 style={{ letterSpacing: '0.08em', color: 'var(--color-gilt)', border: '1px solid rgba(210,166,63,0.4)' }}
               >
@@ -161,7 +162,7 @@ export default function Profile() {
           <div style={{ textAlign: 'center', ...fadeUp(110) }}>
             <LeafSectionLabel>Weekly Goal</LeafSectionLabel>
             <div className="inline-flex flex-col items-center">
-              {settingsLoading ? (
+              {dashboardLoading ? (
                 <Skeleton className="h-9 w-40" />
               ) : editingGoal ? (
                 <div className="flex items-center gap-2">

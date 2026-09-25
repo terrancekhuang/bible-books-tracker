@@ -8,7 +8,7 @@ export const TOOLTIP_OPEN_DELAY = 550
  *  window skips the open delay — lets you sweep across adjacent tooltips without a pause
  *  between each one. Only a tooltip that actually appeared starts this window: passing over
  *  a trigger too briefly for it to show doesn't unlock the fast path for the next one. */
-export const TOOLTIP_SKIP_WINDOW = 400
+const TOOLTIP_SKIP_WINDOW = 400
 
 interface TooltipGroupValue {
   isWithinSkipWindow: () => boolean

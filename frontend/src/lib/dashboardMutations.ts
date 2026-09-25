@@ -1,7 +1,7 @@
 import { api } from './api'
 import { queryKeys } from './queryKeys'
 import type { QueryClient } from '@tanstack/react-query'
-import type { DashboardData, SettingsData } from './queries'
+import type { DashboardData } from './queries'
 
 /**
  * Dashboard's only write, as a plain dependency-injected mutation-options factory.
@@ -21,12 +21,10 @@ interface GoalVars {
 
 interface GoalContext {
   previousDashboard: DashboardData | undefined
-  previousSettings: SettingsData | undefined
 }
 
 export function createUpdateWeeklyGoalMutationOptions(deps: DashboardMutationDeps) {
   const dashboardKey = queryKeys.dashboard(deps.tzOffset)
-  const settingsKey = queryKeys.settings()
 
   return {
     mutationFn: async ({ weeklyGoal }: GoalVars): Promise<number> => {
@@ -39,26 +37,19 @@ export function createUpdateWeeklyGoalMutationOptions(deps: DashboardMutationDep
       return data.weekly_goal
     },
 
-    // Writing straight into both caches is what preserves the instant-save feel a local
-    // useState gave us before — Dashboard and Profile each edit the same goal, so both need
-    // the optimistic write regardless of which page made it.
+    // Writing straight into the cache is what preserves the instant-save feel a local
+    // useState gave us before. Dashboard and Profile both read the goal from this one entry.
     onMutate: async ({ weeklyGoal }: GoalVars): Promise<GoalContext> => {
       await deps.queryClient.cancelQueries({ queryKey: dashboardKey })
-      await deps.queryClient.cancelQueries({ queryKey: settingsKey })
       const previousDashboard = deps.queryClient.getQueryData<DashboardData>(dashboardKey)
-      const previousSettings = deps.queryClient.getQueryData<SettingsData>(settingsKey)
       deps.queryClient.setQueryData<DashboardData>(dashboardKey, (old) =>
         old && { ...old, weekly_goal: weeklyGoal }
       )
-      deps.queryClient.setQueryData<SettingsData>(settingsKey, (old) =>
-        ({ ...old, weekly_goal: weeklyGoal })
-      )
-      return { previousDashboard, previousSettings }
+      return { previousDashboard }
     },
 
     onError: (error: unknown, _vars: GoalVars, context: GoalContext | undefined) => {
       if (context?.previousDashboard) deps.queryClient.setQueryData(dashboardKey, context.previousDashboard)
-      if (context?.previousSettings) deps.queryClient.setQueryData(settingsKey, context.previousSettings)
       console.error('Error saving weekly goal:', error)
     },
 
@@ -66,7 +57,6 @@ export function createUpdateWeeklyGoalMutationOptions(deps: DashboardMutationDep
     // rather than trusting the optimistic value indefinitely.
     onSettled: () => {
       void deps.queryClient.invalidateQueries({ queryKey: queryKeys.dashboardAll() })
-      void deps.queryClient.invalidateQueries({ queryKey: settingsKey })
     },
   }
 }

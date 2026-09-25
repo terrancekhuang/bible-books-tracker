@@ -13,7 +13,7 @@ export interface CycleMutationDeps {
   logout: () => void
 }
 
-export interface CreatedCycle {
+interface CreatedCycle {
   cycle_id: number
   cycle_number: number
 }

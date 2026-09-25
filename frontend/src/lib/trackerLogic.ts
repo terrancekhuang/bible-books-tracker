@@ -12,7 +12,7 @@ export interface Book {
   last_entry?: number[]
 }
 
-/** The full `/api/stats` payload — also nested inside `/api/dashboard`. */
+/** The `stats` object nested inside `/api/dashboard`. */
 export interface Stats {
   chapters_today: number
   chapters_this_week: number
@@ -43,7 +43,7 @@ export function parseChapters(input: string, max: number): number[] {
   return [...result].sort((a, b) => a - b)
 }
 
-export interface ChapterSplit {
+interface ChapterSplit {
   /** Chapters that would actually be logged — the parsed input minus what's already read. */
   newChapters: number[]
   /** Chapters in the parsed input that this book has already logged. */
@@ -69,7 +69,7 @@ export function splitAlreadyRead(parsed: number[], chaptersReadList: number[]): 
 
 export type SegmentState = 'read' | 'logging' | 'pending' | 'unread'
 
-export interface ChapterRun {
+interface ChapterRun {
   start: number
   end: number
   state: SegmentState
@@ -140,7 +140,7 @@ export function calculateOverallProgress(books: Book[]): { totalRead: number; ov
   return { totalRead, overallPct: Math.round((totalRead / TOTAL_CHAPTERS) * 100) }
 }
 
-export interface FilterOpts {
+interface FilterOpts {
   search: string
   filterTestament: string
   filterStatus: string

@@ -187,11 +187,9 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
 **Cycles & stats**:
 - `GET /api/cycles` — all cycles for the user with aggregate stats
 - `POST /api/cycles` — create a new cycle (auto-increments cycle_number)
-- `GET /api/stats?tz_offset=N` — streaks, chapters today/this week, total days/chapters
-- `GET /api/dashboard?tz_offset=N` — what Dashboard loads in one request: `stats`, `activity`, `weekly_goal` and the nav-bar `user` (name, picture_url)
+- `GET /api/dashboard?tz_offset=N` — `stats` (streaks, chapters today/this week, total days/chapters), `activity`, `weekly_goal` and the nav-bar `user` (name, picture_url) in one request. Dashboard and Profile both read it
 
 **Settings**:
-- `GET /api/settings` — `{ weekly_goal }`
 - `PUT /api/settings` — body: `{ weekly_goal }` — must be a positive integer
 - `GET /api/rhythm?tz_offset=N` — when the user reads: `by_weekday` (Monday-first, 7 entries), `by_part_of_day` (morning/afternoon/evening/night), `total_chapters` and `distinct_days`, returned for both an `all_time` and a `last_90_days` window in one payload
 
@@ -238,9 +236,3 @@ Configured via `VitePWA` in `vite.config.ts`. Workbox uses NetworkFirst for `/ap
 | `g` `p` | Go to Profile |
 | `Esc` | Deselect / clear search |
 | `?` | Toggle help modal |
-
-## `_build_plan/`
-
-The `_build_plan/` folder contains the initial PRD and per-milestone prompts used to scaffold this codebase during its initial build-out phase. These files are **temporary** — they exist for documentation and guidance only. They are **not** functional: no code, configuration, or runtime logic in this codebase should import, reference, or depend on anything inside `_build_plan/`.
-
-Do not treat `_build_plan/` as long-living documentation for the codebase. The codebase will evolve past the assumptions and decisions captured here. Once the initial milestones are complete, this folder is expected to be deleted.

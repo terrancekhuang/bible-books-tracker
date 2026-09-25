@@ -28,7 +28,6 @@ function invalidated(): string[] {
     books: queryKeys.books(),
     cycles: queryKeys.cycles(),
     dashboard: queryKeys.dashboard(TZ_OFFSET),
-    stats: queryKeys.stats(TZ_OFFSET),
   }
   return Object.entries(keys)
     .filter(([, key]) => queryClient.getQueryState(key)?.isInvalidated)
@@ -48,7 +47,6 @@ beforeEach(() => {
   queryClient.setQueryData(queryKeys.books(), FINISHED_CYCLE_BOOKS)
   queryClient.setQueryData(queryKeys.cycles(), [{ cycle_id: 1, cycle_number: 1 }])
   queryClient.setQueryData(queryKeys.dashboard(TZ_OFFSET), { weekly_goal: 7 })
-  queryClient.setQueryData(queryKeys.stats(TZ_OFFSET), { total_chapters: 120 })
 
   logout = vi.fn<() => void>()
   deps = { queryClient, logout }
@@ -103,7 +101,7 @@ describe('createCycle', () => {
     await options.onSuccess({ cycle_id: 2, cycle_number: 2 })
 
     expect(cachedBooks()).toEqual(NEW_CYCLE_BOOKS)
-    expect(invalidated()).toEqual(['cycles', 'dashboard', 'stats'])
+    expect(invalidated()).toEqual(['cycles', 'dashboard'])
   })
 
   // The books query has no observers here, which is the real case: the user is on

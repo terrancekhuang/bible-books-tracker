@@ -8,7 +8,7 @@ def _utc_at(days_ago: int, hour: int, minute: int = 0) -> datetime:
     """A UTC instant N days back at a fixed wall-clock time.
 
     Anchored to now rather than a literal date because the heatmap's activity only looks back
-    365 days and /api/stats' streaks are measured relative to today.
+    365 days and the streaks are measured relative to today.
     """
     return (datetime.now(timezone.utc) - timedelta(days=days_ago)).replace(
         hour=hour, minute=minute, second=0, microsecond=0)
@@ -205,18 +205,22 @@ class TestCycles:
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
+#
+# Stats only reach the client inside /api/dashboard.
+
+def _stats(client, headers, tz_offset=0):
+    return client.get(f'/api/dashboard?tz_offset={tz_offset}', headers=headers).get_json()['stats']
+
 
 class TestStats:
     def test_returns_all_expected_fields(self, client, auth_headers):
-        resp = client.get('/api/stats', headers=auth_headers)
-        assert resp.status_code == 200
-        data = resp.get_json()
+        data = _stats(client, auth_headers)
         for key in ('total_chapters', 'total_days', 'current_streak', 'best_streak',
                     'chapters_today', 'chapters_this_week'):
             assert key in data
 
     def test_new_user_has_all_zero_stats(self, client, auth_headers):
-        data = client.get('/api/stats', headers=auth_headers).get_json()
+        data = _stats(client, auth_headers)
         assert data['total_chapters'] == 0
         assert data['current_streak'] == 0
         assert data['chapters_today'] == 0
@@ -224,7 +228,7 @@ class TestStats:
     def test_stats_update_after_progress(self, client, auth_headers):
         client.post('/api/progress', headers=auth_headers,
                     json={'book_name': 'Genesis', 'chapters': [1, 2]})
-        data = client.get('/api/stats', headers=auth_headers).get_json()
+        data = _stats(client, auth_headers)
         assert data['total_chapters'] == 2
         assert data['chapters_today'] == 2
         assert data['current_streak'] == 1
@@ -239,8 +243,7 @@ class TestStats:
         seed_chapter(base + timedelta(hours=1), chapter=2)
 
         def total_days(tz_offset):
-            data = client.get(f'/api/stats?tz_offset={tz_offset}', headers=auth_headers).get_json()
-            return data['total_days']
+            return _stats(client, auth_headers, tz_offset)['total_days']
 
         assert total_days(0) == 2
         assert total_days(60) == 1
@@ -252,26 +255,15 @@ class TestStats:
         seed_chapter(base + timedelta(hours=1), chapter=2)
 
         def best_streak(tz_offset):
-            data = client.get(f'/api/stats?tz_offset={tz_offset}', headers=auth_headers).get_json()
-            return data['best_streak']
+            return _stats(client, auth_headers, tz_offset)['best_streak']
 
         assert best_streak(0) == 2
         assert best_streak(60) == 1
-
-    def test_requires_auth(self, client):
-        assert client.get('/api/stats').status_code == 401
 
 
 # ── Settings ──────────────────────────────────────────────────────────────────
 
 class TestSettings:
-    def test_get_returns_default_weekly_goal(self, client, auth_headers):
-        resp = client.get('/api/settings', headers=auth_headers)
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert 'weekly_goal' in data
-        assert isinstance(data['weekly_goal'], int)
-
     def test_update_weekly_goal(self, client, auth_headers):
         resp = client.put('/api/settings', headers=auth_headers,
                           json={'weekly_goal': 5})
@@ -280,7 +272,7 @@ class TestSettings:
 
     def test_get_reflects_updated_goal(self, client, auth_headers):
         client.put('/api/settings', headers=auth_headers, json={'weekly_goal': 3})
-        data = client.get('/api/settings', headers=auth_headers).get_json()
+        data = client.get('/api/dashboard', headers=auth_headers).get_json()
         assert data['weekly_goal'] == 3
 
     def test_update_rejects_zero(self, client, auth_headers):
@@ -297,7 +289,7 @@ class TestSettings:
                           json={'weekly_goal': True}).status_code == 400
 
     def test_requires_auth(self, client):
-        assert client.get('/api/settings').status_code == 401
+        assert client.put('/api/settings', json={'weekly_goal': 5}).status_code == 401
 
 
 # ── Rhythm ────────────────────────────────────────────────────────────────────
@@ -406,13 +398,6 @@ class TestDashboard:
         assert set(data['user']) == {'name', 'picture_url'}
         assert isinstance(data['weekly_goal'], int)
         assert isinstance(data['activity'], list)
-
-    def test_embedded_stats_match_the_stats_endpoint(self, client, auth_headers, seed_chapter):
-        seed_chapter(MONDAY, chapter=1)
-        seed_chapter(MONDAY + timedelta(days=1), chapter=2)
-
-        dashboard = client.get('/api/dashboard', headers=auth_headers).get_json()
-        assert dashboard['stats'] == client.get('/api/stats', headers=auth_headers).get_json()
 
     def test_tz_offset_reaches_the_embedded_activity(self, client, auth_headers, seed_chapter):
         when = datetime.now(timezone.utc).replace(hour=23, minute=30) - timedelta(days=2)

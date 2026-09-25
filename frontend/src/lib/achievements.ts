@@ -5,7 +5,7 @@ import { TOTAL_BOOKS } from './trackerLogic'
 export type BadgeTier = 'bronze' | 'silver' | 'gold' | 'rainbow'
 export type AchievementIcon = 'flame' | 'book' | 'calendar' | 'trophy'
 
-export interface AchievementDef {
+interface AchievementDef {
   id: string
   label: string
   /** Always shown, earned or not — an unearned medallion still tells you what to do. */

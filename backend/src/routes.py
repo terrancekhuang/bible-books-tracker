@@ -355,13 +355,6 @@ def create_cycle():
     return jsonify({'cycle_id': cycle['cycle_id'], 'cycle_number': cycle['cycle_number']})
 
 
-@app.route('/api/stats', methods=['GET'])
-@jwt_required()
-def get_stats():
-    user_id = int(get_jwt_identity())
-    return jsonify(reading_history.stats(user_id, _tz_offset()))
-
-
 @app.route('/api/rhythm', methods=['GET'])
 @jwt_required()
 def get_rhythm():
@@ -387,16 +380,6 @@ def get_dashboard():
             'picture_url': user_row['picture_url'] if user_row else None,
         },
     })
-
-
-@app.route('/api/settings', methods=['GET'])
-@jwt_required()
-def get_settings():
-    user_id = int(get_jwt_identity())
-    with db_cursor() as (conn, cur):
-        cur.execute("SELECT weekly_goal FROM users WHERE user_id = %s", (user_id,))
-        row = cur.fetchone()
-    return jsonify({'weekly_goal': row['weekly_goal'] if row else 7})
 
 
 @app.route('/api/settings', methods=['PUT'])

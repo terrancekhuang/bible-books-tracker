@@ -8,12 +8,7 @@ export const queryKeys = {
   // catch every offset variant at once rather than guessing the active one.
   dashboardAll: () => ['dashboard'] as const,
   dashboard: (tzOffset: number) => ['dashboard', tzOffset] as const,
-  // Same prefix arrangement as the dashboard — /api/stats is timezone-dependent too.
-  statsAll: () => ['stats'] as const,
-  stats: (tzOffset: number) => ['stats', tzOffset] as const,
-  // And again for /api/rhythm, which groups by the reader's local weekday and hour.
+  // Same prefix arrangement for /api/rhythm, which groups by the reader's local weekday and hour.
   rhythmAll: () => ['rhythm'] as const,
   rhythm: (tzOffset: number) => ['rhythm', tzOffset] as const,
-  // Not timezone-dependent — just the weekly goal, shared by Dashboard's and Profile's editors.
-  settings: () => ['settings'] as const,
 } as const

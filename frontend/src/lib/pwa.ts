@@ -1,4 +1,4 @@
-export type Platform = 'ios' | 'android'
+type Platform = 'ios' | 'android'
 
 export function detectPlatform(): Platform | null {
   const ua = navigator.userAgent
@@ -7,7 +7,7 @@ export function detectPlatform(): Platform | null {
   return null
 }
 
-function isStandalone(): boolean {
+export function isStandalone(): boolean {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true

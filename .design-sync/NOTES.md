@@ -17,5 +17,3 @@
 ## Preview issues (needs-work on next sync)
 
 - **SegmentedProgressBar**: Unread segments render at ~8% opacity on the dark background — barely visible at screenshot resolution. Fix: add `overrides.cardMode: "column"` to make the card wider and the bars more visible, or render in a slightly lighter background container.
-
-- **FilterSelect**: Active `<select>` elements are not visually distinct from the dark `#0d1533` background in headless Chrome. Inactive state renders correctly. Fix: try rendering on a lighter background or use a forced light-mode wrapper.

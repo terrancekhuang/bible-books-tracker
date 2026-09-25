@@ -45,18 +45,12 @@ function invalidatedDashboard(): boolean {
   return queryClient.getQueryState(queryKeys.dashboard(TZ_OFFSET))?.isInvalidated ?? false
 }
 
-/** The same, for the stats query Profile reads. */
-function invalidatedStats(): boolean {
-  return queryClient.getQueryState(queryKeys.stats(TZ_OFFSET))?.isInvalidated ?? false
-}
-
 beforeEach(() => {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   queryClient.setQueryData<Book[]>(queryKeys.books(), [GENESIS])
-  // Dashboard and stats entries for the invalidated*() helpers to observe. Nothing
-  // subscribes to them, so invalidating only marks them stale — no refetch fires here.
+  // A dashboard entry for invalidatedDashboard() to observe. Nothing
+  // subscribes to it, so invalidating only marks it stale — no refetch fires here.
   queryClient.setQueryData(queryKeys.dashboard(TZ_OFFSET), { weekly_goal: 7 })
-  queryClient.setQueryData(queryKeys.stats(TZ_OFFSET), { total_chapters: 120 })
 
   logout = vi.fn<() => void>()
   enqueue = vi.fn<(url: string, method: string, headers: Record<string, string>, body: string) => Promise<void>>()
@@ -102,7 +96,6 @@ describe('submit', () => {
     await options.onSuccess(result, vars, context)
     expect(cachedBook()?.chapters_read_list).toEqual([1, 2, 3, 4, 5])
     expect(invalidatedDashboard()).toBe(true)
-    expect(invalidatedStats()).toBe(true)
   })
 
   // The bug this redesign exists to fix: a confirmed write has to reach a Dashboard or
@@ -121,7 +114,6 @@ describe('submit', () => {
     )
 
     expect(invalidatedDashboard()).toBe(true)
-    expect(invalidatedStats()).toBe(true)
   })
 
   it('deduplicates chapters that were already read', async () => {
@@ -188,7 +180,6 @@ describe('submit', () => {
     await options.onSuccess(result, vars, context)
     expect(cachedBook()?.chapters_read_list).toEqual([1, 2, 3])
     expect(invalidatedDashboard()).toBe(false)
-    expect(invalidatedStats()).toBe(false)
   })
 
   it('skips the refresh when nothing new was actually logged', async () => {
@@ -205,7 +196,6 @@ describe('submit', () => {
     )
 
     expect(invalidatedDashboard()).toBe(false)
-    expect(invalidatedStats()).toBe(false)
   })
 })
 
@@ -228,7 +218,6 @@ describe.each([
     await options.onSuccess(data, vars)
     expect(cachedBook()?.chapters_read_list).toEqual([1])
     expect(invalidatedDashboard()).toBe(true)
-    expect(invalidatedStats()).toBe(true)
   })
 
   it('does nothing when the server reports no change', async () => {
@@ -240,7 +229,6 @@ describe.each([
 
     expect(cachedBook()).toEqual(GENESIS)
     expect(invalidatedDashboard()).toBe(false)
-    expect(invalidatedStats()).toBe(false)
   })
 
   it('logs out on 401 and leaves the cache untouched', async () => {

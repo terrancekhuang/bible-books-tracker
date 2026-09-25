@@ -53,3 +53,6 @@ ds-bundle/
 .design-sync/node_modules
 .design-sync/.cache/
 skills-lock.json
+
+# Scaffolding notes from the initial build — local only
+_build_plan/

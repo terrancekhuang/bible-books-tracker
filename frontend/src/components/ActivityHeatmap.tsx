@@ -3,10 +3,7 @@ import { createPortal } from 'react-dom'
 import type { CSSProperties } from 'react'
 import { GILT } from '../lib/volumesTokens'
 import { TOOLTIP_OPEN_DELAY, useTooltipGroup } from '../lib/TooltipGroupContext'
-
-function isTouchDevice() {
-  return typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches
-}
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 export interface ActivityDay {
   logged_at: string
@@ -46,6 +43,7 @@ interface CellTooltip {
 }
 
 export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] }) {
+  const isTouch = useMediaQuery('(hover: none)')
   const labelColor = 'rgba(35,31,26,0.45)'
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -194,7 +192,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                       style={{ aspectRatio: '1' }}
                       aria-label={quiet ? undefined : `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`}
                       onClick={e => {
-                        if (quiet || !isTouchDevice()) return
+                        if (quiet || !isTouch) return
                         const rect = e.currentTarget.getBoundingClientRect()
                         const placement = rect.top < 40 ? 'bottom' : 'top'
                         const text = `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`
@@ -205,7 +203,7 @@ export default function ActivityHeatmap({ activity }: { activity: ActivityDay[] 
                         )
                       }}
                       onMouseEnter={e => {
-                        if (quiet || isTouchDevice()) return
+                        if (quiet || isTouch) return
                         const rect = e.currentTarget.getBoundingClientRect()
                         const placement = rect.top < 40 ? 'bottom' : 'top'
                         const text = `${day.label}: ${day.chapters} chapter${day.chapters !== 1 ? 's' : ''}`

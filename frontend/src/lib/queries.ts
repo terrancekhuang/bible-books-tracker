@@ -8,13 +8,13 @@ import type { RhythmData } from './rhythmLogic'
 import type { ActivityDay } from '../components/ActivityHeatmap'
 
 /** The nav-bar slice of a user — all `/api/dashboard` embeds, and all NavBar needs. */
-export interface CurrentUser {
+interface CurrentUser {
   name: string | null
   picture_url: string | null
 }
 
 /** `/auth/me` returns more than the dashboard's embedded user; Profile shows the rest. */
-export interface AuthUser extends CurrentUser {
+interface AuthUser extends CurrentUser {
   user_id: number
   email: string
 }
@@ -36,10 +36,6 @@ export interface Cycle {
   books_complete: number
 }
 
-interface QueryDeps {
-  logout: () => void
-}
-
 /** fetchJson swallows failures into a result object; queries need a throw instead. */
 async function getJson<T>(url: string, logout: () => void): Promise<T> {
   const result = await fetchJson<T>(url, logout)
@@ -57,63 +53,13 @@ function normalizeBook(item: Book): Book {
   }
 }
 
-export function booksQueryOptions({ logout }: QueryDeps) {
+export function booksQueryOptions({ logout }: { logout: () => void }) {
   return queryOptions({
     queryKey: queryKeys.books(),
     queryFn: async (): Promise<Book[]> => {
       const books = await getJson<Book[]>('/api/books', logout)
       return books.map(normalizeBook)
     },
-  })
-}
-
-export function currentUserQueryOptions({ logout }: QueryDeps) {
-  return queryOptions({
-    queryKey: queryKeys.currentUser(),
-    queryFn: (): Promise<AuthUser> => getJson<AuthUser>('/auth/me', logout),
-  })
-}
-
-export function dashboardQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
-  return queryOptions({
-    queryKey: queryKeys.dashboard(tzOffset),
-    queryFn: (): Promise<DashboardData> =>
-      getJson<DashboardData>(`/api/dashboard?tz_offset=${tzOffset}`, logout),
-  })
-}
-
-export function cyclesQueryOptions({ logout }: QueryDeps) {
-  return queryOptions({
-    queryKey: queryKeys.cycles(),
-    queryFn: (): Promise<Cycle[]> => getJson<Cycle[]>('/api/cycles', logout),
-  })
-}
-
-export function statsQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
-  return queryOptions({
-    queryKey: queryKeys.stats(tzOffset),
-    queryFn: (): Promise<Stats> => getJson<Stats>(`/api/stats?tz_offset=${tzOffset}`, logout),
-  })
-}
-
-/** Just the weekly goal — lets Profile show/edit it without pulling in the rest of the
- *  dashboard payload it doesn't otherwise need. */
-export interface SettingsData {
-  weekly_goal: number
-}
-
-export function settingsQueryOptions({ logout }: QueryDeps) {
-  return queryOptions({
-    queryKey: queryKeys.settings(),
-    queryFn: (): Promise<SettingsData> => getJson<SettingsData>('/api/settings', logout),
-  })
-}
-
-/** Both time windows arrive in one payload, so the Profile toggle never refetches. */
-export function rhythmQueryOptions({ logout, tzOffset }: QueryDeps & { tzOffset: number }) {
-  return queryOptions({
-    queryKey: queryKeys.rhythm(tzOffset),
-    queryFn: (): Promise<RhythmData> => getJson<RhythmData>(`/api/rhythm?tz_offset=${tzOffset}`, logout),
   })
 }
 
@@ -127,7 +73,10 @@ export function useBooksQuery() {
 
 export function useCurrentUserQuery() {
   const { logout } = useAuth()
-  return useQuery(currentUserQueryOptions({ logout }))
+  return useQuery({
+    queryKey: queryKeys.currentUser(),
+    queryFn: () => getJson<AuthUser>('/auth/me', logout),
+  })
 }
 
 /**
@@ -142,27 +91,26 @@ export function useTzOffset(): number {
 export function useDashboardQuery() {
   const { logout } = useAuth()
   const tzOffset = useTzOffset()
-  return useQuery(dashboardQueryOptions({ logout, tzOffset }))
+  return useQuery({
+    queryKey: queryKeys.dashboard(tzOffset),
+    queryFn: () => getJson<DashboardData>(`/api/dashboard?tz_offset=${tzOffset}`, logout),
+  })
 }
 
 export function useCyclesQuery() {
   const { logout } = useAuth()
-  return useQuery(cyclesQueryOptions({ logout }))
+  return useQuery({
+    queryKey: queryKeys.cycles(),
+    queryFn: () => getJson<Cycle[]>('/api/cycles', logout),
+  })
 }
 
-export function useStatsQuery() {
-  const { logout } = useAuth()
-  const tzOffset = useTzOffset()
-  return useQuery(statsQueryOptions({ logout, tzOffset }))
-}
-
+/** Both time windows arrive in one payload, so the Profile toggle never refetches. */
 export function useRhythmQuery() {
   const { logout } = useAuth()
   const tzOffset = useTzOffset()
-  return useQuery(rhythmQueryOptions({ logout, tzOffset }))
-}
-
-export function useSettingsQuery() {
-  const { logout } = useAuth()
-  return useQuery(settingsQueryOptions({ logout }))
+  return useQuery({
+    queryKey: queryKeys.rhythm(tzOffset),
+    queryFn: () => getJson<RhythmData>(`/api/rhythm?tz_offset=${tzOffset}`, logout),
+  })
 }

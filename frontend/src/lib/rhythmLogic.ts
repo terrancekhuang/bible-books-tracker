@@ -21,7 +21,7 @@ export interface RhythmWindow {
 export type RhythmData = Record<RhythmWindowKey, RhythmWindow>
 
 export const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-export const WEEKDAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const WEEKDAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 /** Chronological, not by size, so the strip doesn't reshuffle when the window changes. */
 export const PART_ORDER: PartOfDay[] = ['morning', 'afternoon', 'evening', 'night']
@@ -34,34 +34,34 @@ export const PART_LABELS: Record<PartOfDay, string> = {
 }
 
 /** Below this much logged, the bars still show but the app names no pattern at all. */
-export const MIN_CHAPTERS = 20
-export const MIN_DAYS = 7
+const MIN_CHAPTERS = 20
+const MIN_DAYS = 7
 
 // A part of day is only named when it both holds a real share of the window and beats the
 // runner-up. Share alone would speak on a 45/44 near-tie; ratio alone would speak on a 34%
 // plurality against three fragmented rivals. Neither is a lead worth claiming.
-export const PART_MIN_SHARE = 0.4
-export const PART_MIN_RATIO = 1.5
+const PART_MIN_SHARE = 0.4
+const PART_MIN_RATIO = 1.5
 
 // Both measured against the even baseline of total/7, so they scale with how much is logged.
 // A reader whose busiest day is barely above average has no favorite day; one whose busiest
 // day carries double the average does. Between the two, nothing about the week is claimed.
-export const WEEK_EVEN_MAX_RATIO = 1.5
-export const WEEK_PEAK_MIN_RATIO = 2.0
+const WEEK_EVEN_MAX_RATIO = 1.5
+const WEEK_PEAK_MIN_RATIO = 2.0
 
 // A favorite day must also stand apart from the *next* busiest, not just from the average.
 // Without this, Sat 30 / Sun 29 is called a Saturday habit — Saturday clears 2x the average,
 // yet plainly does not lead. This subsumes an exact-tie check, which scores 1.0 here.
-export const WEEK_PEAK_MIN_LEAD = 1.5
+const WEEK_PEAK_MIN_LEAD = 1.5
 
 /** Monday-first, so Saturday and Sunday are the last two slots. */
-export const WEEKDAY_INDICES = [0, 1, 2, 3, 4]
-export const WEEKEND_INDICES = [5, 6]
+const WEEKDAY_INDICES = [0, 1, 2, 3, 4]
+const WEEKEND_INDICES = [5, 6]
 
 // Compared per day, never by total: there are five weekdays to two weekend days, so an
 // evenly-spread reader has 71% of their chapters on weekdays and a share test would call
 // every reader a weekday reader. Per-day averages put the two on equal footing.
-export const WEEK_LEAN_MIN_RATIO = 1.5
+const WEEK_LEAN_MIN_RATIO = 1.5
 
 /** Index into a Monday-first week, or null when nothing is logged. Earliest day wins a tie. */
 export function strongestWeekday(window: RhythmWindow): number | null {
@@ -73,7 +73,7 @@ export function strongestWeekday(window: RhythmWindow): number | null {
   return window.by_weekday[best] > 0 ? best : null
 }
 
-export type WeekPattern = 'peaked' | 'weekdays' | 'weekends' | 'even' | 'mixed'
+type WeekPattern = 'peaked' | 'weekdays' | 'weekends' | 'even' | 'mixed'
 
 /** Average chapters per day across a set of weekday slots. */
 function perDay(window: RhythmWindow, indices: number[]): number {

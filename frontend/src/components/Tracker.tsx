@@ -227,6 +227,8 @@ export default function Tracker() {
         if (confirm.armed) { confirm.cancel(); return; }
         if (target === searchInputRef.current) {
           setSearch(''); searchInputRef.current?.blur();
+        } else if (target === chaptersInputRef.current) {
+          chaptersInputRef.current?.blur();
         } else stepBack();
         return;
       }

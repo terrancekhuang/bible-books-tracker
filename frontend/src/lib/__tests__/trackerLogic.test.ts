@@ -9,6 +9,7 @@ import {
   filterBooks,
   invalidChaptersMessage,
   chapterExamples,
+  nextChapter,
   type Book,
 } from '../trackerLogic'
 
@@ -346,5 +347,17 @@ describe('invalidChaptersMessage', () => {
   it('tells a one-chapter book to enter 1', () => {
     expect(invalidChaptersMessage('Jude', 1, 'abc')).toBe('Jude has 1 chapter — enter "1"')
     expect(invalidChaptersMessage('Jude', 1, '2')).toBe('Jude has 1 chapter — "2" is past the end')
+  })
+})
+
+describe('nextChapter', () => {
+  it('returns the first gap, not the one after the highest read', () => {
+    expect(nextChapter(makeBook({ num_chapters: 16, chapters_read_list: [1, 2, 3, 4, 5, 7] }))).toBe(6)
+    expect(nextChapter(makeBook({ num_chapters: 16, chapters_read_list: [1, 2, 3, 4, 5, 6, 7] }))).toBe(8)
+  })
+
+  it('starts an unread book at 1 and finishes at null', () => {
+    expect(nextChapter(makeBook({ num_chapters: 3 }))).toBe(1)
+    expect(nextChapter(makeBook({ num_chapters: 3, chapters_read_list: [1, 2, 3] }))).toBeNull()
   })
 })

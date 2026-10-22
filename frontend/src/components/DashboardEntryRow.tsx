@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 interface DashboardEntryRowProps {
   /** Primary label — a book name, "Old Testament", or a category. */
   label: string
+  /** Optional dim note after the label, e.g. a book's next chapter "Ch. 6". */
+  detail?: string
   /** Optional leading glyph, e.g. a CategoryIcon for category rows. */
   icon?: ReactNode
   /** Trailing figure after the leader-dot line, e.g. "3 / 28" or "412 / 592 · 70%". */
@@ -12,6 +14,8 @@ interface DashboardEntryRowProps {
   /** The rule's fill colour — a volume's cloth colour, or a fixed accent for non-category rows. */
   ruleColor: string
   onClick?: () => void
+  /** Optional control at the row's right end, outside the row button, e.g. Mark read. */
+  action?: ReactNode
 }
 
 /**
@@ -19,10 +23,10 @@ interface DashboardEntryRowProps {
  * progress rule Tracker's ContentsLeaf uses for its book list, generalised for Continue Reading,
  * Testament Progress and Category Progress so all three share one row instead of three layouts.
  */
-export default function DashboardEntryRow({ label, icon, trailing, progress, ruleColor, onClick }: DashboardEntryRowProps) {
+export default function DashboardEntryRow({ label, detail, icon, trailing, progress, ruleColor, onClick, action }: DashboardEntryRowProps) {
   const Tag = onClick ? 'button' : 'div'
 
-  return (
+  const row = (
     <Tag
       onClick={onClick}
       style={{
@@ -37,6 +41,11 @@ export default function DashboardEntryRow({ label, icon, trailing, progress, rul
         <span className="vol-num" style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-ink)' }}>
           {label}
         </span>
+        {detail && (
+          <span className="vol-num" style={{ fontSize: 13, color: 'rgba(35,31,26,0.6)', whiteSpace: 'nowrap' }}>
+            {detail}
+          </span>
+        )}
         <span
           aria-hidden
           style={{
@@ -60,5 +69,14 @@ export default function DashboardEntryRow({ label, icon, trailing, progress, rul
         />
       </span>
     </Tag>
+  )
+
+  // A button can't sit inside the row button, so an action makes the row a flex pair.
+  if (!action) return row
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>{row}</div>
+      {action}
+    </div>
   )
 }

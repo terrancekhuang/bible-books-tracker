@@ -9,7 +9,7 @@ import type { Book } from './trackerLogic'
 interface TrackerMutations {
   isOnline: boolean
   pendingCount: number
-  submit: (book: Book, chapters: number[]) => Promise<void>
+  submit: (book: Book, chapters: number[]) => Promise<boolean>
   undo: (book: Book) => Promise<void>
   reset: (book: Book) => Promise<void>
 }
@@ -31,9 +31,11 @@ export function useTrackerMutations(): TrackerMutations {
 
   // mutateAsync rejects on a genuine server error so onError can roll back, but
   // callers here have nothing to do with the rejection — onError already handled it.
+  // Resolves to false only for that rolled-back case, so a caller can show an inline
+  // error; a queued or auth-failed write kept its optimistic update and counts as true.
   const submit = useCallback(async (book: Book, chapters: number[]) => {
-    if (chapters.length === 0) return
-    await submitAsync({ book, chapters }).catch(() => {})
+    if (chapters.length === 0) return true
+    return submitAsync({ book, chapters }).then(() => true, () => false)
   }, [submitAsync])
 
   const undo = useCallback(async (book: Book) => {

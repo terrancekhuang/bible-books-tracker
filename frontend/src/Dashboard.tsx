@@ -3,17 +3,19 @@ import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBooksQuery, useDashboardQuery } from './lib/queries'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
+import { useTrackerMutations } from './lib/useTrackerMutations'
 import { FlameIcon, CalendarIcon, CategoryIcon, PencilIcon, BookOpenIcon, SwapIcon } from './components/Icons'
 import Skeleton from './components/Skeleton'
 import ActivityHeatmap from './components/ActivityHeatmap'
 import DashboardEntryRow from './components/DashboardEntryRow'
+import MarkReadButton from './components/MarkReadButton'
 import LeafDivider from './components/LeafDivider'
 import LeafSectionLabel from './components/LeafSectionLabel'
 import LeafMarginaliaItem from './components/LeafMarginaliaItem'
 import NavBar from './components/NavBar'
 import ReadingRhythm from './components/ReadingRhythm'
 import { useTooltip } from './lib/useTooltip'
-import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, type Book } from './lib/trackerLogic'
+import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, nextChapter, type Book } from './lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, GILT } from './lib/volumesTokens'
 import { leafSurfaceStyle } from './lib/leafSurface'
 
@@ -64,6 +66,7 @@ export default function Dashboard() {
   const { data: books = [], isLoading: booksLoading, isError: booksError, refetch: refetchBooks } = useBooksQuery()
   const { data: dashboard, isLoading: dashboardLoading, isError: dashboardError, refetch: refetchDashboard } = useDashboardQuery()
   const { save: saveWeeklyGoal } = useUpdateWeeklyGoal()
+  const { submit } = useTrackerMutations()
   const isInitialLoading = booksLoading || dashboardLoading
   const isError = booksError || dashboardError
 
@@ -72,6 +75,9 @@ export default function Dashboard() {
   const [goalInput, setGoalInput] = useState('')
   const [goalError, setGoalError] = useState<string | null>(null)
   const editGoalTooltip = useTooltip('Edit goal')
+  // Books with a mark in flight. Their checkmark stays disabled, so a double tap logs one chapter.
+  const [markingBooks, setMarkingBooks] = useState<string[]>([])
+  const [markError, setMarkError] = useState<string | null>(null)
 
   const stats = dashboard?.stats ?? null
   const activity = dashboard?.activity ?? null
@@ -97,6 +103,16 @@ export default function Dashboard() {
     // goes out and rolls it back itself on failure, so there's nothing to undo here.
     const saved = await saveWeeklyGoal(n)
     if (!saved) setGoalError("Couldn't save your goal — please try again.")
+  }
+
+  // submit patches the cache optimistically (and rolls back itself on failure), so the
+  // row advances at once; offline it queues and still counts as saved.
+  const markNext = async (book: Book, chapter: number) => {
+    setMarkError(null)
+    setMarkingBooks(m => [...m, book.name])
+    const saved = await submit(book, [chapter])
+    setMarkingBooks(m => m.filter(n => n !== book.name))
+    if (!saved) setMarkError(book.name)
   }
 
   const inProgressBooks = useMemo(() => books
@@ -301,16 +317,35 @@ export default function Dashboard() {
             <LeafSectionLabel>Continue Reading</LeafSectionLabel>
             {continueBooks.length > 0 ? (
               <div>
-                {continueBooks.map(book => (
-                  <DashboardEntryRow
-                    key={book.name}
-                    label={book.name}
-                    trailing={`${book.chapters_read} / ${book.num_chapters}`}
-                    progress={calculateProgress(book) / 100}
-                    ruleColor={CLOTH[book.category]}
-                    onClick={() => navigate('/tracker', { state: { selectBook: book.name } })}
-                  />
-                ))}
+                {continueBooks.map(book => {
+                  // In progress, so never null here.
+                  const next = nextChapter(book)!
+                  return (
+                    <div key={book.name}>
+                      <DashboardEntryRow
+                        label={book.name}
+                        detail={`Ch. ${next}`}
+                        trailing={`${book.chapters_read} / ${book.num_chapters}`}
+                        progress={calculateProgress(book) / 100}
+                        ruleColor={CLOTH[book.category]}
+                        onClick={() => navigate('/tracker', { state: { selectBook: book.name } })}
+                        action={
+                          <MarkReadButton
+                            bookName={book.name}
+                            chapter={next}
+                            disabled={markingBooks.includes(book.name)}
+                            onMark={() => markNext(book, next)}
+                          />
+                        }
+                      />
+                      {markError === book.name && (
+                        <p className="text-xs mt-1" style={{ color: 'var(--color-leaf-red)' }} role="alert">
+                          Couldn't save — please try again.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })}
                 <div className="flex justify-center mt-3">
                   <button
                     onClick={() => navigate('/tracker', { state: { filterStatus: 'in_progress' } })}

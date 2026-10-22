@@ -149,6 +149,13 @@ export function invalidChaptersMessage(bookName: string, numChapters: number, in
   return `${count} — ${over.map(p => `"${p}"`).join(', ')} ${verb} past the end`
 }
 
+/** The lowest chapter not yet read this cycle, or null once the book is finished. */
+export function nextChapter(book: Pick<Book, 'chapters_read_list' | 'num_chapters'>): number | null {
+  const read = new Set(book.chapters_read_list)
+  for (let c = 1; c <= book.num_chapters; c++) if (!read.has(c)) return c
+  return null
+}
+
 export function calculateProgress(book: Pick<Book, 'chapters_read' | 'num_chapters'>): number {
   if (!book.chapters_read) return 0
   return Math.round((book.chapters_read / book.num_chapters) * 100)

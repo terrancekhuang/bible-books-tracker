@@ -150,6 +150,10 @@ describe('filterBooks', () => {
     expect(filterBooks(books, { ...noFilter, filterStatus: 'complete' }).map(b => b.name)).toEqual(['Matthew'])
   })
 
+  it('filters by status: not_finished', () => {
+    expect(filterBooks(books, { ...noFilter, filterStatus: 'not_finished' }).map(b => b.name)).toEqual(['Genesis', 'Psalms', 'Romans'])
+  })
+
   it('combines search with status filter', () => {
     expect(filterBooks(books, { ...noFilter, search: 'ro', filterStatus: 'in_progress' }).map(b => b.name)).toEqual(['Romans'])
   })

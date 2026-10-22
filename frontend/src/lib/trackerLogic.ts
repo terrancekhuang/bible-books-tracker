@@ -180,6 +180,7 @@ export function filterBooks(books: Book[], { search, filterTestament, filterStat
       const isComplete = b.chapters_read >= b.num_chapters
       const inProgress = b.chapters_read > 0 && !isComplete
       if (filterStatus === 'complete' && !isComplete) return false
+      if (filterStatus === 'not_finished' && isComplete) return false
       if (filterStatus === 'in_progress' && !inProgress) return false
       if (filterStatus === 'not_started' && b.chapters_read > 0) return false
     }

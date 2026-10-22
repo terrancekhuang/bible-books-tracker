@@ -365,7 +365,8 @@ export default function Tracker() {
             <option value="">Status</option>
             <option value="not_started">Not Started</option>
             <option value="in_progress">In Progress</option>
-            <option value="complete">Complete</option>
+            <option value="complete">Finished</option>
+            <option value="not_finished">Not Finished</option>
           </select>
           {(search || filterStatus || testamentFilter) && (
             <button

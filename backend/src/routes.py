@@ -22,6 +22,12 @@ def _tz_offset() -> int:
     return int(request.args.get('tz_offset', 0))
 
 
+def _user_id() -> int | None:
+    """The caller's user, or None for a signed-out visitor on an optional-JWT route."""
+    identity = get_jwt_identity()
+    return int(identity) if identity else None
+
+
 _book_cache: dict | None = None
 
 def get_book_by_name(name: str) -> dict | None:
@@ -141,6 +147,22 @@ def auth_google():
     return jsonify({'access_token': access_token, 'user_id': user_id})
 
 
+@app.route('/auth/guest', methods=['POST'])
+def auth_guest():
+    """A guest account, created on a visitor's first write. Its token never expires:
+    a guest has no other way back in, so an expired token would lose their progress."""
+    # ponytail: unthrottled; add rate limiting if bots start minting guests
+    with db_cursor() as (conn, cur):
+        cur.execute("INSERT INTO users DEFAULT VALUES RETURNING user_id")
+        user_id = cur.fetchone()['user_id']
+        cur.execute("INSERT INTO reading_cycles (user_id, cycle_number) VALUES (%s, 1)", (user_id,))
+        conn.commit()
+
+    access_token = create_access_token(
+        identity=str(user_id), expires_delta=False, additional_claims={'guest': True})
+    return jsonify({'access_token': access_token, 'user_id': user_id})
+
+
 @app.route('/auth/me', methods=['GET'])
 @jwt_required()
 def auth_me():
@@ -159,9 +181,9 @@ def auth_me():
 
 
 @app.route('/api/books', methods=['GET'])
-@jwt_required()
+@jwt_required(optional=True)
 def get_books():
-    user_id = int(get_jwt_identity())
+    user_id = _user_id()
     with db_cursor() as (conn, cur):
         cycle_id = get_active_cycle_id(cur, user_id)
 
@@ -311,9 +333,9 @@ def reset_progress():
 
 
 @app.route('/api/cycles', methods=['GET'])
-@jwt_required()
+@jwt_required(optional=True)
 def get_cycles():
-    user_id = int(get_jwt_identity())
+    user_id = _user_id()
     with db_cursor() as (conn, cur):
         cur.execute("""
             WITH cycle_book_counts AS (
@@ -356,16 +378,16 @@ def create_cycle():
 
 
 @app.route('/api/rhythm', methods=['GET'])
-@jwt_required()
+@jwt_required(optional=True)
 def get_rhythm():
-    user_id = int(get_jwt_identity())
+    user_id = _user_id()
     return jsonify(reading_history.rhythm(user_id, _tz_offset()))
 
 
 @app.route('/api/dashboard', methods=['GET'])
-@jwt_required()
+@jwt_required(optional=True)
 def get_dashboard():
-    user_id = int(get_jwt_identity())
+    user_id = _user_id()
     overview = reading_history.overview(user_id, _tz_offset())
 
     with db_cursor() as (conn, cur):

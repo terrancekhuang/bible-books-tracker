@@ -72,10 +72,12 @@ export function useBooksQuery() {
 }
 
 export function useCurrentUserQuery() {
-  const { logout } = useAuth()
+  const { jwt, logout } = useAuth()
   return useQuery({
     queryKey: queryKeys.currentUser(),
     queryFn: () => getJson<AuthUser>('/auth/me', logout),
+    // A visitor has no account to describe; the other reads all answer signed out.
+    enabled: !!jwt,
   })
 }
 

@@ -49,6 +49,43 @@ class TestGoogleAuth:
         conn.close()
 
 
+class TestGuestAuth:
+    def test_creates_a_guest_who_can_log_and_read_progress(self, client):
+        resp = client.post('/auth/guest')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        headers = {'Authorization': f"Bearer {data['access_token']}"}
+        try:
+            logged = client.post('/api/progress', json={'book_name': 'Ruth', 'chapters': [1, 2]}, headers=headers)
+            assert logged.get_json()['chapters_read'] == 2
+            ruth = next(b for b in client.get('/api/books', headers=headers).get_json() if b['name'] == 'Ruth')
+            assert ruth['chapters_read'] == 2
+            assert client.get('/api/dashboard', headers=headers).get_json()['weekly_goal'] == 7
+        finally:
+            conn = psycopg2.connect(os.environ['DATABASE_URL'])
+            cur = conn.cursor()
+            cur.execute("DELETE FROM users WHERE user_id = %s", (data['user_id'],))
+            conn.commit()
+            cur.close()
+            conn.close()
+
+    def test_guest_token_never_expires_and_is_marked_guest(self, client, flask_app):
+        from flask_jwt_extended import decode_token
+        data = client.post('/auth/guest').get_json()
+        try:
+            with flask_app.app_context():
+                claims = decode_token(data['access_token'])
+            assert 'exp' not in claims
+            assert claims['guest'] is True
+        finally:
+            conn = psycopg2.connect(os.environ['DATABASE_URL'])
+            cur = conn.cursor()
+            cur.execute("DELETE FROM users WHERE user_id = %s", (data['user_id'],))
+            conn.commit()
+            cur.close()
+            conn.close()
+
+
 class TestAuthMe:
     def test_returns_user_profile(self, client, auth_headers, test_user):
         user_id, _ = test_user
@@ -81,8 +118,12 @@ class TestGetBooks:
         books = client.get('/api/books', headers=auth_headers).get_json()
         assert all(b['chapters_read'] == 0 for b in books)
 
-    def test_requires_auth(self, client):
-        assert client.get('/api/books').status_code == 401
+    def test_visitor_sees_every_book_at_zero(self, client):
+        resp = client.get('/api/books')
+        assert resp.status_code == 200
+        books = resp.get_json()
+        assert len(books) == 66
+        assert all(b['chapters_read'] == 0 for b in books)
 
 
 # ── Progress ──────────────────────────────────────────────────────────────────
@@ -200,8 +241,10 @@ class TestCycles:
         cycle1 = next(c for c in cycles if c['cycle_number'] == 1)
         assert cycle1['chapters_read'] == 1
 
-    def test_requires_auth(self, client):
-        assert client.get('/api/cycles').status_code == 401
+    def test_visitor_has_no_cycles(self, client):
+        resp = client.get('/api/cycles')
+        assert resp.status_code == 200
+        assert resp.get_json() == []
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
@@ -380,8 +423,10 @@ class TestRhythm:
         assert sum(window['by_weekday']) == window['total_chapters']
         assert sum(window['by_part_of_day'].values()) == window['total_chapters']
 
-    def test_requires_auth(self, client):
-        assert client.get('/api/rhythm').status_code == 401
+    def test_visitor_is_all_zeros(self, client):
+        resp = client.get('/api/rhythm')
+        assert resp.status_code == 200
+        assert resp.get_json()['all_time']['total_chapters'] == 0
 
 
 # ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -410,5 +455,16 @@ class TestDashboard:
         assert dates(0) == [when.date().isoformat()]
         assert dates(60) == [(when.date() + timedelta(days=1)).isoformat()]
 
-    def test_requires_auth(self, client):
-        assert client.get('/api/dashboard').status_code == 401
+    def test_visitor_gets_the_empty_dashboard(self, client):
+        resp = client.get('/api/dashboard')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['stats']['total_chapters'] == 0
+        assert data['activity'] == []
+        assert data['weekly_goal'] == 7
+        assert data['user'] == {'name': None, 'picture_url': None}
+
+    def test_an_invalid_token_is_still_rejected(self, client):
+        # Optional auth only lets a *missing* token through; a bad one still ends the session.
+        resp = client.get('/api/dashboard', headers={'Authorization': 'Bearer not-a-jwt'})
+        assert resp.status_code in (401, 422)

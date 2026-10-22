@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
+import { UserIcon } from './Icons'
 
 interface UserMenuProps {
   pictureUrl?: string | null
@@ -7,7 +9,8 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
-  const { logout } = useAuth()
+  const { isGuest, logout } = useAuth()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -33,7 +36,14 @@ export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
         aria-label="Account menu"
         aria-expanded={open}
       >
-        {pictureUrl ? (
+        {isGuest ? (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: 'var(--color-shelf-lit)', color: 'var(--color-gilt)' }}
+          >
+            <UserIcon size={16} />
+          </div>
+        ) : pictureUrl ? (
           <img src={pictureUrl} alt="avatar" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
         ) : (
           <div
@@ -47,21 +57,27 @@ export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
 
       {open && (
         <div
-          className="absolute right-0 mt-2 w-40 rounded-xl py-1 z-50"
+          className="absolute right-0 mt-2 w-48 rounded-xl py-1 z-50"
           style={{
             background: 'var(--color-shelf)',
             border: '1px solid var(--color-shelf-lit)',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
           }}
         >
+          {isGuest && (
+            <p className="px-4 pt-2 pb-1 text-xs font-semibold" style={{ color: 'var(--color-gilt)' }}>
+              Guest
+            </p>
+          )}
           <button
             className="w-full text-left px-4 py-2 text-sm transition-colors"
             style={{ color: 'rgba(242,236,221,0.8)' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(210,166,63,0.1)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            onClick={() => { setOpen(false); logout() }}
+            // ponytail: /login until milestone 2's sign-in popup replaces it
+            onClick={() => { setOpen(false); if (isGuest) navigate('/login'); else logout() }}
           >
-            Sign out
+            {isGuest ? 'Sign in with Google' : 'Sign out'}
           </button>
         </div>
       )}

@@ -52,7 +52,8 @@ beforeEach(() => {
   deps = { queryClient, logout }
 
   vi.stubGlobal('localStorage', {
-    getItem: vi.fn().mockReturnValue(null),
+    // A signed-in user: with no token every write would first mint a guest account.
+    getItem: vi.fn().mockReturnValue('token'),
     setItem: vi.fn(),
     removeItem: vi.fn(),
   })

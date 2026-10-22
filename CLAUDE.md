@@ -162,7 +162,7 @@ Four tables:
 | Table | Purpose |
 |-------|---------|
 | `bible_books` | Static seed — 66 books with testament/category/num_chapters |
-| `users` | Google OAuth users (google_id, email, name, picture_url, weekly_goal) |
+| `users` | Google OAuth users and guests (google_id, email, name, picture_url, weekly_goal) — a NULL `google_id` marks a guest |
 | `reading_cycles` | Per-user cycles (cycle_number, unique per user) |
 | `chapter_progress` | Every chapter read: (user_id, cycle_id, book_id, chapter_number, logged_at) |
 
@@ -176,9 +176,15 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
 
 **Auth** (no JWT required on POST):
 - `POST /auth/google` — verify Google credential token, upsert user, return JWT
+- `POST /auth/guest` — create a guest user (no `google_id`/`email`) and its first cycle; the JWT never expires and carries `guest: true`
 - `GET /auth/me` — return current user (name, email, picture_url)
 
-**Books & progress** (all require JWT):
+**Signed-out reads**: `GET /api/books`, `/api/cycles`, `/api/dashboard` and `/api/rhythm` take an
+optional JWT. With none, `user_id` is `None` and every query matches nothing, so a visitor sees
+the empty state a brand-new user does. Every write still requires a JWT — the frontend's
+`ensureSession()` (`frontend/src/lib/auth.ts`) mints a guest before a visitor's first write.
+
+**Books & progress** (writes require JWT):
 - `GET /api/books` — 66 books with `chapters_read` + `chapters_read_list` for active cycle
 - `POST /api/progress` — body: `{ book_name, chapters }` — upserts progress, returns `{ success, chapters_read, newly_logged, chapters_read_list }`
 - `POST /api/progress/undo` — body: `{ book_name }` — removes the latest logged entry for a book

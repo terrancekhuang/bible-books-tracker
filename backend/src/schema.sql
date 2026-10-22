@@ -16,6 +16,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS picture_url TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_goal INTEGER NOT NULL DEFAULT 7;
 
+-- A guest has no Google account yet: an empty google_id is what marks one.
+ALTER TABLE users ALTER COLUMN google_id DROP NOT NULL;
+ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
+
 CREATE TABLE IF NOT EXISTS reading_cycles (
     cycle_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,

@@ -1,4 +1,4 @@
-import { authHeaders } from './auth'
+import { authHeaders, ensureSession } from './auth'
 
 type FetchResult<T> = { ok: true; data: T } | { ok: false; unauthorized: boolean }
 
@@ -27,6 +27,7 @@ export async function fetchJson<T>(url: string, onUnauthorized: () => void): Pro
 }
 
 async function post(url: string, body?: unknown): Promise<Response> {
+  await ensureSession()
   return fetch(url, {
     method: 'POST',
     headers: authHeaders() as Record<string, string>,
@@ -35,6 +36,7 @@ async function post(url: string, body?: unknown): Promise<Response> {
 }
 
 async function put(url: string, body: unknown): Promise<Response> {
+  await ensureSession()
   return fetch(url, {
     method: 'PUT',
     headers: authHeaders() as Record<string, string>,

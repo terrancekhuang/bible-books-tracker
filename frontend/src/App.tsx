@@ -19,7 +19,7 @@ import { shouldShowTourPrompt, markTourSeen } from './lib/tour'
 import { TooltipGroupProvider } from './lib/TooltipGroupContext'
 
 export default function App() {
-  const { jwt } = useAuth()
+  const { jwt, isGuest } = useAuth()
   const [showPwaPrompt, setShowPwaPrompt] = useState(false)
   const [showUpdateBanner, setShowUpdateBanner] = useState(false)
   const updateSwRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null)
@@ -48,27 +48,25 @@ export default function App() {
     window.scrollTo(0, 0)
   }, [location.pathname]);
 
-  // Show PWA prompt on first login (not on page refresh); the tour-welcome prompt
-  // follows once the PWA prompt is resolved, so the two never show at once.
+  // The tour is offered on a visitor's first visit, when it's most useful. The PWA prompt
+  // waits for the moment a session begins (not a page refresh): a visitor's first save
+  // minting their guest account, or a Google sign-in — by then the tour prompt is resolved.
+  useEffect(() => {
+    if (!shouldShowTourPrompt()) return
+    const t = setTimeout(() => setShowTourPrompt(true), 0)
+    return () => clearTimeout(t)
+  }, [])
+
   const prevJwtRef = useRef<string | null>(jwt)
-  const pendingTourRef = useRef(false)
   useEffect(() => {
     const prev = prevJwtRef.current
     prevJwtRef.current = jwt
-    if (!jwt || prev) return
-    if (shouldShowPWAPrompt()) {
-      pendingTourRef.current = shouldShowTourPrompt()
-      const t = setTimeout(() => setShowPwaPrompt(true), 0)
-      return () => clearTimeout(t)
-    }
-    if (shouldShowTourPrompt()) {
-      const t = setTimeout(() => setShowTourPrompt(true), 0)
-      return () => clearTimeout(t)
-    }
+    if (!jwt || prev || !shouldShowPWAPrompt()) return
+    const t = setTimeout(() => setShowPwaPrompt(true), 0)
+    return () => clearTimeout(t)
   }, [jwt])
 
   useEffect(() => {
-    if (!jwt) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (tour.active) return;
       const target = e.target as HTMLElement;
@@ -98,41 +96,23 @@ export default function App() {
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [jwt, showHelp, navigate, armGChord, consumeGChord, tour.active]);
+  }, [showHelp, navigate, armGChord, consumeGChord, tour.active]);
 
   return (
     <TooltipGroupProvider>
       <Routes>
         <Route
           path="/login"
-          element={jwt ? <Navigate to="/" replace /> : <Login />}
+          element={isGuest ? <Login /> : <Navigate to="/" replace />}
         />
-        <Route
-          path="/"
-          element={jwt ? <Dashboard /> : <Navigate to="/login" replace />}
-        />
-        <Route
-          path="/tracker"
-          element={jwt ? <Tracker /> : <Navigate to="/login" replace />}
-        />
-        <Route
-          path="/profile"
-          element={jwt ? <Profile /> : <Navigate to="/login" replace />}
-        />
-        <Route
-          path="*"
-          element={jwt ? <NotFound /> : <Navigate to="/login" replace />}
-        />
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/tracker" element={<Tracker />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       {showPwaPrompt && (
         <PWAInstallModal
-          onDismiss={() => {
-            setShowPwaPrompt(false)
-            if (pendingTourRef.current) {
-              pendingTourRef.current = false
-              setShowTourPrompt(true)
-            }
-          }}
+          onDismiss={() => setShowPwaPrompt(false)}
         />
       )}
 
@@ -169,15 +149,13 @@ export default function App() {
         </div>
       )}
 
-      {jwt && (
-        <HelpMenu
-          isMobile={isMobile}
-          showShortcuts={showHelp}
-          onOpenShortcuts={() => setShowHelp(true)}
-          onCloseShortcuts={() => setShowHelp(false)}
-          onReplayTour={() => tour.start()}
-        />
-      )}
+      <HelpMenu
+        isMobile={isMobile}
+        showShortcuts={showHelp}
+        onOpenShortcuts={() => setShowHelp(true)}
+        onCloseShortcuts={() => setShowHelp(false)}
+        onReplayTour={() => tour.start()}
+      />
     </TooltipGroupProvider>
   )
 }

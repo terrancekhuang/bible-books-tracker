@@ -1,3 +1,5 @@
+import { authHeaders, ensureSession } from './auth';
+
 const DB_NAME = 'bible-tracker-offline';
 const STORE = 'pending-writes';
 
@@ -69,9 +71,15 @@ export async function flushQueue(onLogout: () => void): Promise<void> {
     for (const item of items) {
       let response: Response;
       try {
+        let headers = item.headers;
+        // A visitor's first write, queued before their guest account existed.
+        if (!headers.Authorization) {
+          await ensureSession();
+          headers = authHeaders() as Record<string, string>;
+        }
         response = await fetch(item.url, {
           method: item.method,
-          headers: item.headers,
+          headers,
           body: item.body,
         });
       } catch {

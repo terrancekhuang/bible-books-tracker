@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from './lib/AuthContext'
 import { useCurrentUserQuery, useCyclesQuery, useDashboardQuery } from './lib/queries'
 import { useCreateCycle } from './lib/useCycleMutations'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
 import { TOTAL_BOOKS, TOTAL_CHAPTERS } from './lib/trackerLogic'
 import { getAchievements } from './lib/achievements'
-import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon, PencilIcon } from './components/Icons'
+import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon, PencilIcon, UserIcon } from './components/Icons'
 import AchievementMedallion from './components/AchievementMedallion'
 import DashboardEntryRow from './components/DashboardEntryRow'
 import LeafDivider from './components/LeafDivider'
@@ -38,6 +39,7 @@ export default function Profile() {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const { create: createCycle, isCreating } = useCreateCycle()
 
+  const { isGuest } = useAuth()
   const { data: user } = useCurrentUserQuery()
   const { data: rawCycles, isError: cyclesError, refetch: refetchCycles } = useCyclesQuery()
   // Stats and the weekly goal both ride in the dashboard payload, so Profile shares its cache.
@@ -120,7 +122,13 @@ export default function Profile() {
             </p>
             <div style={{ position: 'relative', margin: '14px auto 0', maxWidth: 360, padding: '26px 24px 22px', border: '1px solid rgba(35,31,26,0.28)', borderRadius: 4 }}>
               <div aria-hidden style={{ position: 'absolute', inset: 6, border: '1px solid rgba(35,31,26,0.14)', borderRadius: 2, pointerEvents: 'none' }} />
-              {user?.picture_url ? (
+              {isGuest ? (
+                <div
+                  style={{ width: 60, height: 60, borderRadius: '50%', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(35,31,26,0.08)', color: primaryText }}
+                >
+                  <UserIcon size={26} />
+                </div>
+              ) : user?.picture_url ? (
                 <img
                   src={user.picture_url} alt="" referrerPolicy="no-referrer"
                   style={{ width: 60, height: 60, borderRadius: '50%', margin: '0 auto', display: 'block', boxShadow: '0 0 0 2px rgba(35,31,26,0.15)' }}
@@ -133,11 +141,27 @@ export default function Profile() {
                 </div>
               )}
               <h1 className="slab" style={{ margin: '14px 0 0', fontSize: 'clamp(20px, 3vw, 28px)', color: primaryText }}>
-                {user?.name ?? '—'}
+                {isGuest ? 'Guest' : user?.name ?? '—'}
               </h1>
-              <p className="vol-num" style={{ margin: '6px 0 0', fontSize: 12, letterSpacing: '0.08em', color: dimText }}>
-                {user?.email ?? '—'}
-              </p>
+              {isGuest ? (
+                <>
+                  <p style={{ margin: '6px 0 0', fontSize: 13, color: dimText }}>
+                    Progress is saved in this browser only.
+                  </p>
+                  {/* ponytail: /login until milestone 2's sign-in popup replaces it */}
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="mt-4 text-xs font-semibold uppercase px-4 py-2 rounded-lg transition-colors"
+                    style={{ letterSpacing: '0.08em', color: primaryText, border: '1px solid rgba(35,31,26,0.3)' }}
+                  >
+                    Sign in with Google
+                  </button>
+                </>
+              ) : (
+                <p className="vol-num" style={{ margin: '6px 0 0', fontSize: 12, letterSpacing: '0.08em', color: dimText }}>
+                  {user?.email ?? '—'}
+                </p>
+              )}
             </div>
           </div>
 

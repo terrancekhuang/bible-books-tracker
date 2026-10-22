@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-os.environ.setdefault('JWT_SECRET_KEY', 'test-jwt-secret-key')
+os.environ.setdefault('JWT_SECRET_KEY', 'test-jwt-secret-key-at-least-32-bytes')
 os.environ.setdefault('GOOGLE_CLIENT_ID', 'test-client-id')
 os.environ.setdefault('DATABASE_URL', 'postgresql://postgres:pass@localhost:5432/bible-books-tracker')
 

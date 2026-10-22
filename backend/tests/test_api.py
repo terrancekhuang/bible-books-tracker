@@ -171,6 +171,41 @@ class TestAuthMe:
         assert resp.status_code == 401
 
 
+class TestSessionRefresh:
+    """A signed-in token over a day old comes back renewed in X-Access-Token."""
+
+    def test_fresh_token_is_not_renewed(self, client, flask_app, test_user):
+        from flask_jwt_extended import create_access_token
+        with flask_app.app_context():
+            token = create_access_token(identity=str(test_user[0]))
+        resp = client.get('/api/books', headers={'Authorization': f'Bearer {token}'})
+        assert 'X-Access-Token' not in resp.headers
+
+    def test_day_old_token_is_renewed_for_30_days(self, client, flask_app, test_user):
+        from flask_jwt_extended import create_access_token, decode_token
+        with flask_app.app_context():
+            token = create_access_token(identity=str(test_user[0]), expires_delta=timedelta(days=28))
+        resp = client.get('/api/books', headers={'Authorization': f'Bearer {token}'})
+        with flask_app.app_context():
+            claims = decode_token(resp.headers['X-Access-Token'])
+        assert claims['sub'] == str(test_user[0])
+        assert claims['exp'] - datetime.now(timezone.utc).timestamp() > timedelta(days=29).total_seconds()
+
+    def test_guest_and_visitor_get_no_token(self, client):
+        assert 'X-Access-Token' not in client.get('/api/books').headers
+        data = client.post('/auth/guest').get_json()
+        try:
+            resp = client.get('/api/books', headers={'Authorization': f"Bearer {data['access_token']}"})
+            assert 'X-Access-Token' not in resp.headers
+        finally:
+            conn = psycopg2.connect(os.environ['DATABASE_URL'])
+            cur = conn.cursor()
+            cur.execute("DELETE FROM users WHERE user_id = %s", (data['user_id'],))
+            conn.commit()
+            cur.close()
+            conn.close()
+
+
 # ── Books ─────────────────────────────────────────────────────────────────────
 
 class TestGetBooks:

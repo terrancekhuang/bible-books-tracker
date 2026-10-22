@@ -6,7 +6,7 @@ import { queryKeys } from '../queryKeys'
 const TZ_OFFSET = -300
 
 function jsonResponse(body: unknown, status = 200): Response {
-  return { ok: status >= 200 && status < 300, status, json: async () => body } as Response
+  return { headers: new Headers(), ok: status >= 200 && status < 300, status, json: async () => body } as Response
 }
 
 // normalizeBook fills these two in, so the fixtures carry them.
@@ -65,7 +65,7 @@ beforeEach(() => {
 function stubFetch(cycleResponse: Response) {
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.includes('/api/books')) {
-      return { ok: true, status: 200, json: async () => await booksResponse } as Response
+      return { headers: new Headers(), ok: true, status: 200, json: async () => await booksResponse } as Response
     }
     return cycleResponse
   }))

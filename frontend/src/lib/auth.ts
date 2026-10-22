@@ -51,3 +51,13 @@ export function authHeaders(): HeadersInit {
     ? { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
     : { 'Content-Type': 'application/json' }
 }
+
+/**
+ * The backend renews a signed-in token more than a day old in `X-Access-Token`. Adopted only
+ * while still signed in, so a response landing after Sign out can't bring the session back.
+ */
+export function adoptRefreshedToken(res: Response): void {
+  const renewed = res.headers.get('X-Access-Token')
+  const current = getToken()
+  if (renewed && current && !isGuestToken(current)) setToken(renewed)
+}

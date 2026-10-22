@@ -51,7 +51,7 @@ beforeEach(() => {
   booksFetches = 0
   vi.stubGlobal('fetch', vi.fn(async () => {
     booksFetches++
-    return { ok: true, status: 200, json: async () => await booksResponse } as Response
+    return { headers: new Headers(), ok: true, status: 200, json: async () => await booksResponse } as Response
   }))
   vi.stubGlobal('localStorage', { getItem: () => null, setItem: () => {}, removeItem: () => {} })
 

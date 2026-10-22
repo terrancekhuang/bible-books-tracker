@@ -8,11 +8,11 @@ const HEADERS = { 'Content-Type': 'application/json', Authorization: 'Bearer tok
 const BODY = JSON.stringify({ book_name: 'Genesis', chapters: [1] })
 
 function okResponse(status = 200): Response {
-  return { ok: true, status } as Response
+  return { headers: new Headers(), ok: true, status } as Response
 }
 
 function errorResponse(status: number): Response {
-  return { ok: false, status } as Response
+  return { headers: new Headers(), ok: false, status } as Response
 }
 
 function stubToken(token: string | null): void {
@@ -94,7 +94,7 @@ describe('flushQueue', () => {
     await enqueueWrite(URL, METHOD, { 'Content-Type': 'application/json' }, BODY)
 
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ access_token: 'guest-token' }) } as Response)
+      .mockResolvedValueOnce({ headers: new Headers(), ok: true, status: 200, json: async () => ({ access_token: 'guest-token' }) } as Response)
       .mockResolvedValueOnce(okResponse())
     vi.stubGlobal('fetch', fetchMock)
 

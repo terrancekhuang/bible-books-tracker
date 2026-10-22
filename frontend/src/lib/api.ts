@@ -1,4 +1,4 @@
-import { authHeaders, ensureSession } from './auth'
+import { adoptRefreshedToken, authHeaders, ensureSession } from './auth'
 
 type FetchResult<T> = { ok: true; data: T } | { ok: false; unauthorized: boolean }
 
@@ -18,6 +18,7 @@ export class UnauthorizedError extends Error {
 export async function fetchJson<T>(url: string, onUnauthorized: () => void): Promise<FetchResult<T>> {
   try {
     const res = await fetch(url, { headers: authHeaders() })
+    adoptRefreshedToken(res)
     if (res.status === 401) { onUnauthorized(); return { ok: false, unauthorized: true } }
     if (!res.ok) return { ok: false, unauthorized: false }
     return { ok: true, data: await res.json() as T }
@@ -28,20 +29,24 @@ export async function fetchJson<T>(url: string, onUnauthorized: () => void): Pro
 
 async function post(url: string, body?: unknown): Promise<Response> {
   await ensureSession()
-  return fetch(url, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: authHeaders() as Record<string, string>,
     ...(body !== undefined && { body: JSON.stringify(body) }),
   })
+  adoptRefreshedToken(res)
+  return res
 }
 
 async function put(url: string, body: unknown): Promise<Response> {
   await ensureSession()
-  return fetch(url, {
+  const res = await fetch(url, {
     method: 'PUT',
     headers: authHeaders() as Record<string, string>,
     body: JSON.stringify(body),
   })
+  adoptRefreshedToken(res)
+  return res
 }
 
 export const api = {

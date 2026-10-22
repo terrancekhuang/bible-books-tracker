@@ -25,7 +25,7 @@ const DASHBOARD: DashboardData = {
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
-  return { ok: status >= 200 && status < 300, status, json: async () => body } as Response
+  return { headers: new Headers(), ok: status >= 200 && status < 300, status, json: async () => body } as Response
 }
 
 let queryClient: QueryClient

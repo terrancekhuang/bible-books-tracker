@@ -6,7 +6,7 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import os
 from psycopg2.extras import execute_values
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from config import Config
 from db import db_cursor
 import reading_history
@@ -15,6 +15,19 @@ app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 jwt = JWTManager(app)
+
+
+@app.after_request
+def refresh_session(response):
+    """Slides a signed-in session forward: a token more than a day old comes back renewed in
+    `X-Access-Token`, so only 30 days without opening the app signs someone out."""
+    try:
+        claims = get_jwt()
+        if not claims.get('guest') and claims['exp'] - datetime.now(timezone.utc).timestamp() < timedelta(days=29).total_seconds():
+            response.headers['X-Access-Token'] = create_access_token(identity=claims['sub'])
+    except (RuntimeError, KeyError):
+        pass  # no verified token on this request
+    return response
 
 
 def _tz_offset() -> int:
@@ -197,7 +210,7 @@ def merge_guest(cur, guest_id: int, user_id: int) -> int:
 def auth_guest():
     """A guest account, created on a visitor's first write. Its token never expires:
     a guest has no other way back in, so an expired token would lose their progress."""
-    # ponytail: unthrottled; add rate limiting if bots start minting guests
+    # Rate-limited per IP in nginx/bible-tracker.conf, not here.
     with db_cursor() as (conn, cur):
         cur.execute("INSERT INTO users DEFAULT VALUES RETURNING user_id")
         user_id = cur.fetchone()['user_id']

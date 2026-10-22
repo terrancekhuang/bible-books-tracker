@@ -1,4 +1,4 @@
-import { authHeaders, ensureSession, getToken } from './auth';
+import { adoptRefreshedToken, authHeaders, ensureSession, getToken } from './auth';
 
 const DB_NAME = 'bible-tracker-offline';
 const STORE = 'pending-writes';
@@ -82,6 +82,7 @@ export async function flushQueue(onLogout: () => void): Promise<void> {
           headers,
           body: item.body,
         });
+        adoptRefreshedToken(response);
       } catch {
         break; // still offline
       }

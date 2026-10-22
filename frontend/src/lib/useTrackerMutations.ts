@@ -55,6 +55,7 @@ export function useTrackerMutations(): TrackerMutations {
  * rolls back itself on failure, so the row advances at once; offline it queues and still
  * counts as saved. A book with a mark in flight ignores further marks, so a double tap or a
  * held key logs one chapter — the ref guards that, the state drives the disabled button.
+ * Resolves to whether a chapter was saved (or queued); false if skipped or rolled back.
  */
 export function useMarkNext(submit: TrackerMutations['submit']) {
   const inFlight = useRef(new Set<string>())
@@ -63,7 +64,7 @@ export function useMarkNext(submit: TrackerMutations['submit']) {
 
   const markNext = useCallback(async (book: Book) => {
     const next = nextChapter(book)
-    if (next === null || inFlight.current.has(book.name)) return
+    if (next === null || inFlight.current.has(book.name)) return false
     inFlight.current.add(book.name)
     setMarkError(null)
     setMarkingBooks(m => [...m, book.name])
@@ -71,6 +72,7 @@ export function useMarkNext(submit: TrackerMutations['submit']) {
     inFlight.current.delete(book.name)
     setMarkingBooks(m => m.filter(n => n !== book.name))
     if (!saved) setMarkError(book.name)
+    return saved
   }, [submit])
 
   return { markNext, markingBooks, markError }

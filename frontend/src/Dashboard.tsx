@@ -55,6 +55,18 @@ function formatDate(): string {
   return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 }
 
+// Finishing a book from Continue Reading: the row holds its gilt "Complete" state, then
+// fades (the `row-retire` keyframe; reduced motion skips the fade) and frees its slot.
+const COMPLETE_HOLD_MS = 1200
+const COMPLETE_FADE_MS = 400
+
+function byMostRecent(a: Book, b: Book): number {
+  if (!a.last_read_at && !b.last_read_at) return 0
+  if (!a.last_read_at) return 1
+  if (!b.last_read_at) return -1
+  return b.last_read_at.localeCompare(a.last_read_at)
+}
+
 const fadeUp = (delay: number): CSSProperties => ({
   animation: 'fade-slide-up 0.5s ease-out both',
   animationDelay: `${delay}ms`,
@@ -68,6 +80,8 @@ export default function Dashboard() {
   const { save: saveWeeklyGoal } = useUpdateWeeklyGoal()
   const { submit } = useTrackerMutations()
   const { markNext, markingBooks, markError } = useMarkNext(submit)
+  // Books whose final chapter was just marked here, kept on Continue Reading until they fade.
+  const [finishing, setFinishing] = useState<string[]>([])
   const isInitialLoading = booksLoading || dashboardLoading
   const isError = booksError || dashboardError
 
@@ -105,13 +119,22 @@ export default function Dashboard() {
 
   const inProgressBooks = useMemo(() => books
     .filter(b => b.chapters_read > 0 && b.chapters_read < b.num_chapters)
-    .sort((a, b) => {
-      if (!a.last_read_at && !b.last_read_at) return 0
-      if (!a.last_read_at) return 1
-      if (!b.last_read_at) return -1
-      return b.last_read_at.localeCompare(a.last_read_at)
-    }), [books])
-  const continueBooks = useMemo(() => inProgressBooks.slice(0, 3), [inProgressBooks])
+    .sort(byMostRecent), [books])
+  const continueBooks = useMemo(() => books
+    .filter(b => inProgressBooks.includes(b) || finishing.includes(b.name))
+    .sort(byMostRecent)
+    .slice(0, 3), [books, inProgressBooks, finishing])
+
+  const markFromContinue = async (book: Book) => {
+    const finishes = book.chapters_read === book.num_chapters - 1
+    if (!finishes) { void markNext(book); return }
+    const leave = () => setFinishing(f => f.filter(n => n !== book.name))
+    setFinishing(f => [...f, book.name])
+    // The hold starts at the tap, since the bar fills optimistically. A failed save rolls
+    // the book back to in progress, so drop it from `finishing` at once or it would fade.
+    const timer = window.setTimeout(leave, COMPLETE_HOLD_MS + COMPLETE_FADE_MS)
+    if (!(await markNext(book))) { window.clearTimeout(timer); leave() }
+  }
 
   const otRead = useMemo(() => books.filter(b => b.testament === 'Old Testament').reduce((s, b) => s + b.chapters_read, 0), [books])
   const ntRead = useMemo(() => books.filter(b => b.testament === 'New Testament').reduce((s, b) => s + b.chapters_read, 0), [books])
@@ -306,25 +329,29 @@ export default function Dashboard() {
             {continueBooks.length > 0 ? (
               <div>
                 {continueBooks.map(book => {
-                  // In progress, so never null here.
-                  const next = nextChapter(book)!
+                  // Null only for a finishing book, which shows "Complete" instead.
+                  const next = nextChapter(book)
                   return (
-                    <div key={book.name}>
+                    <div
+                      key={book.name}
+                      className={next === null ? 'row-retire' : undefined}
+                      style={next === null ? { animation: `row-retire ${COMPLETE_FADE_MS}ms ease ${COMPLETE_HOLD_MS}ms forwards` } : undefined}
+                    >
                       <DashboardEntryRow
                         label={book.name}
-                        detail={`Ch. ${next}`}
+                        detail={next === null ? 'Complete' : `Ch. ${next}`}
                         trailing={`${book.chapters_read} / ${book.num_chapters}`}
                         progress={calculateProgress(book) / 100}
-                        ruleColor={CLOTH[book.category]}
+                        ruleColor={next === null ? GILT : CLOTH[book.category]}
                         onClick={() => navigate('/tracker', { state: { selectBook: book.name } })}
-                        action={
+                        action={next === null ? <span style={{ width: 32, flexShrink: 0 }} /> : (
                           <MarkReadButton
                             bookName={book.name}
                             chapter={next}
                             disabled={markingBooks.includes(book.name)}
-                            onMark={() => markNext(book)}
+                            onMark={() => markFromContinue(book)}
                           />
-                        }
+                        )}
                       />
                       {markError === book.name && (
                         <p className="text-xs mt-1" style={{ color: 'var(--color-leaf-red)' }} role="alert">

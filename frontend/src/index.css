@@ -43,6 +43,14 @@ html {
   100% { opacity: 0;    transform: scale(1.22); }
 }
 
+/* A finished book's Continue Reading row leaving, after its "Complete" hold. */
+@keyframes row-retire {
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .row-retire { animation: none !important; }
+}
+
 @keyframes fade-slide-up {
   from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: translateY(0); }

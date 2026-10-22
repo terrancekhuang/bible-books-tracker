@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_jwt_extended import (
-    JWTManager, create_access_token, jwt_required, get_jwt_identity
+    JWTManager, create_access_token, jwt_required, get_jwt, get_jwt_identity
 )
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
@@ -102,7 +102,11 @@ def initialize_database():
 
 
 @app.route('/auth/google', methods=['POST'])
+@jwt_required(optional=True)
 def auth_google():
+    """Sign in with Google. A guest's token, if sent, carries their progress over: a new
+    Google account takes over the guest row as is; an existing one gets the guest's
+    current-cycle chapters merged into its current cycle, and the guest row is deleted."""
     data = request.get_json()
     credential = data.get('credential')
     if not credential:
@@ -122,29 +126,71 @@ def auth_google():
     name = idinfo.get('name', '')
     picture = idinfo.get('picture', '')
 
-    with db_cursor() as (conn, cur):
-        cur.execute("""
-            INSERT INTO users (google_id, email, name, picture_url)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (google_id) DO UPDATE SET
-                email = EXCLUDED.email,
-                name = EXCLUDED.name,
-                picture_url = EXCLUDED.picture_url
-            RETURNING user_id
-        """, (google_id, email, name, picture))
-        user = cur.fetchone()
-        user_id = user['user_id']
+    guest_id = _user_id() if get_jwt().get('guest') else None
+    from_guest, chapters_added = None, 0
 
-        cur.execute("""
-            INSERT INTO reading_cycles (user_id, cycle_number)
-            VALUES (%s, 1)
-            ON CONFLICT (user_id, cycle_number) DO NOTHING
-        """, (user_id,))
+    with db_cursor() as (conn, cur):
+        if guest_id:
+            cur.execute("SELECT 1 FROM users WHERE google_id = %s", (google_id,))
+            if not cur.fetchone():
+                cur.execute("""
+                    UPDATE users SET google_id = %s, email = %s, name = %s, picture_url = %s
+                    WHERE user_id = %s AND google_id IS NULL
+                """, (google_id, email, name, picture, guest_id))
+                if cur.rowcount:
+                    from_guest = 'upgraded'
+
+        if from_guest:
+            user_id = guest_id
+        else:
+            cur.execute("""
+                INSERT INTO users (google_id, email, name, picture_url)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (google_id) DO UPDATE SET
+                    email = EXCLUDED.email,
+                    name = EXCLUDED.name,
+                    picture_url = EXCLUDED.picture_url
+                RETURNING user_id
+            """, (google_id, email, name, picture))
+            user_id = cur.fetchone()['user_id']
+
+            cur.execute("""
+                INSERT INTO reading_cycles (user_id, cycle_number)
+                VALUES (%s, 1)
+                ON CONFLICT (user_id, cycle_number) DO NOTHING
+            """, (user_id,))
+
+            if guest_id:
+                chapters_added = merge_guest(cur, guest_id, user_id)
+                from_guest = 'merged'
 
         conn.commit()
 
     access_token = create_access_token(identity=str(user_id))
-    return jsonify({'access_token': access_token, 'user_id': user_id})
+    return jsonify({
+        'access_token': access_token,
+        'user_id': user_id,
+        'from_guest': from_guest,
+        'chapters_added': chapters_added,
+    })
+
+
+def merge_guest(cur, guest_id: int, user_id: int) -> int:
+    """Move a guest's current-cycle chapters into the account's current cycle, then delete
+    the guest. A chapter both have keeps the account's row. Returns how many were added."""
+    guest_cycle = get_active_cycle_id(cur, guest_id)
+    added = 0
+    if guest_cycle:
+        cur.execute("""
+            INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number, logged_at)
+            SELECT %(user)s, %(cycle)s, book_id, chapter_number, logged_at
+            FROM chapter_progress WHERE user_id = %(guest)s AND cycle_id = %(guest_cycle)s
+            ON CONFLICT DO NOTHING
+        """, {'user': user_id, 'cycle': get_active_cycle_id(cur, user_id),
+              'guest': guest_id, 'guest_cycle': guest_cycle})
+        added = cur.rowcount
+    cur.execute("DELETE FROM users WHERE user_id = %s AND google_id IS NULL", (guest_id,))
+    return added
 
 
 @app.route('/auth/guest', methods=['POST'])

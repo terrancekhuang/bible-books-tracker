@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/AuthContext'
 import { UserIcon } from './Icons'
 
@@ -9,10 +8,10 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
-  const { isGuest, logout } = useAuth()
-  const navigate = useNavigate()
+  const { isGuest, signOut, openSignIn } = useAuth()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const avatarRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -30,6 +29,7 @@ export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
   return (
     <div className="relative" ref={ref}>
       <button
+        ref={avatarRef}
         onClick={() => setOpen(o => !o)}
         className="w-8 h-8 rounded-full overflow-hidden transition-opacity hover:opacity-80"
         style={{ outline: 'none', boxShadow: open ? '0 0 0 2px rgba(210,166,63,0.6)' : 'none' }}
@@ -74,8 +74,13 @@ export default function UserMenu({ pictureUrl, userName }: UserMenuProps) {
             style={{ color: 'rgba(242,236,221,0.8)' }}
             onMouseEnter={e => (e.currentTarget.style.background = 'rgba(210,166,63,0.1)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-            // ponytail: /login until milestone 2's sign-in popup replaces it
-            onClick={() => { setOpen(false); if (isGuest) navigate('/login'); else logout() }}
+            onClick={() => {
+              setOpen(false)
+              if (!isGuest) return signOut()
+              // The menu item unmounts; the popup hands focus back to whatever had it on open.
+              avatarRef.current?.focus()
+              openSignIn('save')
+            }}
           >
             {isGuest ? 'Sign in with Google' : 'Sign out'}
           </button>

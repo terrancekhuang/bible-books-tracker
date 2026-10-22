@@ -15,9 +15,19 @@ function errorResponse(status: number): Response {
   return { ok: false, status } as Response
 }
 
+function stubToken(token: string | null): void {
+  const store = new Map<string, string>(token ? [['app_jwt', token]] : [])
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => store.set(k, v),
+    removeItem: (k: string) => store.delete(k),
+  })
+}
+
 beforeEach(() => {
   // Fresh IndexedDB per test — no leftover pending writes
   vi.stubGlobal('indexedDB', new IDBFactory())
+  stubToken('token')
 })
 
 afterEach(() => {
@@ -80,12 +90,7 @@ describe('flushQueue', () => {
   })
 
   it("creates a guest first for a visitor's write queued before they had an account", async () => {
-    const store = new Map<string, string>()
-    vi.stubGlobal('localStorage', {
-      getItem: (k: string) => store.get(k) ?? null,
-      setItem: (k: string, v: string) => store.set(k, v),
-      removeItem: (k: string) => store.delete(k),
-    })
+    stubToken(null)
     await enqueueWrite(URL, METHOD, { 'Content-Type': 'application/json' }, BODY)
 
     const fetchMock = vi.fn()
@@ -96,6 +101,22 @@ describe('flushQueue', () => {
     await flushQueue(vi.fn())
     expect(fetchMock.mock.calls[0][0]).toBe('/auth/guest')
     expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer guest-token')
+    expect(await getPendingCount()).toBe(0)
+  })
+
+  it('holds a signed-in write while the session has expired, then replays it with the new token', async () => {
+    await enqueueWrite(URL, METHOD, HEADERS, BODY)
+    stubToken(null)
+    const fetchMock = vi.fn().mockResolvedValue(okResponse())
+    vi.stubGlobal('fetch', fetchMock)
+
+    await flushQueue(vi.fn())
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(await getPendingCount()).toBe(1)
+
+    stubToken('fresh-token')
+    await flushQueue(vi.fn())
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer fresh-token')
     expect(await getPendingCount()).toBe(0)
   })
 

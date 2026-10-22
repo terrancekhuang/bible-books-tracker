@@ -1,4 +1,4 @@
-import { authHeaders, ensureSession } from './auth';
+import { authHeaders, ensureSession, getToken } from './auth';
 
 const DB_NAME = 'bible-tracker-offline';
 const STORE = 'pending-writes';
@@ -71,12 +71,12 @@ export async function flushQueue(onLogout: () => void): Promise<void> {
     for (const item of items) {
       let response: Response;
       try {
-        let headers = item.headers;
         // A visitor's first write, queued before their guest account existed.
-        if (!headers.Authorization) {
-          await ensureSession();
-          headers = authHeaders() as Record<string, string>;
-        }
+        if (!item.headers.Authorization) await ensureSession();
+        // A signed-in write whose session has since expired: hold it until they sign back in.
+        else if (!getToken()) break;
+        // Always the current token: a write queued before an expiry carries the stale one.
+        const headers = authHeaders() as Record<string, string>;
         response = await fetch(item.url, {
           method: item.method,
           headers,

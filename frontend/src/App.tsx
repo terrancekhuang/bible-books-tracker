@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 import { useAuth } from './lib/AuthContext'
 import { useKeyChord } from './lib/useKeyChord'
 import { useMediaQuery } from './lib/useMediaQuery'
 import { useTour } from './lib/useTour'
-import Login from './Login'
 import Profile from './Profile'
 import Tracker from './components/Tracker'
 import Dashboard from './Dashboard'
@@ -14,12 +13,13 @@ import PWAInstallModal from './components/PWAInstallModal'
 import TourOverlay from './components/TourOverlay'
 import TourWelcomePrompt from './components/TourWelcomePrompt'
 import HelpMenu from './components/HelpMenu'
+import SignInDialog from './components/SignInDialog'
 import { shouldShowPWAPrompt } from './lib/pwa'
 import { shouldShowTourPrompt, markTourSeen } from './lib/tour'
 import { TooltipGroupProvider } from './lib/TooltipGroupContext'
 
 export default function App() {
-  const { jwt, isGuest } = useAuth()
+  const { jwt } = useAuth()
   const [showPwaPrompt, setShowPwaPrompt] = useState(false)
   const [showUpdateBanner, setShowUpdateBanner] = useState(false)
   const updateSwRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null)
@@ -101,15 +101,13 @@ export default function App() {
   return (
     <TooltipGroupProvider>
       <Routes>
-        <Route
-          path="/login"
-          element={isGuest ? <Login /> : <Navigate to="/" replace />}
-        />
         <Route path="/" element={<Dashboard />} />
         <Route path="/tracker" element={<Tracker />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <SignInDialog />
+
       {showPwaPrompt && (
         <PWAInstallModal
           onDismiss={() => setShowPwaPrompt(false)}

@@ -86,6 +86,77 @@ class TestGuestAuth:
             conn.close()
 
 
+class TestGuestSignIn:
+    """Signing in with a guest's token keeps the guest's progress."""
+
+    def _sign_in(self, client, google_id, headers=None):
+        with patch('routes.id_token.verify_oauth2_token', return_value={
+            'sub': google_id, 'email': f'{google_id}@example.com', 'name': 'Signed In', 'picture': '',
+        }):
+            return client.post('/auth/google', json={'credential': 'valid'}, headers=headers)
+
+    def _guest_with(self, client, book, chapters):
+        data = client.post('/auth/guest').get_json()
+        headers = {'Authorization': f"Bearer {data['access_token']}"}
+        client.post('/api/progress', json={'book_name': book, 'chapters': chapters}, headers=headers)
+        return data['user_id'], headers
+
+    def _chapters(self, client, token, book):
+        books = client.get('/api/books', headers={'Authorization': f'Bearer {token}'}).get_json()
+        return next(b for b in books if b['name'] == book)['chapters_read_list']
+
+    def _delete(self, *google_ids_or_user_ids):
+        conn = psycopg2.connect(os.environ['DATABASE_URL'])
+        cur = conn.cursor()
+        for x in google_ids_or_user_ids:
+            col = 'user_id' if isinstance(x, int) else 'google_id'
+            cur.execute(f"DELETE FROM users WHERE {col} = %s", (x,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+    def test_new_google_account_takes_over_the_guest(self, client):
+        guest_id, headers = self._guest_with(client, 'Ruth', [1, 2])
+        try:
+            data = self._sign_in(client, 'guest_upgrade_gid', headers).get_json()
+            assert data['user_id'] == guest_id
+            assert data['from_guest'] == 'upgraded'
+            assert self._chapters(client, data['access_token'], 'Ruth') == [1, 2]
+            me = client.get('/auth/me', headers={'Authorization': f"Bearer {data['access_token']}"}).get_json()
+            assert me['name'] == 'Signed In'
+        finally:
+            self._delete(guest_id)
+
+    def test_existing_account_gets_the_guests_chapters_merged_in(self, client):
+        account = self._sign_in(client, 'guest_merge_gid').get_json()
+        guest_id, headers = self._guest_with(client, 'Ruth', [2, 3])
+        try:
+            client.post('/api/progress', json={'book_name': 'Ruth', 'chapters': [1, 2]},
+                        headers={'Authorization': f"Bearer {account['access_token']}"})
+            data = self._sign_in(client, 'guest_merge_gid', headers).get_json()
+            assert data['user_id'] == account['user_id']
+            assert data['from_guest'] == 'merged'
+            assert data['chapters_added'] == 1  # chapter 2 was already read on the account
+            assert self._chapters(client, data['access_token'], 'Ruth') == [1, 2, 3]
+
+            conn = psycopg2.connect(os.environ['DATABASE_URL'])
+            cur = conn.cursor()
+            cur.execute("SELECT 1 FROM users WHERE user_id = %s", (guest_id,))
+            assert cur.fetchone() is None
+            cur.close()
+            conn.close()
+        finally:
+            self._delete('guest_merge_gid', guest_id)
+
+    def test_signed_in_token_is_not_treated_as_a_guest(self, client, auth_headers, test_user):
+        data = self._sign_in(client, 'not_a_guest_gid', auth_headers).get_json()
+        try:
+            assert data['from_guest'] is None
+            assert data['user_id'] != test_user[0]
+        finally:
+            self._delete('not_a_guest_gid')
+
+
 class TestAuthMe:
     def test_returns_user_profile(self, client, auth_headers, test_user):
         user_id, _ = test_user

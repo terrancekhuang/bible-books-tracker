@@ -175,7 +175,10 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
 ## API endpoints
 
 **Auth** (no JWT required on POST):
-- `POST /auth/google` — verify Google credential token, upsert user, return JWT
+- `POST /auth/google` — verify Google credential token, upsert user, return JWT. Sent with a guest's
+  JWT, it keeps the guest's progress: a new Google account takes over the guest row (`from_guest: "upgraded"`);
+  an existing one gets the guest's current-cycle chapters merged in and the guest is deleted
+  (`from_guest: "merged"`, `chapters_added`)
 - `POST /auth/guest` — create a guest user (no `google_id`/`email`) and its first cycle; the JWT never expires and carries `guest: true`
 - `GET /auth/me` — return current user (name, email, picture_url)
 
@@ -209,7 +212,9 @@ appear more than once in a query without positional bookkeeping.
 
 ## Authentication flow
 
-1. Frontend (`@react-oauth/google`) sends the Google credential to `POST /auth/google`
+1. The sign-in popup (`components/SignInDialog.tsx`, opened via `useAuth().openSignIn`) sends the
+   Google credential to `POST /auth/google`. Any 401 calls `logout()`: a guest quietly becomes a
+   visitor; a signed-in user becomes one too and gets the popup with the session-expired message
 2. Backend verifies it with Google using `GOOGLE_CLIENT_ID`, upserts the user row, returns a JWT
 3. JWT is stored in `localStorage` as `app_jwt` and sent as `Authorization: Bearer {token}`
 4. `frontend/src/lib/auth.ts` exports `getToken()` and `authHeaders()` — used everywhere

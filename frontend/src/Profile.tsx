@@ -39,7 +39,7 @@ export default function Profile() {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const { create: createCycle, isCreating } = useCreateCycle()
 
-  const { isGuest } = useAuth()
+  const { isGuest, openSignIn } = useAuth()
   const { data: user } = useCurrentUserQuery()
   const { data: rawCycles, isError: cyclesError, refetch: refetchCycles } = useCyclesQuery()
   // Stats and the weekly goal both ride in the dashboard payload, so Profile shares its cache.
@@ -148,9 +148,8 @@ export default function Profile() {
                   <p style={{ margin: '6px 0 0', fontSize: 13, color: dimText }}>
                     Progress is saved in this browser only.
                   </p>
-                  {/* ponytail: /login until milestone 2's sign-in popup replaces it */}
                   <button
-                    onClick={() => navigate('/login')}
+                    onClick={() => openSignIn('save')}
                     className="mt-4 text-xs font-semibold uppercase px-4 py-2 rounded-lg transition-colors"
                     style={{ letterSpacing: '0.08em', color: primaryText, border: '1px solid rgba(35,31,26,0.3)' }}
                   >
@@ -341,7 +340,7 @@ export default function Profile() {
       {/* Confirmation dialog */}
       <dialog
         ref={dialogRef}
-        className="cycle-dialog"
+        className="app-dialog"
         onClick={e => { if (e.target === dialogRef.current) dialogRef.current?.close() }}
       >
         <div style={{ ...leafSurfaceStyle(GILT), padding: '28px 28px 24px', maxWidth: 420, width: '100%', margin: '0 16px' }}>

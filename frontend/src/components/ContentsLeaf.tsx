@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { CLOTH, GILT } from '../lib/volumesTokens'
 import { leafSurfaceStyle } from '../lib/leafSurface'
-import type { Book } from '../lib/trackerLogic'
+import { nextChapter, type Book } from '../lib/trackerLogic'
+import MarkReadButton from './MarkReadButton'
 
 interface ContentsLeafProps {
   /** The category name (open-volume mode) or a summary heading (flattened mode). */
@@ -18,10 +19,17 @@ interface ContentsLeafProps {
   summary: string
   /** The entry line, opened directly under the selected book's row. */
   entry: ReactNode
+  /** Logs a book's next chapter from its row's checkmark — see useMarkNext. */
+  onMark: (book: Book) => void
+  /** Books with a mark in flight; their checkmark is disabled. */
+  markingBooks: string[]
+  /** The book whose last mark failed to save, if any. */
+  markError: string | null
 }
 
 export default function ContentsLeaf({
   heading, romanNumeral, topBorder, books, selectedBookName, onSelectBook, summary, entry,
+  onMark, markingBooks, markError,
 }: ContentsLeafProps) {
   return (
     <section
@@ -61,16 +69,22 @@ export default function ContentsLeaf({
             const p = b.num_chapters ? b.chapters_read / b.num_chapters : 0
             const active = b.name === selectedBookName
             const cloth = CLOTH[b.category]
+            const next = nextChapter(b)
             return (
               <li key={b.book_id}>
+                <div
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: active ? 'rgba(35,31,26,0.065)' : 'transparent',
+                    transition: 'background-color 140ms ease',
+                  }}
+                >
                 <button
                   onClick={() => onSelectBook(b.name)}
                   aria-pressed={active}
                   data-book={b.name}
                   style={{
-                    width: '100%', textAlign: 'left', padding: '9px 10px 7px',
-                    background: active ? 'rgba(35,31,26,0.065)' : 'transparent',
-                    transition: 'background-color 140ms ease',
+                    flex: 1, minWidth: 0, textAlign: 'left', padding: '9px 10px 7px',
                   }}
                 >
                   <span style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
@@ -80,6 +94,11 @@ export default function ContentsLeaf({
                     >
                       {b.name}
                     </span>
+                    {next !== null && (
+                      <span className="vol-num" style={{ fontSize: 14, color: 'rgba(35,31,26,0.6)', whiteSpace: 'nowrap' }}>
+                        Ch. {next}
+                      </span>
+                    )}
                     <span
                       aria-hidden
                       style={{
@@ -104,6 +123,25 @@ export default function ContentsLeaf({
                     />
                   </span>
                 </button>
+                {/* Outside the row button so a mark never selects the book, and kept-selection so
+                    marking another row doesn't fold the open entry line away. Finished books keep
+                    an empty slot, so every row's count lines up. */}
+                <span data-keep-selection style={{ width: 32, flexShrink: 0 }}>
+                  {next !== null && (
+                    <MarkReadButton
+                      bookName={b.name}
+                      chapter={next}
+                      disabled={markingBooks.includes(b.name)}
+                      onMark={() => onMark(b)}
+                    />
+                  )}
+                </span>
+                </div>
+                {markError === b.name && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-leaf-red)', paddingLeft: 10 }} role="alert">
+                    Couldn't save — please try again.
+                  </p>
+                )}
                 {active && entry}
               </li>
             )

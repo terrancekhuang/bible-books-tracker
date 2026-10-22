@@ -121,9 +121,10 @@ export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onC
                 { keys: ['↑', '↓'], altKeys: ['k', 'j'], description: 'Navigate entries' },
                 { keys: ['Tab'], altKeys: ['i'], description: 'Focus chapter input' },
                 { keys: ['Enter'], description: 'Submit progress' },
+                { keys: ['n'], description: 'Mark next chapter as read' },
+                { keys: ['A'], description: 'Mark all chapters as read (two-step)' },
                 { keys: ['U'], description: 'Undo last entry (two-step)' },
                 { keys: ['R'], description: 'Reset all progress (two-step)' },
-                { keys: ['A'], description: 'Mark all chapters as read (two-step)' },
                 { keys: ['Esc'], description: 'Deselect / clear search' },
                 { keys: ['?'], description: 'Show / hide this help' },
               ] as { keys: string[] | null; altKeys?: string[]; description: string }[]).map(({ keys, altKeys, description }, i) => (

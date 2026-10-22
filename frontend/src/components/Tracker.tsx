@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useBooksQuery, useCurrentUserQuery } from '../lib/queries'
-import { useTrackerMutations } from '../lib/useTrackerMutations'
+import { useMarkNext, useTrackerMutations } from '../lib/useTrackerMutations'
 import { useConfirm } from '../lib/useConfirm'
 import {
   parseChapters, splitAlreadyRead, formatChapterList, filterBooks, invalidChaptersMessage,
@@ -23,6 +23,7 @@ export default function Tracker() {
   const { data: books = [], isError: booksError, refetch: refetchBooks } = useBooksQuery();
 
   const { pendingCount, isOnline, submit, undo, reset } = useTrackerMutations()
+  const { markNext, markingBooks, markError } = useMarkNext(submit)
 
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [selectedBookName, setSelectedBookName] = useState<string | null>(null)
@@ -242,6 +243,7 @@ export default function Tracker() {
         handleBookAction(ACTION_KEY[e.key]);
         return;
       }
+      if (e.key === 'n' && !isInput && selectedBook) { e.preventDefault(); markNext(selectedBook); return; }
       if (e.key === 'i' && !isInput && selectedBook) { e.preventDefault(); chaptersInputRef.current?.focus(); return; }
 
       if (isInput) return;
@@ -395,6 +397,9 @@ export default function Tracker() {
               setSelectedBookName(name === selectedBookName ? null : name); setChaptersInput(''); setOpenedFromNav(false);
             }}
             summary={leafSummary}
+            onMark={markNext}
+            markingBooks={markingBooks}
+            markError={markError}
             entry={selectedBook && (
               <TrackerEntryLine
                 book={selectedBook}

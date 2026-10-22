@@ -228,9 +228,10 @@ Configured via `VitePWA` in `vite.config.ts`. Workbox uses NetworkFirst for `/ap
 | `↑↓` / `k j` | Navigate entries |
 | `Tab` or `i` | Focus chapter input |
 | `Enter` | Submit progress |
+| `n` | Mark the selected book's next chapter as read |
+| `A` | Mark all chapters as read (two-step) |
 | `U` | Undo last entry (two-step) |
 | `R` | Reset all progress (two-step) |
-| `A` | Mark all chapters as read (two-step) |
 | `g` `h` | Go to Dashboard |
 | `g` `t` | Go to Tracker |
 | `g` `p` | Go to Profile |

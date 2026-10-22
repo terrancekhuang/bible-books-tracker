@@ -1,9 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, Response, request, jsonify
 from flask_jwt_extended import (
     JWTManager, create_access_token, jwt_required, get_jwt, get_jwt_identity
 )
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+import csv
+import io
 import os
 from psycopg2.extras import execute_values
 from datetime import datetime, timedelta, timezone
@@ -15,6 +17,15 @@ app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = Config.JWT_SECRET_KEY
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=30)
 jwt = JWTManager(app)
+
+
+@jwt.user_lookup_loader
+def _user_exists(_header, claims):
+    """A token can outlive its user (a deleted account, a cleaned-up guest); answer it with a
+    401 so the frontend's usual handling kicks in, rather than a 500 on the first write."""
+    with db_cursor(cursor_factory=None) as (conn, cur):
+        cur.execute("SELECT 1 FROM users WHERE user_id = %s", (int(claims['sub']),))
+        return cur.fetchone()
 
 
 @app.after_request
@@ -212,6 +223,13 @@ def auth_guest():
     a guest has no other way back in, so an expired token would lose their progress."""
     # Rate-limited per IP in nginx/bible-tracker.conf, not here.
     with db_cursor() as (conn, cur):
+        # Housekeeping rides on guest creation rather than a cron job. Only guests who never
+        # logged a chapter are swept: one with progress may still come back to it.
+        cur.execute("""
+            DELETE FROM users u
+            WHERE google_id IS NULL AND created_at < NOW() - INTERVAL '7 days'
+              AND NOT EXISTS (SELECT 1 FROM chapter_progress cp WHERE cp.user_id = u.user_id)
+        """)
         cur.execute("INSERT INTO users DEFAULT VALUES RETURNING user_id")
         user_id = cur.fetchone()['user_id']
         cur.execute("INSERT INTO reading_cycles (user_id, cycle_number) VALUES (%s, 1)", (user_id,))
@@ -477,6 +495,40 @@ def update_settings():
         cur.execute("UPDATE users SET weekly_goal = %s WHERE user_id = %s", (weekly_goal, user_id))
         conn.commit()
     return jsonify({'weekly_goal': weekly_goal})
+
+
+
+@app.route('/api/export', methods=['GET'])
+@jwt_required()
+def export_progress():
+    """Every chapter the user has logged, across all cycles, as a CSV download."""
+    user_id = int(get_jwt_identity())
+    with db_cursor(cursor_factory=None) as (conn, cur):
+        cur.execute("""
+            SELECT rc.cycle_number, b.name, cp.chapter_number, cp.logged_at
+            FROM chapter_progress cp
+            JOIN reading_cycles rc ON rc.cycle_id = cp.cycle_id
+            JOIN bible_books b ON b.book_id = cp.book_id
+            WHERE cp.user_id = %s
+            ORDER BY cp.logged_at, b.book_id, cp.chapter_number
+        """, (user_id,))
+        rows = cur.fetchall()
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(['cycle', 'book', 'chapter', 'logged_at'])
+    writer.writerows((cycle, book, chapter, logged_at.isoformat()) for cycle, book, chapter, logged_at in rows)
+    return Response(out.getvalue(), mimetype='text/csv',
+                    headers={'Content-Disposition': 'attachment; filename="bible-reading.csv"'})
+
+
+@app.route('/api/account', methods=['DELETE'])
+@jwt_required()
+def delete_account():
+    """Deletes the user and, by cascade, every cycle and chapter they logged."""
+    with db_cursor(cursor_factory=None) as (conn, cur):
+        cur.execute("DELETE FROM users WHERE user_id = %s", (int(get_jwt_identity()),))
+        conn.commit()
+    return jsonify({'success': True})
 
 
 if __name__ == '__main__':

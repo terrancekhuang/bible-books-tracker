@@ -162,7 +162,7 @@ Four tables:
 | Table | Purpose |
 |-------|---------|
 | `bible_books` | Static seed — 66 books with testament/category/num_chapters |
-| `users` | Google OAuth users and guests (google_id, email, name, picture_url, weekly_goal) — a NULL `google_id` marks a guest |
+| `users` | Google OAuth users and guests (google_id, email, name, picture_url, weekly_goal, created_at) — a NULL `google_id` marks a guest |
 | `reading_cycles` | Per-user cycles (cycle_number, unique per user) |
 | `chapter_progress` | Every chapter read: (user_id, cycle_id, book_id, chapter_number, logged_at) |
 
@@ -179,7 +179,7 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
   JWT, it keeps the guest's progress: a new Google account takes over the guest row (`from_guest: "upgraded"`);
   an existing one gets the guest's current-cycle chapters merged in and the guest is deleted
   (`from_guest: "merged"`, `chapters_added`)
-- `POST /auth/guest` — create a guest user (no `google_id`/`email`) and its first cycle; the JWT never expires and carries `guest: true`. Rate-limited per IP in `nginx/bible-tracker.conf` (429 past a burst of 20)
+- `POST /auth/guest` — create a guest user (no `google_id`/`email`) and its first cycle; the JWT never expires and carries `guest: true`. Rate-limited per IP in `nginx/bible-tracker.conf` (429 past a burst of 20). Each call also deletes guests over 7 days old that never logged a chapter
 - `GET /auth/me` — return current user (name, email, picture_url)
 
 **Signed-out reads**: `GET /api/books`, `/api/cycles`, `/api/dashboard` and `/api/rhythm` take an
@@ -197,6 +197,13 @@ the empty state a brand-new user does. Every write still requires a JWT — the 
 - `GET /api/cycles` — all cycles for the user with aggregate stats
 - `POST /api/cycles` — create a new cycle (auto-increments cycle_number)
 - `GET /api/dashboard?tz_offset=N` — `stats` (streaks, chapters today/this week, total days/chapters), `activity`, `weekly_goal` and the nav-bar `user` (name, picture_url) in one request. Dashboard and Profile both read it
+
+**Your data** (JWT required):
+- `GET /api/export` — every logged chapter across all cycles as a CSV download (`cycle,book,chapter,logged_at`)
+- `DELETE /api/account` — deletes the user; cycles and chapters go with it by cascade
+
+A token can outlive its user (a deleted account, a swept guest). `_user_exists`, the JWT `user_lookup_loader`,
+answers such a token with a 401 on every protected route, so the frontend's normal 401 handling takes over.
 
 **Settings**:
 - `PUT /api/settings` — body: `{ weekly_goal }` — must be a positive integer

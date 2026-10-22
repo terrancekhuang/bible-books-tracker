@@ -20,6 +20,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS weekly_goal INTEGER NOT NULL DEFAULT 
 ALTER TABLE users ALTER COLUMN google_id DROP NOT NULL;
 ALTER TABLE users ALTER COLUMN email DROP NOT NULL;
 
+-- Lets /auth/guest sweep guests who never logged anything. Rows that predate the column
+-- get the time it was added, which only delays their sweep.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
 CREATE TABLE IF NOT EXISTS reading_cycles (
     cycle_id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(user_id) ON DELETE CASCADE,

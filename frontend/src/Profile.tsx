@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
+import { api } from './lib/api'
 import { useCurrentUserQuery, useCyclesQuery, useDashboardQuery } from './lib/queries'
 import { useCreateCycle } from './lib/useCycleMutations'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
@@ -37,9 +38,10 @@ const fadeUp = (delay: number): CSSProperties => ({
 export default function Profile() {
   const navigate = useNavigate()
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const deleteDialogRef = useRef<HTMLDialogElement>(null)
   const { create: createCycle, isCreating } = useCreateCycle()
 
-  const { isGuest, openSignIn } = useAuth()
+  const { jwt, isGuest, openSignIn, signOut } = useAuth()
   const { data: user } = useCurrentUserQuery()
   const { data: rawCycles, isError: cyclesError, refetch: refetchCycles } = useCyclesQuery()
   // Stats and the weekly goal both ride in the dashboard payload, so Profile shares its cache.
@@ -84,6 +86,22 @@ export default function Profile() {
 
   // createCycle only resolves once the book grid has been refetched, so Tracker paints
   // the new empty cycle rather than the one that was just finished.
+  const [dataError, setDataError] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const handleExport = async () => {
+    setDataError(null)
+    const ok = await api.account.exportCsv().catch(() => false)
+    if (!ok) setDataError("Couldn't download your reading — please try again.")
+  }
+  const handleDeleteAccount = async () => {
+    setDeleting(true)
+    const res = await api.account.delete().catch(() => null)
+    setDeleting(false)
+    deleteDialogRef.current?.close()
+    if (res?.ok) signOut()
+    else setDataError("Couldn't delete your account — please try again.")
+  }
+
   const handleNewCycle = async () => {
     if (!await createCycle()) return
     dialogRef.current?.close()
@@ -329,6 +347,37 @@ export default function Profile() {
               </p>
             )}
           </div>
+
+          {/* Your data — a visitor has none yet */}
+          {jwt && (
+            <>
+              <LeafDivider />
+              <div style={{ textAlign: 'center', ...fadeUp(250) }}>
+                <LeafSectionLabel>Your Data</LeafSectionLabel>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <button
+                    onClick={handleExport}
+                    className="text-xs font-semibold uppercase px-4 py-2 rounded-lg transition-colors"
+                    style={{ letterSpacing: '0.08em', color: primaryText, border: '1px solid rgba(35,31,26,0.3)' }}
+                  >
+                    Download as CSV
+                  </button>
+                  {!isGuest && (
+                    <button
+                      onClick={() => { setDataError(null); deleteDialogRef.current?.showModal() }}
+                      className="text-xs font-semibold uppercase px-4 py-2 rounded-lg transition-colors"
+                      style={{ letterSpacing: '0.08em', color: 'var(--color-leaf-red)', border: '1px solid rgba(158,42,34,0.35)' }}
+                    >
+                      Delete account
+                    </button>
+                  )}
+                </div>
+                {dataError && (
+                  <p className="text-xs mt-2" style={{ color: 'var(--color-leaf-red)' }} role="alert">{dataError}</p>
+                )}
+              </div>
+            </>
+          )}
         </section>
 
         <footer className="text-center text-sm py-4" style={{ color: 'rgba(242,236,221,0.55)', ...fadeUp(260) }}>
@@ -370,6 +419,44 @@ export default function Profile() {
               disabled={isCreating}
             >
               {isCreating ? 'Creating…' : 'Start New Cycle'}
+            </button>
+          </div>
+        </div>
+      </dialog>
+
+      <dialog
+        ref={deleteDialogRef}
+        className="app-dialog"
+        onClick={e => { if (e.target === deleteDialogRef.current) deleteDialogRef.current?.close() }}
+      >
+        <div style={{ ...leafSurfaceStyle(GILT), padding: '28px 28px 24px', maxWidth: 420, width: '100%', margin: '0 16px' }}>
+          <h3 className="slab" style={{ fontSize: 20, color: primaryText, letterSpacing: '0.03em' }}>
+            Delete your account?
+          </h3>
+          <p className="py-4 text-sm" style={{ color: bodyText }}>
+            This permanently deletes your account and every chapter you've logged, in every cycle. It can't be undone.
+            Download your reading first if you want to keep a copy.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              className="px-4 py-2 rounded-xl text-sm font-medium transition-colors"
+              style={{ border: '1px solid rgba(35,31,26,0.18)', color: dimText }}
+              onClick={() => deleteDialogRef.current?.close()}
+            >
+              Cancel
+            </button>
+            <button
+              className="px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40"
+              style={{
+                background: 'rgba(158,42,34,0.1)',
+                border: '1px solid rgba(158,42,34,0.45)',
+                color: 'var(--color-leaf-red)',
+                letterSpacing: '0.05em',
+              }}
+              onClick={handleDeleteAccount}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting…' : 'Delete account'}
             </button>
           </div>
         </div>

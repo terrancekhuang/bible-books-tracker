@@ -574,3 +574,67 @@ class TestDashboard:
         # Optional auth only lets a *missing* token through; a bad one still ends the session.
         resp = client.get('/api/dashboard', headers={'Authorization': 'Bearer not-a-jwt'})
         assert resp.status_code in (401, 422)
+
+
+# ── Your data ─────────────────────────────────────────────────────────────────
+
+def _sql(query, params=()):
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    cur = conn.cursor()
+    cur.execute(query, params)
+    rows = cur.fetchall() if cur.description else None
+    conn.commit()
+    cur.close()
+    conn.close()
+    return rows
+
+
+class TestExport:
+    def test_every_logged_chapter_as_csv(self, client, auth_headers, seed_chapter):
+        seed_chapter(_utc_at(2, 9), chapter=3)
+        seed_chapter(_utc_at(1, 9), chapter=1, book_id=2)
+        resp = client.get('/api/export', headers=auth_headers)
+        assert resp.status_code == 200
+        assert resp.mimetype == 'text/csv'
+        assert 'attachment' in resp.headers['Content-Disposition']
+        lines = resp.get_data(as_text=True).strip().splitlines()
+        assert lines[0] == 'cycle,book,chapter,logged_at'
+        assert [line.split(',')[:3] for line in lines[1:]] == [['1', 'Genesis', '3'], ['1', 'Exodus', '1']]
+
+    def test_requires_auth(self, client):
+        assert client.get('/api/export').status_code == 401
+
+
+class TestDeleteAccount:
+    def test_deletes_the_user_and_their_progress_and_retires_the_token(self, client, flask_app):
+        from flask_jwt_extended import create_access_token
+        user_id = _sql("INSERT INTO users (google_id, email) VALUES ('delete_me_gid', 'delete_me@example.com') RETURNING user_id")[0][0]
+        try:
+            _sql("INSERT INTO reading_cycles (user_id, cycle_number) VALUES (%s, 1)", (user_id,))
+            with flask_app.app_context():
+                headers = {'Authorization': f'Bearer {create_access_token(identity=str(user_id))}'}
+            client.post('/api/progress', json={'book_name': 'Ruth', 'chapters': [1]}, headers=headers)
+
+            assert client.delete('/api/account', headers=headers).status_code == 200
+            assert _sql("SELECT 1 FROM users WHERE user_id = %s", (user_id,)) == []
+            assert _sql("SELECT 1 FROM chapter_progress WHERE user_id = %s", (user_id,)) == []
+            # The token outlives the account; it must be refused, not 500 on a missing user.
+            assert client.get('/api/books', headers=headers).status_code == 401
+        finally:
+            _sql("DELETE FROM users WHERE user_id = %s", (user_id,))
+
+
+class TestGuestSweep:
+    def test_new_guest_sweeps_week_old_guests_that_never_logged_anything(self, client):
+        old_empty, old_reader, new_empty = (
+            _sql("INSERT INTO users (created_at) VALUES (NOW() - INTERVAL %s) RETURNING user_id", (age,))[0][0]
+            for age in ('8 days', '8 days', '1 day'))
+        cycle = _sql("INSERT INTO reading_cycles (user_id, cycle_number) VALUES (%s, 1) RETURNING cycle_id", (old_reader,))[0][0]
+        _sql("INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number) VALUES (%s, %s, 1, 1)", (old_reader, cycle))
+        created = None
+        try:
+            created = client.post('/auth/guest').get_json()['user_id']
+            remaining = {r[0] for r in _sql("SELECT user_id FROM users WHERE user_id IN %s", ((old_empty, old_reader, new_empty),))}
+            assert remaining == {old_reader, new_empty}
+        finally:
+            _sql("DELETE FROM users WHERE user_id IN %s", ((old_empty, old_reader, new_empty, created or 0),))

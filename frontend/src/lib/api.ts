@@ -64,4 +64,20 @@ export const api = {
   settings: {
     update: (weeklyGoal: number) => put('/api/settings', { weekly_goal: weeklyGoal }),
   },
+  account: {
+    // No ensureSession: there is nothing to delete or export without an account already.
+    delete: () => fetch('/api/account', { method: 'DELETE', headers: authHeaders() }),
+    /** Saves every logged chapter as a CSV. Resolves false if the server couldn't produce it. */
+    exportCsv: async (): Promise<boolean> => {
+      const res = await fetch('/api/export', { headers: authHeaders() })
+      if (!res.ok) return false
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(await res.blob())
+      a.download = 'bible-reading.csv'
+      a.click()
+      // Revoked later, not now: Safari can still be reading the blob when click() returns.
+      setTimeout(() => URL.revokeObjectURL(a.href), 10_000)
+      return true
+    },
+  },
 }

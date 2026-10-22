@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBooksQuery, useDashboardQuery } from './lib/queries'
@@ -82,6 +82,26 @@ export default function Dashboard() {
   const { markNext, markingBooks, markError } = useMarkNext(submit)
   // Books whose final chapter was just marked here, kept on Continue Reading until they fade.
   const [finishing, setFinishing] = useState<string[]>([])
+
+  // Continue Reading is the one list ordered by most recent read, so a mark reorders it.
+  // FLIP: after each commit, every row that moved slides from where it was, and a row
+  // newly in the top three fades in. offsetTop ignores transforms, so a re-render
+  // mid-slide doesn't restart it. The list is `position: relative` to be the offsetParent.
+  const continueListRef = useRef<HTMLDivElement>(null)
+  const rowTops = useRef<Map<string, number> | null>(null)
+  useLayoutEffect(() => {
+    const rows = [...(continueListRef.current?.querySelectorAll<HTMLElement>('[data-continue-row]') ?? [])]
+    const previous = rowTops.current
+    rowTops.current = new Map(rows.map(el => [el.dataset.continueRow!, el.offsetTop]))
+    // Nothing to move from on the first rows painted (they get the leaf's fade-up), and
+    // reduced motion gets no movement at all.
+    if (!previous?.size || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    for (const el of rows) {
+      const before = previous.get(el.dataset.continueRow!)
+      if (before === undefined) el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 320, easing: 'ease-out' })
+      else if (before !== el.offsetTop) el.animate([{ transform: `translateY(${before - el.offsetTop}px)` }, { transform: 'none' }], { duration: 420, easing: 'cubic-bezier(0.16,1,0.3,1)' })
+    }
+  })
   const isInitialLoading = booksLoading || dashboardLoading
   const isError = booksError || dashboardError
 
@@ -327,13 +347,14 @@ export default function Dashboard() {
           <div id="tour-dash-continue" style={fadeUp(190)}>
             <LeafSectionLabel>Continue Reading</LeafSectionLabel>
             {continueBooks.length > 0 ? (
-              <div>
+              <div ref={continueListRef} style={{ position: 'relative' }}>
                 {continueBooks.map(book => {
                   // Null only for a finishing book, which shows "Complete" instead.
                   const next = nextChapter(book)
                   return (
                     <div
                       key={book.name}
+                      data-continue-row={book.name}
                       className={next === null ? 'row-retire' : undefined}
                       style={next === null ? { animation: `row-retire ${COMPLETE_FADE_MS}ms ease ${COMPLETE_HOLD_MS}ms forwards` } : undefined}
                     >

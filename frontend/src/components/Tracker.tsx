@@ -8,6 +8,7 @@ import {
 } from '../lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, ROMAN } from '../lib/volumesTokens'
 import NavBar from './NavBar'
+import SignInNudge from './SignInNudge'
 import VolumeShelf from './VolumeShelf'
 import ContentsLeaf from './ContentsLeaf'
 import TrackerEntryLine, { type BookAction } from './TrackerEntryLine'
@@ -297,6 +298,7 @@ export default function Tracker() {
       )}
 
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
+      <SignInNudge />
 
       <div className="flex-1 pb-20 md:pb-10 px-4 md:px-6 py-6 mx-auto w-full" style={{ maxWidth: 1100 }}>
         {openedFromNav && (

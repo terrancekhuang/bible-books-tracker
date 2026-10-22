@@ -13,6 +13,7 @@ import LeafDivider from './components/LeafDivider'
 import LeafSectionLabel from './components/LeafSectionLabel'
 import LeafMarginaliaItem from './components/LeafMarginaliaItem'
 import NavBar from './components/NavBar'
+import SignInNudge from './components/SignInNudge'
 import ReadingRhythm from './components/ReadingRhythm'
 import { useTooltip } from './lib/useTooltip'
 import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, nextChapter, type Book } from './lib/trackerLogic'
@@ -176,6 +177,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen pb-20 md:pb-0" style={{ background: 'var(--color-shelf)' }}>
       <NavBar pictureUrl={user?.picture_url} userName={user?.name} />
+      <SignInNudge />
 
       {isError ? (
         <div className="max-w-3xl mx-auto w-full px-4 py-8 md:py-14">

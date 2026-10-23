@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatChapters, groupByMonth, parseLocalDate } from '../historyLogic'
+import { calendarCells, formatChapters, groupByMonth, parseLocalDate, shiftMonth } from '../historyLogic'
 
 describe('formatChapters', () => {
   it('collapses runs and lists the rest', () => {
@@ -26,5 +26,29 @@ describe('groupByMonth', () => {
       ['October 2026', 4, 2],
       ['September 2026', 2, 1],
     ])
+  })
+})
+
+describe('shiftMonth', () => {
+  it('crosses year boundaries both ways', () => {
+    expect(shiftMonth('2026-01', -1)).toBe('2025-12')
+    expect(shiftMonth('2025-12', 1)).toBe('2026-01')
+    expect(shiftMonth('2026-10', -2)).toBe('2026-08')
+  })
+})
+
+describe('calendarCells', () => {
+  it('pads to Monday and marks read days', () => {
+    const cells = calendarCells('2026-10', new Map([['2026-10-15', 5]]))
+    expect(cells.slice(0, 3)).toEqual([null, null, null]) // Oct 1 2026 is a Thursday
+    expect(cells.length).toBe(3 + 31)
+    expect(cells[3 + 14]).toEqual({ date: '2026-10-15', day: 15, chapters: 5 })
+    expect(cells[3]?.chapters).toBeUndefined()
+  })
+
+  it('knows month lengths, leap Februaries included', () => {
+    expect(calendarCells('2028-02', new Map()).filter(Boolean).length).toBe(29)
+    expect(calendarCells('2027-02', new Map()).filter(Boolean).length).toBe(28)
+    expect(calendarCells('2026-06', new Map())[0]).toEqual({ date: '2026-06-01', day: 1, chapters: undefined }) // a Monday
   })
 })

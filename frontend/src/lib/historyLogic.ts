@@ -59,3 +59,26 @@ export function groupByMonth(days: HistoryDay[]): HistoryMonth[] {
 export function plural(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
 }
+
+/** `YYYY-MM` moved by `delta` months: ('2026-01', -1) → '2025-12'. */
+export function shiftMonth(key: string, delta: number): string {
+  const [y, m] = key.split('-').map(Number)
+  const d = new Date(y, m - 1 + delta, 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** One calendar cell: a blank before the 1st, or a day carrying its chapter count if read. */
+export type CalendarCell = { date: string; day: number; chapters?: number } | null
+
+/** A month's cells for a Monday-first grid, leading blanks included. */
+export function calendarCells(key: string, readDays: Map<string, number>): CalendarCell[] {
+  const [y, m] = key.split('-').map(Number)
+  const blanks = (new Date(y, m - 1, 1).getDay() + 6) % 7
+  const length = new Date(y, m, 0).getDate()
+  const cells: CalendarCell[] = Array(blanks).fill(null)
+  for (let day = 1; day <= length; day++) {
+    const date = `${key}-${String(day).padStart(2, '0')}`
+    cells.push({ date, day, chapters: readDays.get(date) })
+  }
+  return cells
+}

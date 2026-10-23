@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import Skeleton from './Skeleton'
 import { formatChapters, parseLocalDate } from '../lib/historyLogic'
@@ -9,10 +10,10 @@ import type { HistoryDay } from '../lib/historyLogic'
 const dimText = 'rgba(35,31,26,0.7)'
 const rule = '1px solid rgba(182,169,142,0.6)'
 
-export function HistoryDayRow({ day }: { day: HistoryDay }) {
+export function HistoryDayRow({ day, style }: { day: HistoryDay; style?: CSSProperties }) {
   const date = parseLocalDate(day.date)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: rule }}>
+    <div data-day={day.date} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0', borderBottom: rule, ...style }}>
       <div style={{ width: 40, flexShrink: 0, textAlign: 'center' }}>
         <div className="slab" style={{ fontSize: 20, lineHeight: 1 }}>{date.getDate()}</div>
         <div style={{ fontSize: 10, letterSpacing: '0.15em', textTransform: 'uppercase', color: dimText, marginTop: 3 }}>

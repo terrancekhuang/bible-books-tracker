@@ -11,4 +11,7 @@ export const queryKeys = {
   // Same prefix arrangement for /api/rhythm, which groups by the reader's local weekday and hour.
   rhythmAll: () => ['rhythm'] as const,
   rhythm: (tzOffset: number) => ['rhythm', tzOffset] as const,
+  // And for /api/history, which groups by the reader's local day.
+  historyAll: () => ['history'] as const,
+  history: (tzOffset: number) => ['history', tzOffset] as const,
 } as const

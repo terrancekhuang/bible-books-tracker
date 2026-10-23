@@ -5,7 +5,7 @@ no JWT. What's left is the part that was hard to reach before: the local-calenda
 decide a streak, a heatmap cell and a rhythm bucket.
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 
 import reading_history
 
@@ -265,3 +265,53 @@ class TestOverview:
         result = reading_history.overview(user_id, 0)
         assert result['stats'] == reading_history.stats(user_id, 0)
         assert result['activity'] == reading_history.activity(user_id, 0)
+
+
+# ── History ───────────────────────────────────────────────────────────────────
+
+def _noon(y, m, d, hour=12):
+    return datetime(y, m, d, hour, tzinfo=timezone.utc)
+
+
+class TestHistory:
+    def test_groups_by_day_then_book_in_logged_order(self, test_user, seed_chapter):
+        user_id, _ = test_user
+        seed_chapter(_noon(2024, 3, 5, 9), chapter=4, book_id=43)    # John
+        seed_chapter(_noon(2024, 3, 5, 9), chapter=5, book_id=43)
+        seed_chapter(_noon(2024, 3, 5, 10), chapter=23, book_id=19)  # Psalms
+        seed_chapter(_noon(2024, 3, 4), chapter=1, book_id=1)
+
+        page = reading_history.history(user_id, 0)
+
+        assert page == {'next_before': None, 'days': [
+            {'date': '2024-03-05', 'chapters': 3, 'books': [
+                {'book': 'John', 'chapters': [4, 5]},
+                {'book': 'Psalms', 'chapters': [23]},
+            ]},
+            {'date': '2024-03-04', 'chapters': 1, 'books': [{'book': 'Genesis', 'chapters': [1]}]},
+        ]}
+
+    def test_day_follows_tz_offset(self, test_user, seed_chapter):
+        user_id, _ = test_user
+        seed_chapter(_noon(2024, 3, 5, 23), chapter=1)
+
+        assert reading_history.history(user_id, 0)['days'][0]['date'] == '2024-03-05'
+        assert reading_history.history(user_id, 60)['days'][0]['date'] == '2024-03-06'
+
+    def test_pages_in_whole_months_back_to_the_first_chapter(self, test_user, seed_chapter, monkeypatch):
+        user_id, _ = test_user
+        monkeypatch.setattr(reading_history, 'HISTORY_PAGE_DAYS', 2)
+        for i, (m, d) in enumerate([(1, 10), (2, 10), (2, 11), (3, 5)], start=1):
+            seed_chapter(_noon(2024, m, d), chapter=i)
+
+        first = reading_history.history(user_id, 0)
+        # Two days reach into February, so all of February comes along.
+        assert [d['date'] for d in first['days']] == ['2024-03-05', '2024-02-11', '2024-02-10']
+        assert first['next_before'] == '2024-02-01'
+
+        second = reading_history.history(user_id, 0, date.fromisoformat(first['next_before']))
+        assert [d['date'] for d in second['days']] == ['2024-01-10']
+        assert second['next_before'] is None
+
+    def test_a_visitor_has_no_history(self):
+        assert reading_history.history(None, 0) == {'days': [], 'next_before': None}

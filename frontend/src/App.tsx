@@ -6,6 +6,7 @@ import { useKeyChord } from './lib/useKeyChord'
 import { useMediaQuery } from './lib/useMediaQuery'
 import { useTour } from './lib/useTour'
 import Profile from './Profile'
+import History from './History'
 import Tracker from './components/Tracker'
 import Dashboard from './Dashboard'
 import NotFound from './NotFound'
@@ -86,10 +87,11 @@ export default function App() {
         armGChord();
         return;
       }
-      if (!isInput && (e.key === 'h' || e.key === 't' || e.key === 'p') && consumeGChord()) {
+      if (!isInput && (e.key === 'h' || e.key === 't' || e.key === 'p' || e.key === 'y') && consumeGChord()) {
         e.preventDefault();
         if (e.key === 'h') navigate('/');
         else if (e.key === 't') navigate('/tracker');
+        else if (e.key === 'y') navigate('/history');
         else navigate('/profile');
         return;
       }
@@ -104,6 +106,7 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/tracker" element={<Tracker />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/history" element={<History />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <SignInDialog />

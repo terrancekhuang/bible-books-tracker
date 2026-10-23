@@ -576,6 +576,27 @@ class TestDashboard:
         assert resp.status_code in (401, 422)
 
 
+# ── History ───────────────────────────────────────────────────────────────────
+#
+# Grouping and paging are covered in test_reading_history; this is the HTTP edge.
+
+class TestHistory:
+    def test_before_pages_from_a_date(self, client, auth_headers, seed_chapter):
+        seed_chapter(datetime(2024, 3, 5, 12, tzinfo=timezone.utc), chapter=1)
+        seed_chapter(datetime(2024, 1, 5, 12, tzinfo=timezone.utc), chapter=2)
+
+        data = client.get('/api/history?before=2024-02-01', headers=auth_headers).get_json()
+        assert [d['date'] for d in data['days']] == ['2024-01-05']
+
+    def test_rejects_a_malformed_before(self, client, auth_headers):
+        assert client.get('/api/history?before=nope', headers=auth_headers).status_code == 400
+
+    def test_visitor_gets_an_empty_history(self, client):
+        resp = client.get('/api/history')
+        assert resp.status_code == 200
+        assert resp.get_json() == {'days': [], 'next_before': None}
+
+
 # ── Your data ─────────────────────────────────────────────────────────────────
 
 def _sql(query, params=()):

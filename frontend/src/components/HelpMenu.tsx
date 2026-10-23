@@ -115,6 +115,7 @@ export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onC
                 { keys: ['g', 'h'], description: 'Go to Dashboard' },
                 { keys: ['g', 't'], description: 'Go to Tracker' },
                 { keys: ['g', 'p'], description: 'Go to Profile' },
+                { keys: ['g', 'y'], description: 'Go to Reading History' },
                 { keys: null, description: '' },
                 { keys: ['/'], description: 'Focus search' },
                 { keys: ['←', '→'], altKeys: ['h', 'l'], description: 'Switch volume' },

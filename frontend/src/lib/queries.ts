@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
-import { useQuery, queryOptions } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, queryOptions } from '@tanstack/react-query'
 import { useAuth } from './AuthContext'
 import { fetchJson, UnauthorizedError } from './api'
 import { queryKeys } from './queryKeys'
 import type { Book, Stats } from './trackerLogic'
 import type { RhythmData } from './rhythmLogic'
+import type { HistoryPage } from './historyLogic'
 import type { ActivityDay } from '../components/ActivityHeatmap'
 
 /** The nav-bar slice of a user — all `/api/dashboard` embeds, and all NavBar needs. */
@@ -114,5 +115,21 @@ export function useRhythmQuery() {
   return useQuery({
     queryKey: queryKeys.rhythm(tzOffset),
     queryFn: () => getJson<RhythmData>(`/api/rhythm?tz_offset=${tzOffset}`, logout),
+  })
+}
+
+/**
+ * Every logged chapter by local day, a page of whole months at a time. Profile's Recent
+ * Reading reads the first page of the same cache the History page pages through.
+ */
+export function useHistoryQuery() {
+  const { logout } = useAuth()
+  const tzOffset = useTzOffset()
+  return useInfiniteQuery({
+    queryKey: queryKeys.history(tzOffset),
+    queryFn: ({ pageParam }) => getJson<HistoryPage>(
+      `/api/history?tz_offset=${tzOffset}${pageParam ? `&before=${pageParam}` : ''}`, logout),
+    initialPageParam: null as string | null,
+    getNextPageParam: last => last.next_before,
   })
 }

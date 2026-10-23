@@ -6,7 +6,7 @@ hold a cursor, a connection or a transaction — this module opens and releases 
 `tz_offset` is minutes east of UTC (`-getTimezoneOffset()` on the client).
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from db import db_cursor
 
 
@@ -275,6 +275,72 @@ def rhythm(user_id: int, tz_offset: int) -> dict:
     """
     with db_cursor() as (_conn, cur):
         return _rhythm(cur, user_id, tz_offset)
+
+
+# ── History ───────────────────────────────────────────────────────────────────
+
+# A page holds whole local months — never half a month, so a month header's totals are
+# always final — reaching back until it covers at least this many reading days.
+HISTORY_PAGE_DAYS = 30
+
+
+def _history(cur, user_id: int, tz_offset: int, before: date | None) -> dict:
+    params = {'tz': tz_offset, 'user': user_id, 'before': before, 'page': HISTORY_PAGE_DAYS}
+    before_clause = f"(%(before)s::date IS NULL OR {LOCAL_TS}::date < %(before)s::date)"
+
+    # The month holding the page's oldest day. None when fewer days than a page remain,
+    # which also means nothing older is left.
+    cur.execute(f"""
+        SELECT DATE_TRUNC('month', d)::date AS floor FROM (
+            SELECT DISTINCT {LOCAL_TS}::date AS d
+            FROM chapter_progress
+            WHERE user_id = %(user)s AND {before_clause}
+        ) days
+        ORDER BY d DESC OFFSET %(page)s - 1 LIMIT 1
+    """, params)
+    row = cur.fetchone()
+    params['floor'] = row['floor'] if row else None
+
+    cur.execute(f"""
+        SELECT {LOCAL_TS}::date AS day, b.name AS book, COUNT(*) AS chapters,
+               ARRAY_AGG(DISTINCT cp.chapter_number ORDER BY cp.chapter_number) AS chapter_list
+        FROM chapter_progress cp
+        JOIN bible_books b ON b.book_id = cp.book_id
+        WHERE cp.user_id = %(user)s AND {before_clause}
+          AND (%(floor)s::date IS NULL OR {LOCAL_TS}::date >= %(floor)s::date)
+        GROUP BY day, b.name
+        ORDER BY day DESC, MIN(cp.logged_at)
+    """, params)
+
+    days: list[dict] = []
+    for r in cur.fetchall():
+        day = r['day'].isoformat()
+        if not days or days[-1]['date'] != day:
+            days.append({'date': day, 'chapters': 0, 'books': []})
+        days[-1]['chapters'] += int(r['chapters'])
+        days[-1]['books'].append({'book': r['book'], 'chapters': r['chapter_list']})
+
+    next_before = None
+    if params['floor']:
+        cur.execute(f"""
+            SELECT 1 FROM chapter_progress
+            WHERE user_id = %(user)s AND {LOCAL_TS}::date < %(floor)s::date LIMIT 1
+        """, params)
+        if cur.fetchone():
+            next_before = params['floor'].isoformat()
+
+    return {'days': days, 'next_before': next_before}
+
+
+def history(user_id: int, tz_offset: int, before: date | None = None) -> dict:
+    """Every logged chapter, newest local day first, one page of whole months at a time.
+
+    Each day lists its books in the order they were first logged that day, each with its
+    distinct chapters ascending. `chapters` counts rows, like stats and activity do.
+    Pass a page's `next_before` back as `before` for the next one; it's None on the last.
+    """
+    with db_cursor() as (_conn, cur):
+        return _history(cur, user_id, tz_offset, before)
 
 
 # ── Composite ─────────────────────────────────────────────────────────────────

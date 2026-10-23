@@ -8,7 +8,7 @@ import csv
 import io
 import os
 from psycopg2.extras import execute_values
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from config import Config
 from db import db_cursor
 import reading_history
@@ -459,6 +459,17 @@ def create_cycle():
 def get_rhythm():
     user_id = _user_id()
     return jsonify(reading_history.rhythm(user_id, _tz_offset()))
+
+
+@app.route('/api/history', methods=['GET'])
+@jwt_required(optional=True)
+def get_history():
+    before = request.args.get('before')
+    try:
+        before = date.fromisoformat(before) if before else None
+    except ValueError:
+        return jsonify({'error': 'before must be YYYY-MM-DD'}), 400
+    return jsonify(reading_history.history(_user_id(), _tz_offset(), before))
 
 
 @app.route('/api/dashboard', methods=['GET'])

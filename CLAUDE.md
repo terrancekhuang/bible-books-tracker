@@ -182,7 +182,7 @@ Schema is in `backend/src/schema.sql`. It's loaded automatically when the `db` c
 - `POST /auth/guest` — create a guest user (no `google_id`/`email`) and its first cycle; the JWT never expires and carries `guest: true`. Rate-limited per IP in `nginx/bible-tracker.conf` (429 past a burst of 20). Each call also deletes guests over 7 days old that never logged a chapter
 - `GET /auth/me` — return current user (name, email, picture_url)
 
-**Signed-out reads**: `GET /api/books`, `/api/cycles`, `/api/dashboard` and `/api/rhythm` take an
+**Signed-out reads**: `GET /api/books`, `/api/cycles`, `/api/dashboard`, `/api/history` and `/api/rhythm` take an
 optional JWT. With none, `user_id` is `None` and every query matches nothing, so a visitor sees
 the empty state a brand-new user does. Every write still requires a JWT — the frontend's
 `ensureSession()` (`frontend/src/lib/auth.ts`) mints a guest before a visitor's first write.
@@ -207,6 +207,10 @@ answers such a token with a 401 on every protected route, so the frontend's norm
 
 **Settings**:
 - `PUT /api/settings` — body: `{ weekly_goal }` — must be a positive integer
+- `GET /api/history?tz_offset=N&before=YYYY-MM-DD` — every logged chapter across all cycles, newest local
+  day first: `days` (`date`, `chapters`, `books: [{book, chapters}]`) and `next_before`, the cursor for the
+  next page (null on the last). A page is whole months reaching back at least 30 reading days. Profile's
+  Recent Reading and the History page (`/history`) share it
 - `GET /api/rhythm?tz_offset=N` — when the user reads: `by_weekday` (Monday-first, 7 entries), `by_part_of_day` (morning/afternoon/evening/night), `total_chapters` and `distinct_days`, returned for both an `all_time` and a `last_90_days` window in one payload
 
 `tz_offset` is minutes east of UTC (`-getTimezoneOffset()`). Since `logged_at` is `TIMESTAMPTZ`,
@@ -255,5 +259,6 @@ Configured via `VitePWA` in `vite.config.ts`. Workbox uses NetworkFirst for `/ap
 | `g` `h` | Go to Dashboard |
 | `g` `t` | Go to Tracker |
 | `g` `p` | Go to Profile |
+| `g` `y` | Go to Reading History |
 | `Esc` | Deselect / clear search |
 | `?` | Toggle help modal |

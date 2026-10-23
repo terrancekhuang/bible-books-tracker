@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
 import { api } from './lib/api'
-import { useCurrentUserQuery, useCyclesQuery, useDashboardQuery } from './lib/queries'
+import { useCurrentUserQuery, useCyclesQuery, useDashboardQuery, useHistoryQuery } from './lib/queries'
 import { useCreateCycle } from './lib/useCycleMutations'
 import { useUpdateWeeklyGoal } from './lib/useDashboardMutations'
 import { TOTAL_BOOKS, TOTAL_CHAPTERS } from './lib/trackerLogic'
@@ -11,6 +11,7 @@ import { getAchievements } from './lib/achievements'
 import { BookOpenIcon, TrophyIcon, StarIcon, TargetIcon, PencilIcon, UserIcon } from './components/Icons'
 import AchievementMedallion from './components/AchievementMedallion'
 import DashboardEntryRow from './components/DashboardEntryRow'
+import { HistoryDayRow, HistoryEmpty, HistoryError, HistorySkeleton } from './components/HistoryDays'
 import LeafDivider from './components/LeafDivider'
 import LeafSectionLabel from './components/LeafSectionLabel'
 import LeafMarginaliaItem from './components/LeafMarginaliaItem'
@@ -49,6 +50,8 @@ export default function Profile() {
   const stats = dashboard?.stats
   const { save: saveWeeklyGoal } = useUpdateWeeklyGoal()
   const isError = cyclesError || dashboardError
+  const { data: history, isPending: historyPending, refetch: refetchHistory } = useHistoryQuery()
+  const recentDays = history?.pages[0].days.slice(0, 4)
 
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalInput, setGoalInput] = useState('')
@@ -196,6 +199,32 @@ export default function Profile() {
               {projectionNote}
             </p>
           )}
+
+          <LeafDivider />
+
+          {/* Recent reading */}
+          <div style={fadeUp(95)}>
+            <LeafSectionLabel>Recent Reading</LeafSectionLabel>
+            {!recentDays ? (
+              historyPending ? <HistorySkeleton rows={4} /> : <HistoryError onRetry={() => refetchHistory()} />
+            ) : recentDays.length === 0 ? (
+              <HistoryEmpty />
+            ) : (
+              <>
+                {recentDays.map(d => <HistoryDayRow key={d.date} day={d} />)}
+                <Link
+                  to="/history"
+                  className="flex items-center justify-center gap-1.5 text-xs font-semibold uppercase rounded-lg transition-colors"
+                  style={{ minHeight: 44, marginTop: 12, letterSpacing: '0.08em', color: primaryText, border: '1px solid rgba(35,31,26,0.3)' }}
+                >
+                  See full history
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                    <path d="M5 12h14M13 6l6 6-6 6" />
+                  </svg>
+                </Link>
+              </>
+            )}
+          </div>
 
           <LeafDivider />
 

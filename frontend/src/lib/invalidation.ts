@@ -30,6 +30,7 @@ export function invalidateProgressWrite(queryClient: QueryClient): void {
   // already-mounted case: a queue flush on reconnect refreshes the section in place
   // instead of leaving pre-write numbers on screen until the next navigation.
   void queryClient.invalidateQueries({ queryKey: queryKeys.rhythmAll() })
+  void queryClient.invalidateQueries({ queryKey: queryKeys.historyAll() })
 }
 
 /**

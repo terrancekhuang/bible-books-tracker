@@ -33,12 +33,13 @@ export default function History() {
 
   // The title and date pill stick just under the nav bar, so × and the calendar stay in reach.
   // Once stuck, its top edge is pinned 1px inside the observer's inset, so it reads as not fully visible.
+  // Compare with that same 1px of slack: at fractional device pixel ratios (Android) the stuck top lands a hair past nav.
   useLayoutEffect(() => {
     const head = headRef.current!
     const nav = document.querySelector('header')?.offsetHeight ?? 0
     head.style.top = `${nav}px`
     const observer = new IntersectionObserver(
-      ([entry]) => setStuck(entry.intersectionRatio < 1 && entry.boundingClientRect.top <= nav),
+      ([entry]) => setStuck(entry.intersectionRatio < 1 && entry.boundingClientRect.top <= nav + 1),
       { rootMargin: `${-nav - 1}px 0px 0px 0px`, threshold: 1 },
     )
     observer.observe(head)

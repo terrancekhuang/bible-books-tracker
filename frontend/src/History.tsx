@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import NavBar from './components/NavBar'
 import HistoryCalendar from './components/HistoryCalendar'
@@ -11,6 +11,7 @@ import { GILT } from './lib/volumesTokens'
 const dimText = 'rgba(35,31,26,0.7)'
 // How far the window can scroll from a picked day before the selection lets go.
 const CLEAR_DISTANCE = 220
+const leafPad = 'clamp(24px, 4vw, 52px)'
 
 export default function History() {
   const { data: user } = useCurrentUserQuery()
@@ -27,6 +28,22 @@ export default function History() {
   const [fade, setFade] = useState(0)
   const [jump, setJump] = useState(0)
   const dim = 0.3 + 0.7 * fade
+  const headRef = useRef<HTMLDivElement>(null)
+  const [stuck, setStuck] = useState(false)
+
+  // The title and date pill stick just under the nav bar, so × and the calendar stay in reach.
+  // Once stuck, its top edge is pinned 1px inside the observer's inset, so it reads as not fully visible.
+  useLayoutEffect(() => {
+    const head = headRef.current!
+    const nav = document.querySelector('header')?.offsetHeight ?? 0
+    head.style.top = `${nav}px`
+    const observer = new IntersectionObserver(
+      ([entry]) => setStuck(entry.intersectionRatio < 1 && entry.boundingClientRect.top <= nav),
+      { rootMargin: `${-nav - 1}px 0px 0px 0px`, threshold: 1 },
+    )
+    observer.observe(head)
+    return () => observer.disconnect()
+  }, [])
 
   async function pick(date: string) {
     // Pages are whole months, newest first: keep loading until the oldest loaded day reaches the pick.
@@ -39,15 +56,16 @@ export default function History() {
     setJump(j => j + 1)
   }
 
-  // Bring the picked day to just under the sticky nav bar, or as high as the page allows,
+  // Bring the picked day to just under the sticky nav bar and title, or as high as the page allows,
   // then fade the dimming out as the reader scrolls away and clear it at CLEAR_DISTANCE.
   useLayoutEffect(() => {
     if (!sel) return
     const row = document.querySelector(`[data-day="${sel}"]`)
     if (!row) return
-    const nav = document.querySelector('header')?.offsetHeight ?? 0
+    const head = headRef.current!
+    const covered = parseFloat(head.style.top) + head.offsetHeight
     const max = document.documentElement.scrollHeight - window.innerHeight
-    const target = Math.max(0, Math.min(row.getBoundingClientRect().top + window.scrollY - nav - 8, max))
+    const target = Math.max(0, Math.min(row.getBoundingClientRect().top + window.scrollY - covered - 8, max))
     window.scrollTo({ top: target, behavior: 'smooth' })
 
     // While the smooth scroll runs, scroll events are ours; it's settled after 150ms of quiet.
@@ -101,29 +119,39 @@ export default function History() {
           Profile
         </Link>
 
-        <section aria-label="Reading history" style={{ position: 'relative', marginTop: 4, padding: 'clamp(24px, 4vw, 52px)', ...leafSurfaceStyle(GILT) }}>
-          <div className="flex justify-between items-start gap-3">
-            <div>
-              <h1 className="slab" style={{ margin: 0, fontSize: 24 }}>Reading History</h1>
-              {!!stats?.total_chapters && (
-                <p style={{ margin: '6px 0 0', fontSize: 13, color: dimText }}>
-                  {plural(stats.total_chapters, 'chapter')} across {plural(stats.total_days, 'day')}
-                </p>
+        <section aria-label="Reading history" style={{ position: 'relative', marginTop: 4, padding: leafPad, ...leafSurfaceStyle(GILT) }}>
+          <div
+            ref={headRef}
+            style={{
+              position: 'sticky', zIndex: 10, margin: `-16px calc(-1 * ${leafPad}) 0`, padding: `16px ${leafPad} 0`,
+              // Unstuck it shows the leaf through; stuck it needs its own paper to cover the rows.
+              background: stuck ? 'repeating-linear-gradient(0deg, rgba(35,31,26,0.032) 0 1px, transparent 1px 4px), var(--color-leaf)' : 'transparent',
+              boxShadow: stuck ? '0 10px 12px -10px rgba(35,31,26,0.35)' : 'none',
+            }}
+          >
+            <div className="flex justify-between items-start gap-3">
+              <div>
+                <h1 className="slab" style={{ margin: 0, fontSize: 24 }}>Reading History</h1>
+                {!!stats?.total_chapters && (
+                  <p style={{ margin: '6px 0 0', fontSize: 13, color: dimText }}>
+                    {plural(stats.total_chapters, 'chapter')} across {plural(stats.total_days, 'day')}
+                  </p>
+                )}
+              </div>
+              {activity.length > 0 && <HistoryCalendar activity={activity} selected={sel} onPick={pick} />}
+            </div>
+
+            {/* Height is held even when empty, so picking a day never shifts the list under the scroll. */}
+            <div className="flex items-center" style={{ minHeight: 36 }}>
+              {sel && (
+                <span className="inline-flex items-center rounded-full" style={{ gap: 2, paddingLeft: 10, background: 'rgba(210,166,63,0.22)', fontSize: 12, fontWeight: 600 }}>
+                  {parseLocalDate(sel).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  <button type="button" onClick={() => setSel(null)} aria-label="Clear date" className="flex items-center justify-center" style={{ width: 28, height: 28, color: 'var(--color-ink)' }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                  </button>
+                </span>
               )}
             </div>
-            {activity.length > 0 && <HistoryCalendar activity={activity} selected={sel} onPick={pick} />}
-          </div>
-
-          {/* Height is held even when empty, so picking a day never shifts the list under the scroll. */}
-          <div className="flex items-center" style={{ minHeight: 36 }}>
-            {sel && (
-              <span className="inline-flex items-center rounded-full" style={{ gap: 2, paddingLeft: 10, background: 'rgba(210,166,63,0.22)', fontSize: 12, fontWeight: 600 }}>
-                {parseLocalDate(sel).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                <button type="button" onClick={() => setSel(null)} aria-label="Clear date" className="flex items-center justify-center" style={{ width: 28, height: 28, color: 'var(--color-ink)' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
-                </button>
-              </span>
-            )}
           </div>
 
           {!data ? (

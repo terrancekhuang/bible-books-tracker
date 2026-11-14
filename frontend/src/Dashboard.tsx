@@ -16,7 +16,7 @@ import NavBar from './components/NavBar'
 import SignInNudge from './components/SignInNudge'
 import ReadingRhythm from './components/ReadingRhythm'
 import { useTooltip } from './lib/useTooltip'
-import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, nextChapter, type Book } from './lib/trackerLogic'
+import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, nextChapter, percent, type Book } from './lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, GILT } from './lib/volumesTokens'
 import { leafSurfaceStyle } from './lib/leafSurface'
 
@@ -224,8 +224,8 @@ export default function Dashboard() {
                   style={{ ...progressLabelStyle, background: 'transparent', border: 'none', font: 'inherit', padding: 0, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, ...fadeUp(100) }}
                 >
                   {showRemaining
-                    ? `${(TOTAL_CHAPTERS - totalRead).toLocaleString()} of ${TOTAL_CHAPTERS.toLocaleString()} chapters left · ${TOTAL_BOOKS - booksComplete} of ${TOTAL_BOOKS} books left`
-                    : `${totalRead.toLocaleString()} of ${TOTAL_CHAPTERS.toLocaleString()} chapters · ${booksComplete} of ${TOTAL_BOOKS} books complete`}
+                    ? `${(TOTAL_CHAPTERS - totalRead).toLocaleString()} of ${TOTAL_CHAPTERS.toLocaleString()} chapters left · ${TOTAL_BOOKS - booksComplete} of ${TOTAL_BOOKS} books left · ${percent(TOTAL_CHAPTERS - totalRead, TOTAL_CHAPTERS)}% left`
+                    : `${totalRead.toLocaleString()} of ${TOTAL_CHAPTERS.toLocaleString()} chapters · ${booksComplete} of ${TOTAL_BOOKS} books complete · ${percent(totalRead, TOTAL_CHAPTERS)}%`}
                   <span style={{ display: 'inline-flex', opacity: 0.55, transform: showRemaining ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease, opacity 0.15s ease' }}>
                     <SwapIcon size={12} />
                   </span>
@@ -423,7 +423,7 @@ export default function Dashboard() {
               <DashboardEntryRow
                 key={label}
                 label={label}
-                trailing={`${read.toLocaleString()} / ${total.toLocaleString()} · ${total > 0 ? Math.round((read / total) * 100) : 0}%`}
+                trailing={`${read.toLocaleString()} / ${total.toLocaleString()} · ${percent(read, total)}%`}
                 progress={total > 0 ? read / total : 0}
                 ruleColor={TESTAMENT_RULE[label]}
                 onClick={() => navigate('/tracker', { state: { filterTestament: label } })}
@@ -441,7 +441,7 @@ export default function Dashboard() {
                 key={cat}
                 icon={<CategoryIcon category={cat} size={13} />}
                 label={cat}
-                trailing={`${read} / ${total}`}
+                trailing={`${read} / ${total} · ${percent(read, total)}%`}
                 progress={pct}
                 ruleColor={CLOTH[cat]}
                 onClick={() => navigate('/tracker', { state: { filterCategory: cat } })}

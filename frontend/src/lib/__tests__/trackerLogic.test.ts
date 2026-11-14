@@ -6,6 +6,7 @@ import {
   formatChapterList,
   formatChapterRanges,
   calculateProgress,
+  percent,
   filterBooks,
   invalidChaptersMessage,
   chapterExamples,
@@ -363,5 +364,16 @@ describe('nextChapter', () => {
   it('starts an unread book at 1 and finishes at null', () => {
     expect(nextChapter(makeBook({ num_chapters: 3 }))).toBe(1)
     expect(nextChapter(makeBook({ num_chapters: 3, chapters_read_list: [1, 2, 3] }))).toBeNull()
+  })
+})
+
+describe('percent', () => {
+  it('clamps the ends so near-done never reads 100 and barely-started never reads 0', () => {
+    expect(percent(0, 1189)).toBe(0)
+    expect(percent(2, 1189)).toBe(1)
+    expect(percent(1188, 1189)).toBe(99)
+    expect(percent(1189, 1189)).toBe(100)
+    expect(percent(412, 929)).toBe(44)
+    expect(percent(0, 0)).toBe(0)
   })
 })

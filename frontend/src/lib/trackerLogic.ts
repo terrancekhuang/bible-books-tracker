@@ -161,6 +161,13 @@ export function calculateProgress(book: Pick<Book, 'chapters_read' | 'num_chapte
   return Math.round((book.chapters_read / book.num_chapters) * 100)
 }
 
+/** Whole-number percent that never reads 100 before `total` is reached, nor 0 once anything counts. */
+export function percent(part: number, total: number): number {
+  if (total <= 0 || part <= 0) return 0
+  if (part >= total) return 100
+  return Math.min(99, Math.max(1, Math.round((part / total) * 100)))
+}
+
 export function calculateOverallProgress(books: Book[]): { totalRead: number; overallPct: number } {
   const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
   return { totalRead, overallPct: Math.round((totalRead / TOTAL_CHAPTERS) * 100) }

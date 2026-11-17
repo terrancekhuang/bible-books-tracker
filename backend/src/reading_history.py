@@ -151,6 +151,27 @@ def _stats(cur, user_id: int, tz_offset: int) -> dict:
     """, {'tz': tz_offset, 'user': user_id, 'today': local_today})
     streak_row = cur.fetchone()
 
+    # The last 7 days' chapters that moved the active cycle forward: the k-th chapter of a
+    # pass counts only once k beats every earlier pass of that book. A reread of a finished
+    # book counts nothing, so the finish estimate isn't sped up by it.
+    cur.execute("""
+        WITH pass_rows AS (
+            SELECT book_id, pass_number, logged_at,
+                   ROW_NUMBER() OVER (PARTITION BY book_id, pass_number
+                                      ORDER BY logged_at, chapter_number) AS nth
+            FROM chapter_progress
+            WHERE user_id = %(user)s AND cycle_id = (
+                SELECT cycle_id FROM reading_cycles WHERE user_id = %(user)s
+                ORDER BY cycle_number DESC LIMIT 1)
+        )
+        SELECT COUNT(*) AS n FROM pass_rows r
+        WHERE r.logged_at >= %(seven_days_ago)s
+          AND r.nth > COALESCE((SELECT COUNT(*) FROM pass_rows e
+                                WHERE e.book_id = r.book_id AND e.pass_number < r.pass_number
+                                GROUP BY e.pass_number ORDER BY 1 DESC LIMIT 1), 0)
+    """, {'user': user_id, 'seven_days_ago': seven_days_ago})
+    progress_row = cur.fetchone()
+
     return {
         'total_chapters': int(agg['total_chapters']),
         'total_days': int(agg['total_days']),
@@ -159,6 +180,7 @@ def _stats(cur, user_id: int, tz_offset: int) -> dict:
         'chapters_today': int(agg['chapters_today']),
         'chapters_this_week': int(agg['chapters_this_week']),
         'chapters_last_7_days': int(agg['chapters_last_7_days']),
+        'progress_chapters_last_7_days': int(progress_row['n']),
     }
 
 

@@ -77,10 +77,11 @@ export default function Profile() {
     if (!saved) setGoalError("Couldn't save your goal — please try again.")
   }
 
-  const avgPerDay = stats ? +(stats.chapters_last_7_days / 7).toFixed(1) : 0
-  const paceCardValue = avgPerDay > 0 ? `${avgPerDay} ch/day` : 'No recent activity'
+  // Pace is progress pace: rereads don't bring the end of the cycle closer, so they don't count.
+  const progressPerDay = (stats?.progress_chapters_last_7_days ?? stats?.chapters_last_7_days ?? 0) / 7
+  const paceCardValue = progressPerDay > 0 ? `${+progressPerDay.toFixed(1)} ch/day` : 'No new chapters this week'
   const chaptersRemaining = currentCycle ? TOTAL_CHAPTERS - currentCycle.chapters_read : 0
-  const projectedDays = avgPerDay > 0 ? Math.round(chaptersRemaining / avgPerDay) : null
+  const projectedDays = progressPerDay > 0 ? Math.round(chaptersRemaining / progressPerDay) : null
   const projectionNote = projectedDays !== null
     ? projectedDays < 14 ? `~${projectedDays} days to finish` : `~${Math.round(projectedDays / 7)} weeks to finish`
     : null

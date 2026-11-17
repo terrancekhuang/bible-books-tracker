@@ -92,6 +92,7 @@ export default function Profile() {
   // the new empty cycle rather than the one that was just finished.
   const [dataError, setDataError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState('')
   const handleExport = async () => {
     setDataError(null)
     const ok = await api.account.exportCsv().catch(() => false)
@@ -394,7 +395,7 @@ export default function Profile() {
                   </button>
                   {!isGuest && (
                     <button
-                      onClick={() => { setDataError(null); deleteDialogRef.current?.showModal() }}
+                      onClick={() => { setDataError(null); setDeleteConfirm(''); deleteDialogRef.current?.showModal() }}
                       className="text-xs font-semibold uppercase px-4 py-2 rounded-lg transition-colors"
                       style={{ letterSpacing: '0.08em', color: 'var(--color-leaf-red)', border: '1px solid rgba(158,42,34,0.35)' }}
                     >
@@ -467,6 +468,17 @@ export default function Profile() {
             This permanently deletes your account and every chapter you've logged, in every cycle. It can't be undone.
             Download your reading first if you want to keep a copy.
           </p>
+          <label className="block text-sm pb-4" style={{ color: bodyText }}>
+            Type <strong>delete my account</strong> to confirm.
+            <input
+              value={deleteConfirm}
+              onChange={e => setDeleteConfirm(e.target.value)}
+              autoComplete="off"
+              spellCheck={false}
+              className="mt-2 w-full px-3 py-2 rounded-lg text-sm bg-transparent"
+              style={{ border: '1px solid rgba(35,31,26,0.25)', color: primaryText }}
+            />
+          </label>
           <div className="flex justify-end gap-2">
             <button
               className="px-4 py-2 rounded-xl text-sm font-medium transition-colors"
@@ -484,7 +496,7 @@ export default function Profile() {
                 letterSpacing: '0.05em',
               }}
               onClick={handleDeleteAccount}
-              disabled={deleting}
+              disabled={deleting || deleteConfirm !== 'delete my account'}
             >
               {deleting ? 'Deleting…' : 'Delete account'}
             </button>

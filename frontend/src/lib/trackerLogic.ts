@@ -23,9 +23,9 @@ export function bestRead(book: Pick<Book, 'chapters_read' | 'best_read'>): numbe
   return Math.max(book.best_read ?? 0, book.chapters_read)
 }
 
-/** "pass 2" from the second read on; nothing for a first read. */
+/** "Pass 2" from the second read on; nothing for a first read. */
 export function passLabel(pass: number | undefined): string | null {
-  return pass && pass > 1 ? `pass ${pass}` : null
+  return pass && pass > 1 ? `Pass ${pass}` : null
 }
 
 /** The `stats` object nested inside `/api/dashboard`. */

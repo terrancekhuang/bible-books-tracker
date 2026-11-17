@@ -190,6 +190,7 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
   const undoTooltip = useTooltip(<ShortcutHint action="Undo" keys={['U']} />)
   const resetTooltip = useTooltip(<ShortcutHint action="Reset" keys={['R']} />)
   const markAllTooltip = useTooltip(<ShortcutHint action="Mark all as read" keys={['A']} />)
+  const passTooltip = useTooltip(`Read-through ${book.pass_number} of ${book.name} this cycle. Reset started it over; earlier reads still count in your history and stats.`)
 
   return (
     <div className="flex flex-wrap gap-2" style={{ marginTop: 18 }}>
@@ -228,13 +229,19 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
         </button>
       )}
       {passLabel(book.pass_number) && (
-        <span className="vol-num" style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11, fontStyle: 'italic', color: 'rgba(35,31,26,0.55)' }}>
+        <span
+          className="vol-num"
+          onMouseEnter={passTooltip.onMouseEnter}
+          onMouseLeave={passTooltip.onMouseLeave}
+          style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11, fontStyle: 'italic', color: 'rgba(35,31,26,0.55)', cursor: 'help' }}
+        >
           {passLabel(book.pass_number)}
         </span>
       )}
       {undoTooltip.tooltip}
       {resetTooltip.tooltip}
       {markAllTooltip.tooltip}
+      {passTooltip.tooltip}
     </div>
   )
 }

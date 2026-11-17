@@ -444,17 +444,13 @@ def reset_progress():
 
             # Starts the book over on a new pass. Nothing is deleted: the old pass stays in
             # history, streaks and stats. An empty pass has nothing to start over from.
-            pass_number = current_pass(cur, cycle_id, book_id)
-            cur.execute("""
-                SELECT 1 FROM chapter_progress
-                WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND pass_number = %s LIMIT 1
-            """, (user_id, cycle_id, book_id, pass_number))
-            if not cur.fetchone():
+            before = get_book_chapters(cur, user_id, cycle_id, book_id)
+            if not before['chapters_read']:
                 return jsonify({'success': False, 'error': 'Nothing to reset'}), 400
             cur.execute("""
                 INSERT INTO book_passes (cycle_id, book_id, current_pass) VALUES (%s, %s, %s)
                 ON CONFLICT (cycle_id, book_id) DO UPDATE SET current_pass = EXCLUDED.current_pass
-            """, (cycle_id, book_id, pass_number + 1))
+            """, (cycle_id, book_id, before['pass_number'] + 1))
 
             result = get_book_chapters(cur, user_id, cycle_id, book_id)
             conn.commit()

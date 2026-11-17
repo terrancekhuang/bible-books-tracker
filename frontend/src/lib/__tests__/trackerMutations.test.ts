@@ -109,7 +109,7 @@ describe('submit', () => {
 
     vi.stubGlobal('fetch', vi.fn())
     await options.onSuccess(
-      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0, last_entry: [1, 2], pass_number: 1, best_read: 2 },
+      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0, last_entry: [1, 2] },
       vars,
       context,
     )
@@ -191,7 +191,7 @@ describe('submit', () => {
 
     vi.stubGlobal('fetch', vi.fn())
     await options.onSuccess(
-      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0, last_entry: [1, 2], pass_number: 1, best_read: 2 },
+      { status: 'confirmed', chapters_read: 2, chapters_read_list: [1, 2], newly_logged: 0, last_entry: [1, 2] },
       vars,
       context,
     )

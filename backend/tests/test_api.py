@@ -160,8 +160,8 @@ class TestGuestSignIn:
             data = self._sign_in(client, 'guest_merge_pass_gid', headers).get_json()
             assert data['chapters_added'] == 3
             assert self._chapters(client, data['access_token'], 'Ruth') == [1]  # the guest's pass 2
-            undone = client.post('/api/progress/undo', json={'book_name': 'Ruth'},
-                                 headers={'Authorization': f"Bearer {data['access_token']}"}).get_json()
+            client.post('/api/progress/undo', json={'book_name': 'Ruth'},
+                        headers={'Authorization': f"Bearer {data['access_token']}"})
             undone = client.post('/api/progress/undo', json={'book_name': 'Ruth'},
                                  headers={'Authorization': f"Bearer {data['access_token']}"}).get_json()
             assert (undone['chapters_read_list'], undone['pass_number']) == ([1, 2, 3], 1)

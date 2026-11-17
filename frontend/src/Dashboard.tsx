@@ -16,7 +16,7 @@ import NavBar from './components/NavBar'
 import SignInNudge from './components/SignInNudge'
 import ReadingRhythm from './components/ReadingRhythm'
 import { useTooltip } from './lib/useTooltip'
-import { TOTAL_CHAPTERS, TOTAL_BOOKS, bestRead, calculateOverallProgress, calculateProgress, nextChapter, passLabel, percent, type Book } from './lib/trackerLogic'
+import { TOTAL_CHAPTERS, TOTAL_BOOKS, bestRead, calculateOverallProgress, calculateProgress, nextChapter, percent, type Book } from './lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, GILT } from './lib/volumesTokens'
 import { leafSurfaceStyle } from './lib/leafSurface'
 
@@ -362,7 +362,7 @@ export default function Dashboard() {
                     >
                       <DashboardEntryRow
                         label={book.name}
-                        detail={[next === null ? 'Complete' : `Ch. ${next}`, passLabel(book.pass_number)].filter(Boolean).join(' · ')}
+                        detail={next === null ? 'Complete' : `Ch. ${next}`}
                         trailing={`${book.chapters_read} / ${book.num_chapters}`}
                         progress={calculateProgress(book) / 100}
                         ruleColor={next === null ? GILT : CLOTH[book.category]}

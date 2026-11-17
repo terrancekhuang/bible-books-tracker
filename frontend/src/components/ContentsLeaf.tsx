@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { CLOTH, GILT } from '../lib/volumesTokens'
 import { leafSurfaceStyle } from '../lib/leafSurface'
-import { nextChapter, passLabel, type Book } from '../lib/trackerLogic'
+import { nextChapter, type Book } from '../lib/trackerLogic'
 import MarkReadButton from './MarkReadButton'
 
 interface ContentsLeafProps {
@@ -94,11 +94,6 @@ export default function ContentsLeaf({
                     >
                       {b.name}
                     </span>
-                    {passLabel(b.pass_number) && (
-                      <span className="vol-num" style={{ fontSize: 12, fontStyle: 'italic', color: 'rgba(35,31,26,0.6)', whiteSpace: 'nowrap' }}>
-                        {passLabel(b.pass_number)}
-                      </span>
-                    )}
                     {next !== null && (
                       <span className="vol-num" style={{ fontSize: 14, color: 'rgba(35,31,26,0.6)', whiteSpace: 'nowrap' }}>
                         Ch. {next}

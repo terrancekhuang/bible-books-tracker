@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react'
-import { chapterExamples, formatChapterRanges, type Book } from '../lib/trackerLogic'
+import { chapterExamples, formatChapterRanges, passLabel, type Book } from '../lib/trackerLogic'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import { useTooltip } from '../lib/useTooltip'
 import ShortcutHint from './ShortcutHint'
@@ -226,6 +226,11 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
         >
           Mark all as read
         </button>
+      )}
+      {passLabel(book.pass_number) && (
+        <span className="vol-num" style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11, fontStyle: 'italic', color: 'rgba(35,31,26,0.55)' }}>
+          {passLabel(book.pass_number)}
+        </span>
       )}
       {undoTooltip.tooltip}
       {resetTooltip.tooltip}

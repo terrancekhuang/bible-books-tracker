@@ -16,7 +16,7 @@ import NavBar from './components/NavBar'
 import SignInNudge from './components/SignInNudge'
 import ReadingRhythm from './components/ReadingRhythm'
 import { useTooltip } from './lib/useTooltip'
-import { TOTAL_CHAPTERS, TOTAL_BOOKS, calculateOverallProgress, calculateProgress, nextChapter, percent, type Book } from './lib/trackerLogic'
+import { TOTAL_CHAPTERS, TOTAL_BOOKS, bestRead, calculateOverallProgress, calculateProgress, nextChapter, passLabel, percent, type Book } from './lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, GILT } from './lib/volumesTokens'
 import { leafSurfaceStyle } from './lib/leafSurface'
 
@@ -119,7 +119,7 @@ export default function Dashboard() {
   const weeklyGoal = dashboard?.weekly_goal ?? 7
 
   const { totalRead } = useMemo(() => calculateOverallProgress(books), [books])
-  const booksComplete = useMemo(() => books.filter(b => b.chapters_read >= b.num_chapters).length, [books])
+  const booksComplete = useMemo(() => books.filter(b => bestRead(b) >= b.num_chapters).length, [books])
   const hasAnyProgress = !isInitialLoading && totalRead > 0
 
   const startEditingGoal = () => { setGoalInput(String(weeklyGoal)); setGoalError(null); setEditingGoal(true) }
@@ -157,14 +157,14 @@ export default function Dashboard() {
     if (!(await markNext(book))) { window.clearTimeout(timer); leave() }
   }
 
-  const otRead = useMemo(() => books.filter(b => b.testament === 'Old Testament').reduce((s, b) => s + b.chapters_read, 0), [books])
-  const ntRead = useMemo(() => books.filter(b => b.testament === 'New Testament').reduce((s, b) => s + b.chapters_read, 0), [books])
+  const otRead = useMemo(() => books.filter(b => b.testament === 'Old Testament').reduce((s, b) => s + bestRead(b), 0), [books])
+  const ntRead = useMemo(() => books.filter(b => b.testament === 'New Testament').reduce((s, b) => s + bestRead(b), 0), [books])
   const otTotal = useMemo(() => sumChapters(books.filter(b => b.testament === 'Old Testament')), [books])
   const ntTotal = useMemo(() => sumChapters(books.filter(b => b.testament === 'New Testament')), [books])
 
   const categoryProgress = useMemo(() => CATEGORY_ORDER.map(cat => {
     const booksInCategory = books.filter(b => b.category === cat)
-    const catRead = booksInCategory.reduce((s, b) => s + b.chapters_read, 0)
+    const catRead = booksInCategory.reduce((s, b) => s + bestRead(b), 0)
     const total = sumChapters(booksInCategory)
     return { cat, read: catRead, total, pct: total > 0 ? catRead / total : 0 }
   }), [books])
@@ -362,7 +362,7 @@ export default function Dashboard() {
                     >
                       <DashboardEntryRow
                         label={book.name}
-                        detail={next === null ? 'Complete' : `Ch. ${next}`}
+                        detail={[next === null ? 'Complete' : `Ch. ${next}`, passLabel(book.pass_number)].filter(Boolean).join(' · ')}
                         trailing={`${book.chapters_read} / ${book.num_chapters}`}
                         progress={calculateProgress(book) / 100}
                         ruleColor={next === null ? GILT : CLOTH[book.category]}

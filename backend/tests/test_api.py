@@ -148,6 +148,26 @@ class TestGuestSignIn:
         finally:
             self._delete('guest_merge_gid', guest_id)
 
+    def test_merge_stacks_the_guests_passes_after_the_accounts(self, client):
+        account = self._sign_in(client, 'guest_merge_pass_gid').get_json()
+        account_headers = {'Authorization': f"Bearer {account['access_token']}"}
+        guest_id, headers = self._guest_with(client, 'Ruth', [1, 2])
+        try:
+            client.post('/api/progress', json={'book_name': 'Ruth', 'chapters': [3]}, headers=account_headers)
+            client.post('/api/progress/reset', json={'book_name': 'Ruth'}, headers=headers)
+            client.post('/api/progress', json={'book_name': 'Ruth', 'chapters': [1]}, headers=headers)
+
+            data = self._sign_in(client, 'guest_merge_pass_gid', headers).get_json()
+            assert data['chapters_added'] == 3
+            assert self._chapters(client, data['access_token'], 'Ruth') == [1]  # the guest's pass 2
+            undone = client.post('/api/progress/undo', json={'book_name': 'Ruth'},
+                                 headers={'Authorization': f"Bearer {data['access_token']}"}).get_json()
+            undone = client.post('/api/progress/undo', json={'book_name': 'Ruth'},
+                                 headers={'Authorization': f"Bearer {data['access_token']}"}).get_json()
+            assert (undone['chapters_read_list'], undone['pass_number']) == ([1, 2, 3], 1)
+        finally:
+            self._delete('guest_merge_pass_gid', guest_id)
+
     def test_signed_in_token_is_not_treated_as_a_guest(self, client, auth_headers, test_user):
         data = self._sign_in(client, 'not_a_guest_gid', auth_headers).get_json()
         try:
@@ -323,6 +343,50 @@ class TestUndoProgress:
 
     def test_requires_auth(self, client):
         assert client.post('/api/progress/undo', json={'book_name': 'Genesis'}).status_code == 401
+
+
+class TestResetProgress:
+    """Reset starts a book over on a new pass; nothing logged is ever deleted."""
+
+    def _post(self, client, auth_headers, path, **body):
+        return client.post(path, headers=auth_headers, json={'book_name': 'Ruth', **body})
+
+    def _ruth(self, client, auth_headers):
+        books = client.get('/api/books', headers=auth_headers).get_json()
+        return next(b for b in books if b['name'] == 'Ruth')
+
+    def test_reread_keeps_the_first_read_and_counts_the_best_pass(self, client, auth_headers):
+        self._post(client, auth_headers, '/api/progress', chapters=[1, 2, 3, 4])
+        reset = self._post(client, auth_headers, '/api/progress/reset').get_json()
+        assert reset['success'] is True
+        assert (reset['chapters_read'], reset['pass_number'], reset['best_read']) == (0, 2, 4)
+
+        logged = self._post(client, auth_headers, '/api/progress', chapters=[1, 2]).get_json()
+        assert logged['newly_logged'] == 2  # same chapters, new pass: they count again
+        ruth = self._ruth(client, auth_headers)
+        assert (ruth['chapters_read_list'], ruth['pass_number'], ruth['best_read']) == ([1, 2], 2, 4)
+
+        stats = client.get('/api/dashboard', headers=auth_headers).get_json()['stats']
+        assert stats['total_chapters'] == 6
+        cycle = next(c for c in client.get('/api/cycles', headers=auth_headers).get_json()
+                     if c['cycle_number'] == 1)
+        assert (cycle['chapters_read'], cycle['books_complete']) == (4, 1)
+
+        csv = client.get('/api/export', headers=auth_headers).get_data(as_text=True)
+        assert sorted(line.split(',')[1] for line in csv.strip().splitlines()[1:]) == ['1'] * 4 + ['2'] * 2
+
+    def test_undo_on_an_empty_pass_undoes_the_reset(self, client, auth_headers):
+        self._post(client, auth_headers, '/api/progress', chapters=[1, 2])
+        self._post(client, auth_headers, '/api/progress/reset')
+        undone = self._post(client, auth_headers, '/api/progress/undo').get_json()
+        assert (undone['chapters_read_list'], undone['pass_number']) == ([1, 2], 1)
+
+    def test_resetting_an_empty_pass_is_a_noop(self, client, auth_headers):
+        assert self._post(client, auth_headers, '/api/progress/reset').status_code == 400
+        self._post(client, auth_headers, '/api/progress', chapters=[1])
+        self._post(client, auth_headers, '/api/progress/reset')
+        assert self._post(client, auth_headers, '/api/progress/reset').status_code == 400
+        assert self._ruth(client, auth_headers)['pass_number'] == 2
 
 
 # ── Cycles ────────────────────────────────────────────────────────────────────
@@ -619,8 +683,8 @@ class TestExport:
         assert resp.mimetype == 'text/csv'
         assert 'attachment' in resp.headers['Content-Disposition']
         lines = resp.get_data(as_text=True).strip().splitlines()
-        assert lines[0] == 'cycle,book,chapter,logged_at'
-        assert [line.split(',')[:3] for line in lines[1:]] == [['1', 'Genesis', '3'], ['1', 'Exodus', '1']]
+        assert lines[0] == 'cycle,pass,book,chapter,logged_at'
+        assert [line.split(',')[:4] for line in lines[1:]] == [['1', '1', 'Genesis', '3'], ['1', '1', 'Exodus', '1']]
 
     def test_requires_auth(self, client):
         assert client.get('/api/export').status_code == 401

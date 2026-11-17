@@ -107,9 +107,35 @@ CREATE TABLE IF NOT EXISTS chapter_progress (
   user_id        INTEGER REFERENCES users(user_id) ON DELETE CASCADE,
   cycle_id       INTEGER REFERENCES reading_cycles(cycle_id) ON DELETE CASCADE,
   book_id        INTEGER REFERENCES bible_books(book_id) ON DELETE CASCADE,
+  pass_number    INTEGER NOT NULL DEFAULT 1,
   chapter_number INTEGER NOT NULL,
   logged_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, cycle_id, book_id, chapter_number)
+  PRIMARY KEY (user_id, cycle_id, book_id, pass_number, chapter_number)
+);
+
+-- A book can be read more than once in a cycle: Reset starts a new pass instead of
+-- deleting. Existing rows become pass 1; the key widens to take the pass in.
+ALTER TABLE chapter_progress ADD COLUMN IF NOT EXISTS pass_number INTEGER NOT NULL DEFAULT 1;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.key_column_usage
+    WHERE table_name = 'chapter_progress' AND constraint_name = 'chapter_progress_pkey'
+      AND column_name = 'pass_number'
+  ) THEN
+    ALTER TABLE chapter_progress
+      DROP CONSTRAINT chapter_progress_pkey,
+      ADD PRIMARY KEY (user_id, cycle_id, book_id, pass_number, chapter_number);
+  END IF;
+END $$;
+
+-- The pass a book is on. Its own table because a pass that was just started has no rows
+-- yet. No row means pass 1.
+CREATE TABLE IF NOT EXISTS book_passes (
+  cycle_id     INTEGER REFERENCES reading_cycles(cycle_id) ON DELETE CASCADE,
+  book_id      INTEGER REFERENCES bible_books(book_id) ON DELETE CASCADE,
+  current_pass INTEGER NOT NULL,
+  PRIMARY KEY (cycle_id, book_id)
 );
 
 -- Migrate existing chapter_progress.logged_at from TIMESTAMP to TIMESTAMPTZ

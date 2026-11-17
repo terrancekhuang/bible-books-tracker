@@ -2,7 +2,8 @@
 export interface HistoryDay {
   date: string
   chapters: number
-  books: { book: string; chapters: number[] }[]
+  /** `pass` is which read of the book in its cycle, 1 for the first. */
+  books: { book: string; chapters: number[]; pass?: number }[]
 }
 
 export interface HistoryPage {

@@ -35,7 +35,7 @@ interface SubmitVars {
  * 401 has already logged the user out.
  */
 type SubmitResult =
-  | { status: 'confirmed'; chapters_read: number; chapters_read_list: number[]; newly_logged: number; last_entry: number[] }
+  | { status: 'confirmed'; chapters_read: number; chapters_read_list: number[]; newly_logged: number; last_entry: number[]; pass_number: number; best_read: number }
   | { status: 'queued' }
   | { status: 'auth-failed' }
 
@@ -61,6 +61,8 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
           chapters_read_list: data.chapters_read_list,
           newly_logged: data.newly_logged,
           last_entry: data.last_entry,
+          pass_number: data.pass_number,
+          best_read: data.best_read,
         }
       } catch (e) {
         // Offline or a network-level failure — hand the write to the offline queue
@@ -115,6 +117,8 @@ export function createSubmitMutationOptions(deps: MutationDeps) {
         chapters_read_list: result.chapters_read_list,
         last_read_at: new Date().toISOString(),
         last_entry: result.last_entry,
+        pass_number: result.pass_number,
+        best_read: result.best_read,
       }
       setBook(deps, book.name, confirmed)
       if (result.newly_logged > 0 || (context?.newlyLoggedOptimistic ?? 0) > 0) {
@@ -133,6 +137,8 @@ interface ActionResult {
   chapters_read: number
   chapters_read_list: number[]
   last_entry: number[]
+  pass_number: number
+  best_read: number
 }
 
 /**
@@ -163,6 +169,8 @@ function createBookActionMutationOptions(
         chapters_read: data.chapters_read,
         chapters_read_list: data.chapters_read_list,
         last_entry: data.last_entry,
+        pass_number: data.pass_number,
+        best_read: data.best_read,
       })
       invalidateProgressWrite(deps.queryClient)
     },

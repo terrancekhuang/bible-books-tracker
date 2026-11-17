@@ -46,13 +46,15 @@ export default function TrackerEntryLine({
   const chapters = (n: number) => `${n} chapter${n === 1 ? '' : 's'}`
   const CONFIRM: Record<BookAction, { question: ReactNode; label: string; hotkey: string; tint: string }> = {
     undo: {
-      question: book.last_entry?.length
-        ? <>Undo logging <strong>{book.name} {formatChapterRanges(book.last_entry)}</strong>?</>
-        : <>Undo the last entry logged for {book.name}?</>,
+      question: read === 0
+        ? <>Undo the reset and go back to <strong>pass {(book.pass_number ?? 2) - 1}</strong> of {book.name}?</>
+        : book.last_entry?.length
+          ? <>Undo logging <strong>{book.name} {formatChapterRanges(book.last_entry)}</strong>?</>
+          : <>Undo the last entry logged for {book.name}?</>,
       label: 'Undo', hotkey: 'U', tint: 'var(--color-leaf-red)',
     },
     reset: {
-      question: <>Clear <strong>all {chapters(read)}</strong> read in {book.name}?</>,
+      question: <>Start {book.name} over on <strong>pass {(book.pass_number ?? 1) + 1}</strong>? The {chapters(read)} you've read stay in your history.</>,
       label: 'Reset', hotkey: 'R', tint: 'var(--color-leaf-red)',
     },
     markall: {
@@ -191,8 +193,7 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
 
   return (
     <div className="flex flex-wrap gap-2" style={{ marginTop: 18 }}>
-      {book.chapters_read > 0 && (
-        <>
+      {(book.chapters_read > 0 || (book.pass_number ?? 1) > 1) && (
           <button
             onClick={() => onAction('undo')}
             onMouseEnter={undoTooltip.onMouseEnter}
@@ -203,6 +204,8 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
           >
             Undo
           </button>
+      )}
+      {book.chapters_read > 0 && (
           <button
             onClick={() => onAction('reset')}
             onMouseEnter={resetTooltip.onMouseEnter}
@@ -212,7 +215,6 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
           >
             Reset
           </button>
-        </>
       )}
       {book.chapters_read < book.num_chapters && (
         <button

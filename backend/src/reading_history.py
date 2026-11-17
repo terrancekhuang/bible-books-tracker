@@ -302,13 +302,13 @@ def _history(cur, user_id: int, tz_offset: int, before: date | None) -> dict:
     params['floor'] = row['floor'] if row else None
 
     cur.execute(f"""
-        SELECT {LOCAL_TS}::date AS day, b.name AS book, COUNT(*) AS chapters,
+        SELECT {LOCAL_TS}::date AS day, b.name AS book, cp.pass_number, COUNT(*) AS chapters,
                ARRAY_AGG(DISTINCT cp.chapter_number ORDER BY cp.chapter_number) AS chapter_list
         FROM chapter_progress cp
         JOIN bible_books b ON b.book_id = cp.book_id
         WHERE cp.user_id = %(user)s AND {before_clause}
           AND (%(floor)s::date IS NULL OR {LOCAL_TS}::date >= %(floor)s::date)
-        GROUP BY day, b.name
+        GROUP BY day, b.name, cp.pass_number
         ORDER BY day DESC, MIN(cp.logged_at)
     """, params)
 
@@ -318,7 +318,8 @@ def _history(cur, user_id: int, tz_offset: int, before: date | None) -> dict:
         if not days or days[-1]['date'] != day:
             days.append({'date': day, 'chapters': 0, 'books': []})
         days[-1]['chapters'] += int(r['chapters'])
-        days[-1]['books'].append({'book': r['book'], 'chapters': r['chapter_list']})
+        days[-1]['books'].append({'book': r['book'], 'chapters': r['chapter_list'],
+                                  'pass': r['pass_number']})
 
     next_before = None
     if params['floor']:
@@ -336,7 +337,8 @@ def history(user_id: int, tz_offset: int, before: date | None = None) -> dict:
     """Every logged chapter, newest local day first, one page of whole months at a time.
 
     Each day lists its books in the order they were first logged that day, each with its
-    distinct chapters ascending. `chapters` counts rows, like stats and activity do.
+    distinct chapters ascending and the pass they were read in — a book read twice in a
+    day (reset in between) appears once per pass. `chapters` counts rows, like stats and activity do.
     Pass a page's `next_before` back as `before` for the next one; it's None on the last.
     """
     with db_cursor() as (_conn, cur):

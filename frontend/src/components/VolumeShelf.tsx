@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { CATEGORY_ORDER, CLOTH, ROMAN, GILT, PAPER_EDGE } from '../lib/volumesTokens'
-import type { Book } from '../lib/trackerLogic'
+import { bestRead, type Book } from '../lib/trackerLogic'
 import { useTooltip } from '../lib/useTooltip'
 
 interface Volume {
@@ -125,7 +125,7 @@ interface VolumeShelfProps {
 export default function VolumeShelf({ books, liftedCategory, flattened, testament, onSelectCategory }: VolumeShelfProps) {
   const volumes: Volume[] = useMemo(() => CATEGORY_ORDER.map(category => {
     const inCat = books.filter(b => b.category === category)
-    const read = inCat.reduce((s, b) => s + b.chapters_read, 0)
+    const read = inCat.reduce((s, b) => s + bestRead(b), 0)
     const total = inCat.reduce((s, b) => s + b.num_chapters, 0)
     return { category, books: inCat, read, total, pct: total ? Math.round((read / total) * 100) : 0 }
   }), [books])

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Skeleton from './Skeleton'
 import { formatChapters, parseLocalDate } from '../lib/historyLogic'
 import type { HistoryDay } from '../lib/historyLogic'
+import { passLabel } from '../lib/trackerLogic'
 
 // The pieces Profile's Recent Reading and the History page share: one day's row, and the
 // loading, empty and error states each shows in that row's place.
@@ -23,10 +24,11 @@ export function HistoryDayRow({ day, style }: { day: HistoryDay; style?: CSSProp
       <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {day.books.map(b => (
           <span
-            key={b.book}
+            key={`${b.book}-${b.pass ?? 1}`}
             style={{ padding: '3px 8px', borderRadius: 4, background: 'rgba(35,31,26,0.07)', fontSize: 13, fontWeight: 600 }}
           >
             {b.book} {formatChapters(b.chapters)}
+            {passLabel(b.pass) && <span style={{ fontWeight: 400, fontStyle: 'italic', color: dimText }}> · {passLabel(b.pass)}</span>}
           </span>
         ))}
       </div>

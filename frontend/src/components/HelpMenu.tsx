@@ -125,7 +125,7 @@ export default function HelpMenu({ isMobile, showShortcuts, onOpenShortcuts, onC
                 { keys: ['n'], description: 'Mark next chapter as read' },
                 { keys: ['A'], description: 'Mark all chapters as read (two-step)' },
                 { keys: ['U'], description: 'Undo last entry (two-step)' },
-                { keys: ['R'], description: 'Reset all progress (two-step)' },
+                { keys: ['R'], description: 'Start the book over, keeping history (two-step)' },
                 { keys: ['Esc'], description: 'Deselect / clear search' },
                 { keys: ['?'], description: 'Show / hide this help' },
               ] as { keys: string[] | null; altKeys?: string[]; description: string }[]).map(({ keys, altKeys, description }, i) => (

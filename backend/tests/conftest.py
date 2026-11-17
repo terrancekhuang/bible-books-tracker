@@ -77,6 +77,8 @@ def _clean_test_user_state(test_user):
     conn = _raw_conn()
     cur = conn.cursor()
     cur.execute("DELETE FROM chapter_progress WHERE user_id = %s", (user_id,))
+    cur.execute("""DELETE FROM book_passes WHERE cycle_id IN
+                   (SELECT cycle_id FROM reading_cycles WHERE user_id = %s)""", (user_id,))
     cur.execute("DELETE FROM reading_cycles WHERE user_id = %s AND cycle_number > 1", (user_id,))
     conn.commit()
     cur.close()
@@ -106,8 +108,8 @@ def seed_chapter(test_user):
     cycle_id = cur.fetchone()[0]
 
     def seed(when, chapter=1, book_id=1):
-        # The primary key is (user_id, cycle_id, book_id, chapter_number), so callers
-        # vary `chapter` to log more than one row.
+        # The primary key is (user_id, cycle_id, book_id, pass_number, chapter_number),
+        # so callers vary `chapter` to log more than one row.
         cur.execute("""
             INSERT INTO chapter_progress
                 (user_id, cycle_id, book_id, chapter_number, logged_at)

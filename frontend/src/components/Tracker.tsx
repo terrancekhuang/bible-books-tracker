@@ -4,6 +4,7 @@ import { useBooksQuery, useCurrentUserQuery } from '../lib/queries'
 import { useMarkNext, useTrackerMutations } from '../lib/useTrackerMutations'
 import { useConfirm } from '../lib/useConfirm'
 import {
+  bestRead,
   parseChapters, splitAlreadyRead, formatChapterList, filterBooks, invalidChaptersMessage,
 } from '../lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, ROMAN } from '../lib/volumesTokens'
@@ -185,7 +186,9 @@ export default function Tracker() {
   const handleBookAction = async (action: BookAction) => {
     if (!selectedBook) return;
     // Nothing to undo or clear on an unread book, nothing left to mark on a finished one.
-    if (action === 'markall' ? selectedBook.chapters_read >= selectedBook.num_chapters : selectedBook.chapters_read === 0) return;
+    // Undo on an empty later pass undoes the Reset that opened it.
+    if (action === 'markall' ? selectedBook.chapters_read >= selectedBook.num_chapters
+      : selectedBook.chapters_read === 0 && !(action === 'undo' && (selectedBook.pass_number ?? 1) > 1)) return;
     if (action === 'undo' && !isOnline) return;
     if (!confirm.confirmOrArm(action)) return;
     if (action === 'undo') await undo(selectedBook);
@@ -267,7 +270,7 @@ export default function Tracker() {
     if (visibleBooks.length === 0) {
       return flattened ? `No books match — try a different search or status` : '';
     }
-    const read = visibleBooks.reduce((s, b) => s + b.chapters_read, 0);
+    const read = visibleBooks.reduce((s, b) => s + bestRead(b), 0);
     const total = visibleBooks.reduce((s, b) => s + b.num_chapters, 0);
     const pct = total ? Math.round((read / total) * 100) : 0;
     return `${visibleBooks.length} book${visibleBooks.length !== 1 ? 's' : ''} · ${read} of ${total} chapters · ${pct}%`;

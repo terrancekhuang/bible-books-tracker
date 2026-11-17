@@ -10,6 +10,22 @@ export interface Book {
   /** The chapters Undo would remove — the most recent entry. Missing from books cached
    *  before the field existed, until the next refetch. */
   last_entry?: number[]
+  /** The pass the book is on this cycle: 1, then one more each Reset. Missing from books
+   *  cached before the field existed, like `last_entry`. */
+  pass_number?: number
+  /** The book's furthest single pass this cycle. Read it through `bestRead`. */
+  best_read?: number
+}
+
+/** A book's chapters toward cycle-level progress: its best pass, so a Reset never lowers it.
+ *  The max with `chapters_read` covers an optimistic write the server hasn't confirmed. */
+export function bestRead(book: Pick<Book, 'chapters_read' | 'best_read'>): number {
+  return Math.max(book.best_read ?? 0, book.chapters_read)
+}
+
+/** "Pass 2" from the second read on; nothing for a first read. */
+export function passLabel(pass: number | undefined): string | null {
+  return pass && pass > 1 ? `Pass ${pass}` : null
 }
 
 /** The `stats` object nested inside `/api/dashboard`. */
@@ -169,7 +185,7 @@ export function percent(part: number, total: number): number {
 }
 
 export function calculateOverallProgress(books: Book[]): { totalRead: number; overallPct: number } {
-  const totalRead = books.reduce((s, b) => s + b.chapters_read, 0)
+  const totalRead = books.reduce((s, b) => s + bestRead(b), 0)
   return { totalRead, overallPct: Math.round((totalRead / TOTAL_CHAPTERS) * 100) }
 }
 

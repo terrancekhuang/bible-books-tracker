@@ -1,5 +1,5 @@
 import type { ReactNode, RefObject } from 'react'
-import { chapterExamples, formatChapterRanges, type Book } from '../lib/trackerLogic'
+import { chapterExamples, formatChapterRanges, passLabel, type Book } from '../lib/trackerLogic'
 import SegmentedProgressBar from './SegmentedProgressBar'
 import { useTooltip } from '../lib/useTooltip'
 import ShortcutHint from './ShortcutHint'
@@ -46,13 +46,15 @@ export default function TrackerEntryLine({
   const chapters = (n: number) => `${n} chapter${n === 1 ? '' : 's'}`
   const CONFIRM: Record<BookAction, { question: ReactNode; label: string; hotkey: string; tint: string }> = {
     undo: {
-      question: book.last_entry?.length
-        ? <>Undo logging <strong>{book.name} {formatChapterRanges(book.last_entry)}</strong>?</>
-        : <>Undo the last entry logged for {book.name}?</>,
+      question: read === 0
+        ? <>Undo the reset and go back to <strong>pass {(book.pass_number ?? 2) - 1}</strong> of {book.name}?</>
+        : book.last_entry?.length
+          ? <>Undo logging <strong>{book.name} {formatChapterRanges(book.last_entry)}</strong>?</>
+          : <>Undo the last entry logged for {book.name}?</>,
       label: 'Undo', hotkey: 'U', tint: 'var(--color-leaf-red)',
     },
     reset: {
-      question: <>Clear <strong>all {chapters(read)}</strong> read in {book.name}?</>,
+      question: <>Start {book.name} over on <strong>pass {(book.pass_number ?? 1) + 1}</strong>? The {chapters(read)} you've read stay in your history.</>,
       label: 'Reset', hotkey: 'R', tint: 'var(--color-leaf-red)',
     },
     markall: {
@@ -188,11 +190,11 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
   const undoTooltip = useTooltip(<ShortcutHint action="Undo" keys={['U']} />)
   const resetTooltip = useTooltip(<ShortcutHint action="Reset" keys={['R']} />)
   const markAllTooltip = useTooltip(<ShortcutHint action="Mark all as read" keys={['A']} />)
+  const passTooltip = useTooltip(`Read-through ${book.pass_number} of ${book.name} this cycle. Reset started it over; earlier reads still count in your history and stats.`)
 
   return (
     <div className="flex flex-wrap gap-2" style={{ marginTop: 18 }}>
-      {book.chapters_read > 0 && (
-        <>
+      {(book.chapters_read > 0 || (book.pass_number ?? 1) > 1) && (
           <button
             onClick={() => onAction('undo')}
             onMouseEnter={undoTooltip.onMouseEnter}
@@ -203,6 +205,8 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
           >
             Undo
           </button>
+      )}
+      {book.chapters_read > 0 && (
           <button
             onClick={() => onAction('reset')}
             onMouseEnter={resetTooltip.onMouseEnter}
@@ -212,7 +216,6 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
           >
             Reset
           </button>
-        </>
       )}
       {book.chapters_read < book.num_chapters && (
         <button
@@ -225,9 +228,20 @@ function ActionButtons({ book, isOnline, onAction }: { book: Book; isOnline: boo
           Mark all as read
         </button>
       )}
+      {passLabel(book.pass_number) && (
+        <span
+          className="vol-num"
+          onMouseEnter={passTooltip.onMouseEnter}
+          onMouseLeave={passTooltip.onMouseLeave}
+          style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 11, fontStyle: 'italic', color: 'rgba(35,31,26,0.55)', cursor: 'help' }}
+        >
+          {passLabel(book.pass_number)}
+        </span>
+      )}
       {undoTooltip.tooltip}
       {resetTooltip.tooltip}
       {markAllTooltip.tooltip}
+      {passTooltip.tooltip}
     </div>
   )
 }

@@ -285,10 +285,10 @@ class TestHistory:
 
         assert page == {'next_before': None, 'days': [
             {'date': '2024-03-05', 'chapters': 3, 'books': [
-                {'book': 'John', 'chapters': [4, 5]},
-                {'book': 'Psalms', 'chapters': [23]},
+                {'book': 'John', 'chapters': [4, 5], 'pass': 1},
+                {'book': 'Psalms', 'chapters': [23], 'pass': 1},
             ]},
-            {'date': '2024-03-04', 'chapters': 1, 'books': [{'book': 'Genesis', 'chapters': [1]}]},
+            {'date': '2024-03-04', 'chapters': 1, 'books': [{'book': 'Genesis', 'chapters': [1], 'pass': 1}]},
         ]}
 
     def test_day_follows_tz_offset(self, test_user, seed_chapter):

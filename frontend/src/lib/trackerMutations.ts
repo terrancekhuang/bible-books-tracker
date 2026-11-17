@@ -133,6 +133,8 @@ interface ActionResult {
   chapters_read: number
   chapters_read_list: number[]
   last_entry: number[]
+  pass_number: number
+  best_read: number
 }
 
 /**
@@ -163,6 +165,8 @@ function createBookActionMutationOptions(
         chapters_read: data.chapters_read,
         chapters_read_list: data.chapters_read_list,
         last_entry: data.last_entry,
+        pass_number: data.pass_number,
+        best_read: data.best_read,
       })
       invalidateProgressWrite(deps.queryClient)
     },

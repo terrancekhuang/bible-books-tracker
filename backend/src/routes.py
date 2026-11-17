@@ -84,35 +84,57 @@ def resolve_cycle_and_book(cur, user_id: int, book_name: str):
     return (cycle_id, book), None
 
 
-# The chapters an undo would remove: every row sharing the book's latest logged_at. One
-# submit is one transaction and logged_at defaults to NOW(), so that's exactly one entry.
+# The chapters an undo would remove: every row of the pass sharing the book's latest
+# logged_at. One submit is one transaction and logged_at defaults to NOW(), so that's
+# exactly one entry.
 LAST_ENTRY = """
     COALESCE(
         ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (
             WHERE logged_at = (SELECT MAX(logged_at) FROM chapter_progress last
                                WHERE last.user_id = cp.user_id AND last.cycle_id = cp.cycle_id
-                                 AND last.book_id = cp.book_id)
+                                 AND last.book_id = cp.book_id AND last.pass_number = cp.pass_number)
         ),
         ARRAY[]::INTEGER[]
     )"""
 
+# Each (cycle, book)'s furthest single pass. Cycle-level progress counts this, so starting a
+# book over never lowers it. Binds %(user)s.
+BEST_PASS = """
+    SELECT cycle_id, book_id, MAX(n) AS best_read FROM (
+        SELECT cycle_id, book_id, COUNT(*) AS n FROM chapter_progress
+        WHERE user_id = %(user)s GROUP BY cycle_id, book_id, pass_number
+    ) per_pass GROUP BY cycle_id, book_id"""
+
+
+def current_pass(cur, cycle_id: int, book_id: int) -> int:
+    cur.execute("SELECT current_pass FROM book_passes WHERE cycle_id = %s AND book_id = %s",
+                (cycle_id, book_id))
+    row = cur.fetchone()
+    return row['current_pass'] if row else 1
+
 
 def get_book_chapters(cur, user_id: int, cycle_id: int, book_id: int) -> dict:
+    """The book's current pass, plus its best pass this cycle."""
+    pass_number = current_pass(cur, cycle_id, book_id)
+    params = {'user': user_id, 'cycle': cycle_id, 'book': book_id, 'pass': pass_number}
     cur.execute(f"""
         SELECT COUNT(*) AS chapters_read,
-            COALESCE(
-                ARRAY_AGG(chapter_number ORDER BY chapter_number) FILTER (WHERE chapter_number IS NOT NULL),
-                ARRAY[]::INTEGER[]
-            ) AS list,
+            COALESCE(ARRAY_AGG(chapter_number ORDER BY chapter_number), ARRAY[]::INTEGER[]) AS list,
             {LAST_ENTRY} AS last_entry
         FROM chapter_progress cp
-        WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-    """, (user_id, cycle_id, book_id))
+        WHERE user_id = %(user)s AND cycle_id = %(cycle)s AND book_id = %(book)s
+          AND pass_number = %(pass)s
+    """, params)
     result = cur.fetchone()
+    cur.execute(f"SELECT best_read FROM ({BEST_PASS}) best WHERE cycle_id = %(cycle)s AND book_id = %(book)s",
+                params)
+    best = cur.fetchone()
     return {
         'chapters_read': result['chapters_read'],
         'chapters_read_list': list(result['list'] or []),
         'last_entry': list(result['last_entry'] or []),
+        'pass_number': pass_number,
+        'best_read': best['best_read'] if best else 0,
     }
 
 
@@ -205,14 +227,27 @@ def merge_guest(cur, guest_id: int, user_id: int) -> int:
     guest_cycle = get_active_cycle_id(cur, guest_id)
     added = 0
     if guest_cycle:
+        params = {'user': user_id, 'cycle': get_active_cycle_id(cur, user_id),
+                  'guest': guest_id, 'guest_cycle': guest_cycle}
+        # The guest's pass 1 lands on the account's current pass, later passes after it.
         cur.execute("""
-            INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number, logged_at)
-            SELECT %(user)s, %(cycle)s, book_id, chapter_number, logged_at
-            FROM chapter_progress WHERE user_id = %(guest)s AND cycle_id = %(guest_cycle)s
+            INSERT INTO chapter_progress (user_id, cycle_id, book_id, pass_number, chapter_number, logged_at)
+            SELECT %(user)s, %(cycle)s, g.book_id, g.pass_number + COALESCE(a.current_pass, 1) - 1,
+                   g.chapter_number, g.logged_at
+            FROM chapter_progress g
+            LEFT JOIN book_passes a ON a.cycle_id = %(cycle)s AND a.book_id = g.book_id
+            WHERE g.user_id = %(guest)s AND g.cycle_id = %(guest_cycle)s
             ON CONFLICT DO NOTHING
-        """, {'user': user_id, 'cycle': get_active_cycle_id(cur, user_id),
-              'guest': guest_id, 'guest_cycle': guest_cycle})
+        """, params)
         added = cur.rowcount
+        cur.execute("""
+            INSERT INTO book_passes (cycle_id, book_id, current_pass)
+            SELECT %(cycle)s, g.book_id, g.current_pass + COALESCE(a.current_pass, 1) - 1
+            FROM book_passes g
+            LEFT JOIN book_passes a ON a.cycle_id = %(cycle)s AND a.book_id = g.book_id
+            WHERE g.cycle_id = %(guest_cycle)s
+            ON CONFLICT (cycle_id, book_id) DO UPDATE SET current_pass = EXCLUDED.current_pass
+        """, params)
     cur.execute("DELETE FROM users WHERE user_id = %s AND google_id IS NULL", (guest_id,))
     return added
 
@@ -278,14 +313,19 @@ def get_books():
                     ARRAY[]::INTEGER[]
                 ) AS chapters_read_list,
                 MAX(cp.logged_at) AS last_read_at,
-                {LAST_ENTRY} AS last_entry
+                {LAST_ENTRY} AS last_entry,
+                COALESCE(bp.current_pass, 1) AS pass_number,
+                COALESCE(best.best_read, 0) AS best_read
             FROM bible_books b
+            LEFT JOIN book_passes bp ON bp.book_id = b.book_id AND bp.cycle_id = %(cycle)s
+            LEFT JOIN ({BEST_PASS}) best ON best.book_id = b.book_id AND best.cycle_id = %(cycle)s
             LEFT JOIN chapter_progress cp ON b.book_id = cp.book_id
-                AND cp.user_id = %s
-                AND cp.cycle_id = %s
-            GROUP BY b.book_id, b.name, b.testament, b.category, b.num_chapters
+                AND cp.user_id = %(user)s
+                AND cp.cycle_id = %(cycle)s
+                AND cp.pass_number = COALESCE(bp.current_pass, 1)
+            GROUP BY b.book_id, b.name, b.testament, b.category, b.num_chapters, bp.current_pass, best.best_read
             ORDER BY b.book_id ASC
-        """, (user_id, cycle_id))
+        """, {'user': user_id, 'cycle': cycle_id})
         raw_data = cur.fetchall()
 
     books = [{
@@ -298,6 +338,8 @@ def get_books():
         "chapters_read_list": item['chapters_read_list'],
         "last_read_at": item['last_read_at'].isoformat() if item['last_read_at'] else None,
         "last_entry": item['last_entry'],
+        "pass_number": item['pass_number'],
+        "best_read": item['best_read'],
     } for item in raw_data]
 
     return jsonify(books)
@@ -324,22 +366,17 @@ def update_progress():
             if not chapter_numbers:
                 return jsonify({'success': False, 'error': 'No valid chapter numbers provided'}), 400
 
+            pass_number = current_pass(cur, cycle_id, book_id)
             inserted_rows = execute_values(cur,
-                "INSERT INTO chapter_progress (user_id, cycle_id, book_id, chapter_number) VALUES %s ON CONFLICT DO NOTHING RETURNING chapter_number",
-                [(user_id, cycle_id, book_id, ch) for ch in chapter_numbers],
+                "INSERT INTO chapter_progress (user_id, cycle_id, book_id, pass_number, chapter_number) VALUES %s ON CONFLICT DO NOTHING RETURNING chapter_number",
+                [(user_id, cycle_id, book_id, pass_number, ch) for ch in chapter_numbers],
                 fetch=True,
             )
             newly_inserted = len(inserted_rows)
             result = get_book_chapters(cur, user_id, cycle_id, book_id)
 
             conn.commit()
-            return jsonify({
-                'success': True,
-                'chapters_read': result['chapters_read'],
-                'newly_logged': newly_inserted,
-                'chapters_read_list': result['chapters_read_list'],
-                'last_entry': result['last_entry'],
-            })
+            return jsonify({'success': True, 'newly_logged': newly_inserted, **result})
         except Exception as e:
             conn.rollback()
             return jsonify({
@@ -361,19 +398,27 @@ def undo_progress():
             cycle_id, book = resolved
             book_id = book['book_id']
 
+            pass_number = current_pass(cur, cycle_id, book_id)
             cur.execute("""
                 SELECT MAX(logged_at) AS latest FROM chapter_progress
-                WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-            """, (user_id, cycle_id, book_id))
-            row = cur.fetchone()
-            if not row['latest']:
-                return jsonify({'success': False, 'error': 'Nothing to undo'}), 400
-            latest = row['latest']
+                WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND pass_number = %s
+            """, (user_id, cycle_id, book_id, pass_number))
+            latest = cur.fetchone()['latest']
 
-            cur.execute("""
-                DELETE FROM chapter_progress
-                WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND logged_at = %s
-            """, (user_id, cycle_id, book_id, latest))
+            if latest:
+                cur.execute("""
+                    DELETE FROM chapter_progress
+                    WHERE user_id = %s AND cycle_id = %s AND book_id = %s AND pass_number = %s
+                      AND logged_at = %s
+                """, (user_id, cycle_id, book_id, pass_number, latest))
+            elif pass_number > 1:
+                # The pass is empty, so the last thing done was the reset that opened it.
+                cur.execute("""
+                    UPDATE book_passes SET current_pass = current_pass - 1
+                    WHERE cycle_id = %s AND book_id = %s
+                """, (cycle_id, book_id))
+            else:
+                return jsonify({'success': False, 'error': 'Nothing to undo'}), 400
 
             result = get_book_chapters(cur, user_id, cycle_id, book_id)
             conn.commit()
@@ -397,13 +442,19 @@ def reset_progress():
             cycle_id, book = resolved
             book_id = book['book_id']
 
+            # Starts the book over on a new pass. Nothing is deleted: the old pass stays in
+            # history, streaks and stats. An empty pass has nothing to start over from.
+            before = get_book_chapters(cur, user_id, cycle_id, book_id)
+            if not before['chapters_read']:
+                return jsonify({'success': False, 'error': 'Nothing to reset'}), 400
             cur.execute("""
-                DELETE FROM chapter_progress
-                WHERE user_id = %s AND cycle_id = %s AND book_id = %s
-            """, (user_id, cycle_id, book_id))
+                INSERT INTO book_passes (cycle_id, book_id, current_pass) VALUES (%s, %s, %s)
+                ON CONFLICT (cycle_id, book_id) DO UPDATE SET current_pass = EXCLUDED.current_pass
+            """, (cycle_id, book_id, before['pass_number'] + 1))
 
+            result = get_book_chapters(cur, user_id, cycle_id, book_id)
             conn.commit()
-            return jsonify({'success': True, 'chapters_read': 0, 'chapters_read_list': [], 'last_entry': []})
+            return jsonify({'success': True, **result})
         except Exception as e:
             conn.rollback()
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -414,12 +465,9 @@ def reset_progress():
 def get_cycles():
     user_id = _user_id()
     with db_cursor() as (conn, cur):
-        cur.execute("""
+        cur.execute(f"""
             WITH cycle_book_counts AS (
-                SELECT cycle_id, book_id, COUNT(*) AS chap_count
-                FROM chapter_progress
-                WHERE user_id = %s
-                GROUP BY cycle_id, book_id
+                SELECT cycle_id, book_id, best_read AS chap_count FROM ({BEST_PASS}) best
             )
             SELECT
                 rc.cycle_id,
@@ -430,10 +478,10 @@ def get_cycles():
             FROM reading_cycles rc
             LEFT JOIN cycle_book_counts cbc ON rc.cycle_id = cbc.cycle_id
             LEFT JOIN bible_books b ON cbc.book_id = b.book_id
-            WHERE rc.user_id = %s
+            WHERE rc.user_id = %(user)s
             GROUP BY rc.cycle_id, rc.cycle_number
             ORDER BY rc.cycle_number ASC
-        """, (user_id, user_id))
+        """, {'user': user_id})
         cycles = cur.fetchall()
     return jsonify([dict(c) for c in cycles])
 
@@ -516,7 +564,7 @@ def export_progress():
     user_id = int(get_jwt_identity())
     with db_cursor(cursor_factory=None) as (conn, cur):
         cur.execute("""
-            SELECT rc.cycle_number, b.name, cp.chapter_number, cp.logged_at
+            SELECT rc.cycle_number, cp.pass_number, b.name, cp.chapter_number, cp.logged_at
             FROM chapter_progress cp
             JOIN reading_cycles rc ON rc.cycle_id = cp.cycle_id
             JOIN bible_books b ON b.book_id = cp.book_id
@@ -526,8 +574,9 @@ def export_progress():
         rows = cur.fetchall()
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(['cycle', 'book', 'chapter', 'logged_at'])
-    writer.writerows((cycle, book, chapter, logged_at.isoformat()) for cycle, book, chapter, logged_at in rows)
+    writer.writerow(['cycle', 'pass', 'book', 'chapter', 'logged_at'])
+    writer.writerows((cycle, pass_number, book, chapter, logged_at.isoformat())
+                     for cycle, pass_number, book, chapter, logged_at in rows)
     return Response(out.getvalue(), mimetype='text/csv',
                     headers={'Content-Disposition': 'attachment; filename="bible-reading.csv"'})
 

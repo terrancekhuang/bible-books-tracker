@@ -375,6 +375,14 @@ class TestResetProgress:
         csv = client.get('/api/export', headers=auth_headers).get_data(as_text=True)
         assert sorted(line.split(',')[1] for line in csv.strip().splitlines()[1:]) == ['1'] * 4 + ['2'] * 2
 
+    def test_progress_pace_skips_rereads_until_they_pass_the_best_pass(self, client, auth_headers):
+        self._post(client, auth_headers, '/api/progress', chapters=[1, 2])
+        self._post(client, auth_headers, '/api/progress/reset')
+        self._post(client, auth_headers, '/api/progress', chapters=[1, 2])
+        self._post(client, auth_headers, '/api/progress', chapters=[3])  # beyond pass 1: counts
+        stats = client.get('/api/dashboard', headers=auth_headers).get_json()['stats']
+        assert (stats['chapters_last_7_days'], stats['progress_chapters_last_7_days']) == (5, 3)
+
     def test_undo_on_an_empty_pass_undoes_the_reset(self, client, auth_headers):
         self._post(client, auth_headers, '/api/progress', chapters=[1, 2])
         self._post(client, auth_headers, '/api/progress/reset')

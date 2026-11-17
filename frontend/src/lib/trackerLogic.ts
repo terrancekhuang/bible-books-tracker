@@ -33,6 +33,9 @@ export interface Stats {
   chapters_today: number
   chapters_this_week: number
   chapters_last_7_days: number
+  /** The part of `chapters_last_7_days` that moved the cycle forward — rereads excluded.
+   *  Missing from stats cached before the field existed. */
+  progress_chapters_last_7_days?: number
   current_streak: number
   best_streak: number
   total_chapters: number

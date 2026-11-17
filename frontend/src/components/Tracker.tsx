@@ -4,7 +4,6 @@ import { useBooksQuery, useCurrentUserQuery } from '../lib/queries'
 import { useMarkNext, useTrackerMutations } from '../lib/useTrackerMutations'
 import { useConfirm } from '../lib/useConfirm'
 import {
-  bestRead,
   parseChapters, splitAlreadyRead, formatChapterList, filterBooks, invalidChaptersMessage,
 } from '../lib/trackerLogic'
 import { CATEGORY_ORDER, CLOTH, ROMAN } from '../lib/volumesTokens'
@@ -270,7 +269,8 @@ export default function Tracker() {
     if (visibleBooks.length === 0) {
       return flattened ? `No books match — try a different search or status` : '';
     }
-    const read = visibleBooks.reduce((s, b) => s + bestRead(b), 0);
+    // The current pass, matching the rows beneath it.
+    const read = visibleBooks.reduce((s, b) => s + b.chapters_read, 0);
     const total = visibleBooks.reduce((s, b) => s + b.num_chapters, 0);
     const pct = total ? Math.round((read / total) * 100) : 0;
     return `${visibleBooks.length} book${visibleBooks.length !== 1 ? 's' : ''} · ${read} of ${total} chapters · ${pct}%`;
